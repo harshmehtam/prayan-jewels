@@ -1,8 +1,12 @@
-// Email service for sending transactional emails (Mock implementation for development)
+// Email service for sending transactional emails using AWS SES
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import type { OrderItem } from '@/types';
 
-// Mock email service - replace with actual AWS SES implementation when ready
-const USE_MOCK_EMAIL = process.env.NODE_ENV === 'development' || !process.env.AWS_ACCESS_KEY_ID;
+// Use mock email service in development or when AWS credentials are not configured
+const USE_MOCK_EMAIL = process.env.NODE_ENV === 'development' || 
+  !process.env.AWS_ACCESS_KEY_ID || 
+  !process.env.AWS_SECRET_ACCESS_KEY ||
+  !process.env.SES_FROM_EMAIL;
 
 interface OrderConfirmationEmailData {
   orderId: string;
@@ -30,31 +34,181 @@ interface OrderConfirmationEmailData {
 export class EmailService {
   private static readonly FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@silvermangalsutra.com';
   private static readonly COMPANY_NAME = 'Silver Mangalsutra Store';
+  private static readonly AWS_REGION = process.env.AWS_REGION || 'ap-south-1';
+
+  // Initialize SES client
+  private static getSESClient() {
+    if (USE_MOCK_EMAIL) {
+      return null;
+    }
+
+    return new SESClient({
+      region: this.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      },
+    });
+  }
+
+  /**
+   * Send email using AWS SES
+   */
+  private static async sendEmail(
+    toEmail: string,
+    subject: string,
+    htmlBody: string,
+    textBody?: string
+  ): Promise<void> {
+    if (USE_MOCK_EMAIL) {
+      console.log('📧 MOCK EMAIL');
+      console.log('To:', toEmail);
+      console.log('Subject:', subject);
+      console.log('Body:', textBody || htmlBody.replace(/<[^>]*>/g, ''));
+      console.log('✅ Mock email sent successfully');
+      return;
+    }
+
+    const sesClient = this.getSESClient();
+    if (!sesClient) {
+      throw new Error('SES client not configured');
+    }
+
+    const command = new SendEmailCommand({
+      Source: this.FROM_EMAIL,
+      Destination: {
+        ToAddresses: [toEmail],
+      },
+      Message: {
+        Subject: {
+          Data: subject,
+          Charset: 'UTF-8',
+        },
+        Body: {
+          Html: {
+            Data: htmlBody,
+            Charset: 'UTF-8',
+          },
+          Text: textBody ? {
+            Data: textBody,
+            Charset: 'UTF-8',
+          } : undefined,
+        },
+      },
+    });
+
+    try {
+      await sesClient.send(command);
+      console.log('✅ Email sent successfully via AWS SES to:', toEmail);
+    } catch (error) {
+      console.error('❌ Failed to send email via AWS SES:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate HTML template for order confirmation
+   */
+  private static generateOrderConfirmationHTML(data: OrderConfirmationEmailData): string {
+    const { confirmationNumber, orderDetails } = data;
+    
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Order Confirmation</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; }
+          .order-details { background: #fff; border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+          .item { border-bottom: 1px solid #eee; padding: 10px 0; }
+          .total { font-weight: bold; font-size: 18px; color: #28a745; }
+          .address { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${this.COMPANY_NAME}</h1>
+            <h2>Order Confirmation</h2>
+            <p><strong>Order Number:</strong> ${confirmationNumber}</p>
+          </div>
+          
+          <div class="order-details">
+            <h3>Order Items</h3>
+            ${orderDetails.items.map(item => `
+              <div class="item">
+                <strong>${item.productName}</strong><br>
+                Quantity: ${item.quantity} × ₹${item.unitPrice.toFixed(2)} = ₹${item.totalPrice.toFixed(2)}
+              </div>
+            `).join('')}
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #ddd;">
+              <p>Subtotal: ₹${orderDetails.subtotal.toFixed(2)}</p>
+              <p>Tax (GST): ₹${orderDetails.tax.toFixed(2)}</p>
+              <p>Shipping: ₹${orderDetails.shipping.toFixed(2)}</p>
+              <p class="total">Total: ₹${orderDetails.totalAmount.toFixed(2)}</p>
+            </div>
+          </div>
+          
+          <div class="address">
+            <h3>Shipping Address</h3>
+            <p>
+              ${orderDetails.shippingAddress.firstName} ${orderDetails.shippingAddress.lastName}<br>
+              ${orderDetails.shippingAddress.addressLine1}<br>
+              ${orderDetails.shippingAddress.addressLine2 ? orderDetails.shippingAddress.addressLine2 + '<br>' : ''}
+              ${orderDetails.shippingAddress.city}, ${orderDetails.shippingAddress.state} ${orderDetails.shippingAddress.postalCode}<br>
+              ${orderDetails.shippingAddress.country}
+            </p>
+          </div>
+          
+          <p>Thank you for your order! We'll send you updates as your order is processed and shipped.</p>
+          <p>If you have any questions, please contact our support team.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+export class EmailService {
+  private static readonly FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@silvermangalsutra.com';
+  private static readonly COMPANY_NAME = 'Silver Mangalsutra Store';
 
   /**
    * Send order confirmation email to customer
    */
   static async sendOrderConfirmationEmail(data: OrderConfirmationEmailData): Promise<void> {
     try {
-      const { orderId, confirmationNumber, customerEmail, orderDetails } = data;
+      const { confirmationNumber, customerEmail } = data;
+      
+      const subject = `Order Confirmation - ${confirmationNumber}`;
+      const htmlBody = this.generateOrderConfirmationHTML(data);
+      const textBody = `
+        Order Confirmation - ${confirmationNumber}
+        
+        Thank you for your order from ${this.COMPANY_NAME}!
+        
+        Order Details:
+        ${data.orderDetails.items.map(item => 
+          `${item.productName} x${item.quantity} - ₹${item.totalPrice.toFixed(2)}`
+        ).join('\n')}
+        
+        Total: ₹${data.orderDetails.totalAmount.toFixed(2)}
+        
+        Shipping Address:
+        ${data.orderDetails.shippingAddress.firstName} ${data.orderDetails.shippingAddress.lastName}
+        ${data.orderDetails.shippingAddress.addressLine1}
+        ${data.orderDetails.shippingAddress.addressLine2 || ''}
+        ${data.orderDetails.shippingAddress.city}, ${data.orderDetails.shippingAddress.state} ${data.orderDetails.shippingAddress.postalCode}
+        ${data.orderDetails.shippingAddress.country}
+        
+        We'll send you updates as your order is processed and shipped.
+      `;
 
-      if (USE_MOCK_EMAIL) {
-        // Mock email implementation for development
-        console.log('📧 MOCK EMAIL - Order Confirmation');
-        console.log('To:', customerEmail);
-        console.log('Subject: Order Confirmation -', confirmationNumber);
-        console.log('Order ID:', orderId);
-        console.log('Total Amount: ₹' + orderDetails.totalAmount.toFixed(2));
-        console.log('Items:', orderDetails.items.map(item => `${item.productName} x${item.quantity}`).join(', '));
-        console.log('Shipping Address:', `${orderDetails.shippingAddress.firstName} ${orderDetails.shippingAddress.lastName}, ${orderDetails.shippingAddress.city}`);
-        console.log('✅ Mock email sent successfully');
-        return;
-      }
-
-      // Real AWS SES implementation would go here
-      // For now, we'll use the mock implementation
-      throw new Error('AWS SES not configured. Using mock email service.');
-
+      await this.sendEmail(customerEmail, subject, htmlBody, textBody);
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error sending order confirmation email:', errorMessage);
@@ -81,35 +235,68 @@ export class EmailService {
     estimatedDelivery?: Date
   ): Promise<void> {
     try {
-      if (USE_MOCK_EMAIL) {
-        // Mock email implementation for development
-        console.log('📧 MOCK EMAIL - Order Status Update');
-        console.log('To:', customerEmail);
-        console.log('Subject:', `Order Update - ${confirmationNumber} - ${this.getStatusDisplayName(newStatus)}`);
-        console.log('Order ID:', orderId);
-        console.log('New Status:', this.getStatusDisplayName(newStatus));
-        console.log('Status Message:', this.getStatusMessage(newStatus));
-        
-        if (trackingNumber) {
-          console.log('Tracking Number:', trackingNumber);
-        }
-        
-        if (estimatedDelivery) {
-          console.log('Estimated Delivery:', estimatedDelivery.toLocaleDateString('en-IN', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }));
-        }
-        
-        console.log('✅ Mock status update email sent successfully');
-        return;
-      }
+      const subject = `Order Update - ${confirmationNumber} - ${this.getStatusDisplayName(newStatus)}`;
+      
+      const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Order Status Update</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px; }
+            .status-update { background: #e7f3ff; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #007bff; }
+            .tracking { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>${this.COMPANY_NAME}</h1>
+              <h2>Order Status Update</h2>
+              <p><strong>Order Number:</strong> ${confirmationNumber}</p>
+            </div>
+            
+            <div class="status-update">
+              <h3>${this.getStatusDisplayName(newStatus)}</h3>
+              <p>${this.getStatusMessage(newStatus)}</p>
+              ${trackingNumber ? `
+                <div class="tracking">
+                  <strong>Tracking Number:</strong> ${trackingNumber}
+                </div>
+              ` : ''}
+              ${estimatedDelivery ? `
+                <p><strong>Estimated Delivery:</strong> ${estimatedDelivery.toLocaleDateString('en-IN', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}</p>
+              ` : ''}
+            </div>
+            
+            <p>Thank you for choosing ${this.COMPANY_NAME}!</p>
+            <p>If you have any questions, please contact our support team.</p>
+          </div>
+        </body>
+        </html>
+      `;
 
-      // Real AWS SES implementation would go here
-      throw new Error('AWS SES not configured. Using mock email service.');
+      const textBody = `
+        Order Status Update - ${confirmationNumber}
+        
+        Status: ${this.getStatusDisplayName(newStatus)}
+        Message: ${this.getStatusMessage(newStatus)}
+        ${trackingNumber ? `Tracking Number: ${trackingNumber}` : ''}
+        ${estimatedDelivery ? `Estimated Delivery: ${estimatedDelivery.toLocaleDateString('en-IN')}` : ''}
+        
+        Thank you for choosing ${this.COMPANY_NAME}!
+      `;
 
+      await this.sendEmail(customerEmail, subject, htmlBody, textBody);
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error sending order status update email:', errorMessage);

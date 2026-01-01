@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { CartIcon } from '@/components/cart';
 import { AuthModal } from '@/components/auth';
 import { useAuth } from '@/components/providers/mock-auth-provider';
+import WishlistNotifications from '@/components/ui/WishlistNotifications';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -84,6 +85,9 @@ export default function Header() {
                 <span className="sr-only">Search</span>
               </button>
 
+              {/* Wishlist Notifications - Only show for authenticated users */}
+              {isAuthenticated && <WishlistNotifications />}
+
               {/* Cart */}
               <CartIcon />
 
@@ -110,6 +114,12 @@ export default function Header() {
                       className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
                     >
                       Order History
+                    </Link>
+                    <Link
+                      href="/account/wishlist"
+                      className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
+                    >
+                      My Wishlist
                     </Link>
                     <Link
                       href="/account/addresses"
@@ -227,6 +237,13 @@ export default function Header() {
                       onClick={() => setIsMenuOpen(false)}
                     >
                       Order History
+                    </Link>
+                    <Link
+                      href="/account/wishlist"
+                      className="block px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      My Wishlist
                     </Link>
                     <button
                       onClick={() => {

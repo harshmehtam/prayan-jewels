@@ -19,6 +19,11 @@ export const mockProducts = [
     metaDescription: 'Beautiful traditional mangalsutra with gold plating on pure silver',
     keywords: ['traditional', 'gold-plated', 'wedding', 'mangalsutra'],
     isActive: true,
+    averageRating: 4.8,
+    totalReviews: 127,
+    popularityScore: 95,
+    viewCount: 2340,
+    purchaseCount: 89,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 5
@@ -42,6 +47,11 @@ export const mockProducts = [
     metaDescription: 'Sleek modern mangalsutra design for contemporary women',
     keywords: ['modern', 'minimalist', 'daily wear', 'silver'],
     isActive: true,
+    averageRating: 4.6,
+    totalReviews: 203,
+    popularityScore: 88,
+    viewCount: 3120,
+    purchaseCount: 156,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 12
@@ -65,6 +75,11 @@ export const mockProducts = [
     metaDescription: 'Exclusive designer mangalsutra with diamond-cut patterns',
     keywords: ['designer', 'diamond-cut', 'premium', 'exclusive'],
     isActive: true,
+    averageRating: 4.9,
+    totalReviews: 67,
+    popularityScore: 92,
+    viewCount: 1890,
+    purchaseCount: 45,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 3
@@ -88,6 +103,11 @@ export const mockProducts = [
     metaDescription: 'Beautiful antique mangalsutra with traditional black beads',
     keywords: ['antique', 'black beads', 'traditional', 'oxidized'],
     isActive: true,
+    averageRating: 4.7,
+    totalReviews: 94,
+    popularityScore: 85,
+    viewCount: 1650,
+    purchaseCount: 72,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 8
@@ -111,6 +131,11 @@ export const mockProducts = [
     metaDescription: 'Trendy layered mangalsutra design for modern brides',
     keywords: ['contemporary', 'layered', 'modern', 'trendy'],
     isActive: true,
+    averageRating: 4.5,
+    totalReviews: 112,
+    popularityScore: 78,
+    viewCount: 2100,
+    purchaseCount: 83,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 6
@@ -134,10 +159,110 @@ export const mockProducts = [
     metaDescription: 'Premium Kundan work designer mangalsutra for luxury occasions',
     keywords: ['luxury', 'kundan', 'designer', 'premium'],
     isActive: true,
+    averageRating: 5.0,
+    totalReviews: 34,
+    popularityScore: 96,
+    viewCount: 1200,
+    purchaseCount: 28,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     availableQuantity: 2
   }
+];
+
+// Mock search history data
+export const mockSearchHistory = [
+  {
+    id: 'sh-1',
+    userId: 'user-1',
+    query: 'traditional mangalsutra',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+    resultCount: 3
+  },
+  {
+    id: 'sh-2',
+    userId: 'user-1',
+    query: 'designer silver',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
+    resultCount: 2
+  },
+  {
+    id: 'sh-3',
+    userId: 'user-1',
+    query: 'modern minimalist',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(), // 3 days ago
+    resultCount: 1
+  },
+  {
+    id: 'sh-4',
+    userId: 'user-1',
+    query: 'kundan work',
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(), // 1 week ago
+    resultCount: 1
+  }
+];
+
+// Mock saved searches data
+export const mockSavedSearches: Array<{
+  id: string;
+  userId: string;
+  name: string;
+  query: string;
+  filters?: {
+    category?: 'traditional' | 'modern' | 'designer';
+    minPrice?: number;
+    maxPrice?: number;
+    inStock?: boolean;
+    searchQuery?: string;
+    sortBy?: 'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating';
+  };
+  createdAt: string;
+  updatedAt: string;
+}> = [
+  {
+    id: 'ss-1',
+    userId: 'user-1',
+    name: 'Wedding Collection',
+    query: 'wedding',
+    filters: {
+      category: 'traditional',
+      minPrice: 5000,
+      maxPrice: 20000
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString()
+  },
+  {
+    id: 'ss-2',
+    userId: 'user-1',
+    name: 'Daily Wear Options',
+    query: 'daily wear',
+    filters: {
+      category: 'modern',
+      maxPrice: 10000
+    },
+    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString()
+  }
+];
+
+// Popular search terms for suggestions
+export const popularSearchTerms = [
+  'traditional mangalsutra',
+  'modern silver chain',
+  'designer jewelry',
+  'wedding collection',
+  'daily wear',
+  'antique design',
+  'kundan work',
+  'minimalist chain',
+  'gold plated',
+  'black beads',
+  'layered design',
+  'diamond cut',
+  'oxidized silver',
+  'premium collection',
+  'bridal jewelry'
 ];
 
 // Mock inventory data

@@ -1,6 +1,6 @@
 'use client';
 
-import { AuthProvider } from './mock-auth-provider';
+import { AuthProvider } from './auth-provider';
 import { CartProvider } from './cart-provider';
 
 interface ProvidersProps {

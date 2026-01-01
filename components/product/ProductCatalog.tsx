@@ -12,22 +12,25 @@ interface ProductCatalogProps {
   showFilters?: boolean;
   showSearch?: boolean;
   limit?: number;
+  userId?: string; // For search history and saved searches
 }
 
 export default function ProductCatalog({ 
   initialCategory, 
   showFilters = true, 
   showSearch = true,
-  limit = 20 
+  limit = 20,
+  userId
 }: ProductCatalogProps) {
   const [products, setProducts] = useState<any[]>([]);
+  const [searchResult, setSearchResult] = useState<ProductSearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<ProductFilters>({
     category: initialCategory
   });
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name' | 'newest'>('newest');
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating'>('newest');
 
   // Fetch products based on current filters and search
   const fetchProducts = async () => {
@@ -38,14 +41,16 @@ export default function ProductCatalog({
       let result: ProductSearchResult;
 
       if (searchQuery.trim()) {
-        // If there's a search query, use search function
-        result = await ProductService.searchProducts(searchQuery, limit);
+        // If there's a search query, use search function with sorting
+        result = await ProductService.searchProducts(searchQuery, limit, sortBy);
       } else {
-        // Otherwise use regular filtering
-        result = await ProductService.getProducts(filters, limit);
+        // Otherwise use regular filtering with sorting
+        const filtersWithSort = { ...filters, sortBy };
+        result = await ProductService.getProducts(filtersWithSort, limit);
       }
 
       setProducts(result.products);
+      setSearchResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load products');
       setProducts([]);
@@ -54,28 +59,16 @@ export default function ProductCatalog({
     }
   };
 
-  // Effect to fetch products when filters or search changes
+  // Effect to fetch products when filters, search, or sort changes
   useEffect(() => {
     fetchProducts();
-  }, [filters, searchQuery, limit]);
+  }, [filters, searchQuery, sortBy, limit]);
 
-  // Sort products based on selected sort option
+  // Sort products based on selected sort option (now handled in service)
   const sortedProducts = useMemo(() => {
-    const sorted = [...products];
-    
-    switch (sortBy) {
-      case 'price-asc':
-        return sorted.sort((a, b) => a.price - b.price);
-      case 'price-desc':
-        return sorted.sort((a, b) => b.price - a.price);
-      case 'name':
-        return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      case 'newest':
-        return sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      default:
-        return sorted;
-    }
-  }, [products, sortBy]);
+    // Products are already sorted by the service, but we keep this for client-side sorting if needed
+    return products;
+  }, [products]);
 
   const handleFilterChange = (newFilters: ProductFilters) => {
     setFilters(newFilters);
@@ -145,6 +138,7 @@ export default function ProductCatalog({
           <SearchBar
             onSearch={handleSearchChange}
             placeholder="Search for mangalsutra designs..."
+            userId={userId}
           />
         </div>
       )}
@@ -194,6 +188,8 @@ export default function ProductCatalog({
                 <option value="name">Name A-Z</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
+                <option value="popularity">Most Popular</option>
+                <option value="rating">Highest Rated</option>
               </select>
             </div>
           </div>
@@ -219,6 +215,48 @@ export default function ProductCatalog({
                   : 'No products match your current filters'
                 }
               </p>
+
+              {/* Alternative suggestions for search queries */}
+              {searchQuery && searchResult?.suggestions && searchResult.suggestions.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-gray-700 mb-3 text-responsive-sm font-medium">Try searching for:</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {searchResult.suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setSearchQuery(suggestion)}
+                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-responsive-xs hover:bg-blue-100 transition-colors focus-ring"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Popular products for no results */}
+              {searchQuery && searchResult?.popularProducts && searchResult.popularProducts.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-gray-700 mb-4 text-responsive-sm font-medium">Popular products you might like:</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto">
+                    {searchResult.popularProducts.map((product) => (
+                      <div key={product.id} className="text-center">
+                        <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                          <img
+                            src={product.images[0]}
+                            alt={product.name}
+                            className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                            onClick={() => window.location.href = `/products/${product.id}`}
+                          />
+                        </div>
+                        <h4 className="text-responsive-xs font-medium text-gray-900 truncate">{product.name}</h4>
+                        <p className="text-responsive-xs text-gray-600">₹{product.price.toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {(searchQuery || Object.keys(filters).some(key => filters[key as keyof ProductFilters])) && (
                 <button
                   onClick={() => {

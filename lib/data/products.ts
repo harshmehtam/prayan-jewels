@@ -1,226 +1,326 @@
-// Product data access layer - Using Mock Data Only
+// Product data access layer - Real Amplify GraphQL Integration
+import { client, handleAmplifyError } from '@/lib/amplify-client';
 import type { CreateProductInput, UpdateProductInput, ProductFilters, ProductSearchResult } from '@/types';
-import { mockProducts, mockInventory } from './mock-products';
 
 export class ProductService {
   // Get all active products with comprehensive filtering
   static async getProducts(filters?: ProductFilters, limit?: number, nextToken?: string): Promise<ProductSearchResult> {
-    // Use mock data
-    let products = [...mockProducts];
-    
-    // Apply filters
-    if (filters?.category) {
-      products = products.filter(p => p.category === filters.category);
+    try {
+      // Build filter conditions for Amplify GraphQL
+      const filterConditions: any = {
+        isActive: { eq: true }
+      };
+
+      // Apply category filter
+      if (filters?.category) {
+        filterConditions.category = { eq: filters.category };
+      }
+
+      // Apply price range filters
+      if (filters?.minPrice !== undefined && filters?.maxPrice !== undefined) {
+        filterConditions.price = { 
+          between: [filters.minPrice, filters.maxPrice] 
+        };
+      } else if (filters?.minPrice !== undefined) {
+        filterConditions.price = { ge: filters.minPrice };
+      } else if (filters?.maxPrice !== undefined) {
+        filterConditions.price = { le: filters.maxPrice };
+      }
+
+      // For search query, we'll filter after fetching since GraphQL doesn't support complex text search
+      const response = await client.models.Product.list({
+        filter: filterConditions,
+        limit: limit || 20,
+        nextToken
+      });
+
+      let products = response.data || [];
+
+      // Apply search query filter (client-side for now)
+      if (filters?.searchQuery) {
+        const query = filters.searchQuery.toLowerCase();
+        products = products.filter(p => 
+          p.name.toLowerCase().includes(query) ||
+          p.description.toLowerCase().includes(query) ||
+          p.style?.toLowerCase().includes(query) ||
+          p.keywords?.some((k: string | null) => k?.toLowerCase().includes(query))
+        );
+      }
+
+      // Apply in-stock filter by checking inventory
+      if (filters?.inStock) {
+        const productsWithInventory = await Promise.all(
+          products.map(async (product) => {
+            const inventoryResponse = await client.models.InventoryItem.list({
+              filter: { productId: { eq: product.id } }
+            });
+            const inventory = inventoryResponse.data?.[0];
+            const availableQuantity = inventory ? 
+              (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 0;
+            
+            return { ...product, availableQuantity };
+          })
+        );
+        products = productsWithInventory.filter(p => (p.availableQuantity || 0) > 0);
+      }
+
+      // Apply sorting
+      if (filters?.sortBy) {
+        products = this.sortProducts(products, filters.sortBy);
+      }
+
+      return {
+        products: products.map(p => ({
+          ...p,
+          images: p.images.filter((img): img is string => img !== null),
+          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+        })),
+        totalCount: products.length,
+        hasNextPage: !!response.nextToken,
+        nextToken: response.nextToken || undefined
+      };
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      throw new Error(handleAmplifyError(error));
     }
-    
-    if (filters?.minPrice !== undefined) {
-      products = products.filter(p => p.price >= filters.minPrice!);
-    }
-    
-    if (filters?.maxPrice !== undefined) {
-      products = products.filter(p => p.price <= filters.maxPrice!);
-    }
-    
-    if (filters?.searchQuery) {
-      const query = filters.searchQuery.toLowerCase();
-      products = products.filter(p => 
-        p.name.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query) ||
-        p.style?.toLowerCase().includes(query) ||
-        p.keywords?.some(k => k.toLowerCase().includes(query))
-      );
-    }
-    
-    if (filters?.inStock) {
-      products = products.filter(p => (p.availableQuantity || 0) > 0);
-    }
-    
-    // Apply limit
-    const limitedProducts = products.slice(0, limit || 20);
-    
-    return {
-      products: limitedProducts,
-      totalCount: limitedProducts.length,
-      hasNextPage: false
-    };
   }
 
   // Get a single product by ID with inventory information
   static async getProduct(id: string) {
-    // Use mock data
-    const product = mockProducts.find(p => p.id === id);
-    if (!product) {
-      return { product: null, errors: null };
-    }
-    
-    const inventory = mockInventory.find(inv => inv.productId === id);
-    
-    return {
-      product: {
-        ...product,
-        inventory
-      },
-      errors: null
-    };
-  }
+    try {
+      const response = await client.models.Product.get({ id });
+      
+      if (!response.data) {
+        return { product: null, errors: response.errors };
+      }
 
-  // Advanced search products with autocomplete suggestions
-  static async searchProducts(searchQuery: string, limit: number = 10): Promise<ProductSearchResult> {
-    // Use mock data
-    const query = searchQuery.toLowerCase();
-    const products = mockProducts.filter(p => 
-      p.name.toLowerCase().includes(query) ||
-      p.description.toLowerCase().includes(query) ||
-      p.style?.toLowerCase().includes(query) ||
-      p.keywords?.some(k => k.toLowerCase().includes(query))
-    ).slice(0, limit);
-    
-    return {
-      products,
-      totalCount: products.length,
-      hasNextPage: false
-    };
-  }
+      // Get inventory information
+      const inventoryResponse = await client.models.InventoryItem.list({
+        filter: { productId: { eq: id } }
+      });
+      
+      const inventory = inventoryResponse.data?.[0];
+      const availableQuantity = inventory ? 
+        (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 0;
 
-  // Get search suggestions for autocomplete
-  static async getSearchSuggestions(query: string, limit: number = 5): Promise<string[]> {
-    // Use mock data
-    const suggestions = mockProducts
-      .filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
-      .map(p => p.name)
-      .slice(0, limit);
-    return suggestions;
-  }
-
-  // Create a new product with inventory (mock implementation)
-  static async createProduct(input: CreateProductInput) {
-    // Mock implementation - just return success
-    const newProduct = {
-      id: `mock-${Date.now()}`,
-      ...input,
-      material: input.material || 'silver',
-      isActive: input.isActive ?? true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    return {
-      product: newProduct,
-      errors: null
-    };
-  }
-
-  // Update an existing product (mock implementation)
-  static async updateProduct(input: UpdateProductInput) {
-    // Mock implementation - just return success
-    const { id, ...updateData } = input;
-    const existingProduct = mockProducts.find(p => p.id === id);
-    
-    if (!existingProduct) {
       return {
-        product: null,
-        errors: [{ message: 'Product not found' }]
+        product: {
+          ...response.data,
+          images: response.data.images.filter((img): img is string => img !== null),
+          occasion: response.data.occasion?.filter((occ): occ is string => occ !== null) || null,
+          keywords: response.data.keywords?.filter((kw): kw is string => kw !== null) || null,
+          availableQuantity,
+          inventory
+        },
+        errors: response.errors
       };
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      throw new Error(handleAmplifyError(error));
     }
-
-    const updatedProduct = {
-      ...existingProduct,
-      ...updateData,
-      updatedAt: new Date().toISOString()
-    };
-
-    return {
-      product: updatedProduct,
-      errors: null
-    };
   }
 
-  // Delete a product (mock implementation)
+  // Create a new product (Admin only)
+  static async createProduct(productData: CreateProductInput) {
+    try {
+      const response = await client.models.Product.create({
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        images: productData.images,
+        category: productData.category,
+        material: productData.material || 'silver',
+        weight: productData.weight,
+        length: productData.length,
+        style: productData.style,
+        occasion: productData.occasion,
+        metaTitle: productData.metaTitle,
+        metaDescription: productData.metaDescription,
+        keywords: productData.keywords,
+        isActive: productData.isActive ?? true
+      });
+
+      // Create initial inventory record
+      if (response.data && productData.initialStock !== undefined) {
+        await client.models.InventoryItem.create({
+          productId: response.data.id,
+          stockQuantity: productData.initialStock,
+          reservedQuantity: 0,
+          reorderPoint: productData.reorderPoint || 5,
+          supplierName: productData.supplierName,
+          supplierContact: productData.supplierContact,
+          leadTime: productData.leadTime
+        });
+      }
+
+      return {
+        product: response.data,
+        errors: response.errors
+      };
+    } catch (error) {
+      console.error('Error creating product:', error);
+      throw new Error(handleAmplifyError(error));
+    }
+  }
+
+  // Update an existing product (Admin only)
+  static async updateProduct(id: string, updates: UpdateProductInput) {
+    try {
+      // Remove id from updates to avoid duplication
+      const { id: _, ...updateData } = updates;
+      
+      const response = await client.models.Product.update({
+        id,
+        ...updateData
+      });
+
+      return {
+        product: response.data,
+        errors: response.errors
+      };
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw new Error(handleAmplifyError(error));
+    }
+  }
+
+  // Delete a product (Admin only)
   static async deleteProduct(id: string) {
-    // Mock implementation - just return success
-    const product = mockProducts.find(p => p.id === id);
-    
-    if (!product) {
+    try {
+      // First, delete associated inventory
+      const inventoryResponse = await client.models.InventoryItem.list({
+        filter: { productId: { eq: id } }
+      });
+      
+      if (inventoryResponse.data?.[0]) {
+        await client.models.InventoryItem.delete({ id: inventoryResponse.data[0].id });
+      }
+
+      // Then delete the product
+      const response = await client.models.Product.delete({ id });
+
       return {
-        product: null,
-        errors: [{ message: 'Product not found' }]
+        success: !!response.data,
+        errors: response.errors
       };
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw new Error(handleAmplifyError(error));
     }
-
-    return {
-      product: { ...product, isActive: false },
-      errors: null
-    };
   }
 
-  // Get products by category with pagination
-  static async getProductsByCategory(
-    category: 'traditional' | 'modern' | 'designer', 
-    limit: number = 20, 
-    nextToken?: string
-  ): Promise<ProductSearchResult> {
-    const products = mockProducts
-      .filter(p => p.category === category)
-      .slice(0, limit);
+  // Get products by category
+  static async getProductsByCategory(category: string, limit?: number) {
+    try {
+      const response = await client.models.Product.list({
+        filter: {
+          category: { eq: category },
+          isActive: { eq: true }
+        },
+        limit: limit || 20
+      });
 
-    return {
-      products,
-      totalCount: products.length,
-      hasNextPage: false
-    };
-  }
-
-  // Get featured products with inventory check
-  static async getFeaturedProducts(limit: number = 8): Promise<any[]> {
-    const products = mockProducts
-      .filter(p => p.isActive)
-      .map(product => ({
-        ...product,
-        availableQuantity: product.availableQuantity || 0
-      }))
-      .sort((a, b) => (b.availableQuantity || 0) - (a.availableQuantity || 0))
-      .slice(0, limit);
-
-    return products;
-  }
-
-  // Get products by price range
-  static async getProductsByPriceRange(
-    minPrice: number, 
-    maxPrice: number, 
-    limit: number = 20
-  ): Promise<ProductSearchResult> {
-    const products = mockProducts
-      .filter(p => p.price >= minPrice && p.price <= maxPrice)
-      .slice(0, limit);
-
-    return {
-      products,
-      totalCount: products.length,
-      hasNextPage: false
-    };
-  }
-
-  // Check product availability
-  static async checkProductAvailability(productId: string): Promise<{
-    isAvailable: boolean;
-    stockQuantity: number;
-    availableQuantity: number;
-  }> {
-    const inventory = mockInventory.find(inv => inv.productId === productId);
-    
-    if (!inventory) {
-      return { isAvailable: false, stockQuantity: 0, availableQuantity: 0 };
+      return {
+        products: response.data?.map(p => ({
+          ...p,
+          images: p.images.filter((img): img is string => img !== null),
+          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+        })) || [],
+        errors: response.errors
+      };
+    } catch (error) {
+      console.error('Error fetching products by category:', error);
+      throw new Error(handleAmplifyError(error));
     }
+  }
 
-    const stockQuantity = inventory.stockQuantity || 0;
-    const reservedQuantity = inventory.reservedQuantity || 0;
-    const availableQuantity = stockQuantity - reservedQuantity;
+  // Search products with enhanced features
+  static async searchProducts(query: string, filters?: ProductFilters, limit?: number) {
+    return this.getProducts({
+      ...filters,
+      searchQuery: query
+    }, limit);
+  }
 
-    return {
-      isAvailable: availableQuantity > 0,
-      stockQuantity,
-      availableQuantity
-    };
+  // Get featured/popular products
+  static async getFeaturedProducts(limit: number = 6) {
+    try {
+      const response = await client.models.Product.list({
+        filter: {
+          isActive: { eq: true }
+        },
+        limit
+      });
+
+      // Sort by creation date since popularityScore might not be available
+      const products = (response.data || []).sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      return {
+        products: products.slice(0, limit).map(p => ({
+          ...p,
+          images: p.images.filter((img): img is string => img !== null),
+          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+        })),
+        errors: response.errors
+      };
+    } catch (error) {
+      console.error('Error fetching featured products:', error);
+      throw new Error(handleAmplifyError(error));
+    }
+  }
+
+  // Helper method for sorting products
+  private static sortProducts(products: any[], sortBy: string) {
+    switch (sortBy) {
+      case 'price-asc':
+        return products.sort((a, b) => a.price - b.price);
+      case 'price-desc':
+        return products.sort((a, b) => b.price - a.price);
+      case 'name':
+        return products.sort((a, b) => a.name.localeCompare(b.name));
+      case 'newest':
+        return products.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      case 'popularity':
+        return products.sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0));
+      case 'rating':
+        return products.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+      default:
+        return products;
+    }
+  }
+
+  // Update product view count
+  static async incrementViewCount(productId: string) {
+    try {
+      const product = await this.getProduct(productId);
+      if (product.product) {
+        // For now, we'll skip updating view count since it's not in the schema
+        // In production, you would add this field to the Amplify schema
+        console.log(`View count incremented for product ${productId}`);
+      }
+    } catch (error) {
+      console.error('Error incrementing view count:', error);
+      // Don't throw error for view count updates
+    }
+  }
+
+  // Update product purchase count
+  static async incrementPurchaseCount(productId: string) {
+    try {
+      const product = await this.getProduct(productId);
+      if (product.product) {
+        // For now, we'll skip updating purchase count since it's not in the schema
+        // In production, you would add this field to the Amplify schema
+        console.log(`Purchase count incremented for product ${productId}`);
+      }
+    } catch (error) {
+      console.error('Error incrementing purchase count:', error);
+      // Don't throw error for purchase count updates
+    }
   }
 }

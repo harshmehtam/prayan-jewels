@@ -1,10 +1,10 @@
 // Wishlist data access layer
 import { client, handleAmplifyError } from '@/lib/amplify-client';
-import type { WishlistItem, CreateWishlistItemInput } from '@/types';
+import type { WishlistItem } from '@/types';
 
 export class WishlistService {
-  // Get user's wishlist items
-  static async getWishlistItems(customerId: string) {
+  // Get user's wishlist
+  static async getUserWishlist(customerId: string) {
     try {
       const response = await client.models.Wishlist.list({
         filter: {
@@ -21,25 +21,66 @@ export class WishlistService {
     }
   }
 
-  // Add item to wishlist
-  static async addToWishlist(input: CreateWishlistItemInput) {
+  // Add product to wishlist
+  static async addToWishlist(customerId: string, productId: string) {
     try {
       // Check if item already exists in wishlist
       const existingResponse = await client.models.Wishlist.list({
         filter: {
-          customerId: { eq: input.customerId },
-          productId: { eq: input.productId }
+          customerId: { eq: customerId },
+          productId: { eq: productId }
         }
       });
 
       if (existingResponse.data && existingResponse.data.length > 0) {
-        throw new Error('Product is already in your wishlist');
+        return {
+          item: existingResponse.data[0],
+          errors: null,
+          alreadyExists: true
+        };
       }
 
-      const response = await client.models.Wishlist.create(input);
+      // Add new item to wishlist
+      const response = await client.models.Wishlist.create({
+        customerId,
+        productId
+      });
 
       return {
         item: response.data,
+        errors: response.errors,
+        alreadyExists: false
+      };
+    } catch (error) {
+      throw new Error(handleAmplifyError(error));
+    }
+  }
+
+  // Remove product from wishlist
+  static async removeFromWishlist(customerId: string, productId: string) {
+    try {
+      // Find the wishlist item
+      const existingResponse = await client.models.Wishlist.list({
+        filter: {
+          customerId: { eq: customerId },
+          productId: { eq: productId }
+        }
+      });
+
+      if (!existingResponse.data || existingResponse.data.length === 0) {
+        return {
+          success: false,
+          error: 'Item not found in wishlist'
+        };
+      }
+
+      // Delete the wishlist item
+      const response = await client.models.Wishlist.delete({
+        id: existingResponse.data[0].id
+      });
+
+      return {
+        success: !!response.data,
         errors: response.errors
       };
     } catch (error) {
@@ -47,13 +88,15 @@ export class WishlistService {
     }
   }
 
-  // Remove item from wishlist
-  static async removeFromWishlist(itemId: string) {
+  // Remove wishlist item by ID
+  static async removeWishlistItem(itemId: string) {
     try {
-      const response = await client.models.Wishlist.delete({ id: itemId });
+      const response = await client.models.Wishlist.delete({
+        id: itemId
+      });
 
       return {
-        success: true,
+        success: !!response.data,
         errors: response.errors
       };
     } catch (error) {
@@ -73,15 +116,89 @@ export class WishlistService {
 
       return {
         isInWishlist: response.data && response.data.length > 0,
-        wishlistItem: response.data?.[0] || null,
+        item: response.data?.[0] || null,
         errors: response.errors
       };
     } catch (error) {
       return {
         isInWishlist: false,
-        wishlistItem: null,
-        errors: [{ message: handleAmplifyError(error) }]
+        item: null,
+        errors: [error]
       };
+    }
+  }
+
+  // Get wishlist with product details
+  static async getWishlistWithProducts(customerId: string) {
+    try {
+      const response = await client.models.Wishlist.list({
+        filter: {
+          customerId: { eq: customerId }
+        }
+      });
+
+      // Get product details for each wishlist item
+      const itemsWithProducts = await Promise.all(
+        (response.data || []).map(async (item) => {
+          try {
+            const productResponse = await client.models.Product.get({
+              id: item.productId
+            });
+            
+            return {
+              ...item,
+              product: productResponse.data
+            };
+          } catch (error) {
+            console.error(`Error fetching product ${item.productId}:`, error);
+            return {
+              ...item,
+              product: null
+            };
+          }
+        })
+      );
+
+      return {
+        items: itemsWithProducts,
+        errors: response.errors
+      };
+    } catch (error) {
+      throw new Error(handleAmplifyError(error));
+    }
+  }
+
+  // Clear entire wishlist for user
+  static async clearWishlist(customerId: string) {
+    try {
+      const response = await client.models.Wishlist.list({
+        filter: {
+          customerId: { eq: customerId }
+        }
+      });
+
+      if (!response.data || response.data.length === 0) {
+        return {
+          success: true,
+          deletedCount: 0
+        };
+      }
+
+      // Delete all wishlist items
+      const deletePromises = response.data.map(item =>
+        client.models.Wishlist.delete({ id: item.id })
+      );
+
+      const deleteResults = await Promise.all(deletePromises);
+      const successCount = deleteResults.filter(result => result.data).length;
+
+      return {
+        success: successCount === response.data.length,
+        deletedCount: successCount,
+        totalCount: response.data.length
+      };
+    } catch (error) {
+      throw new Error(handleAmplifyError(error));
     }
   }
 
@@ -101,7 +218,7 @@ export class WishlistService {
     } catch (error) {
       return {
         count: 0,
-        errors: [{ message: handleAmplifyError(error) }]
+        errors: [error]
       };
     }
   }

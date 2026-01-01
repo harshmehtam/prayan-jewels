@@ -21,6 +21,7 @@ const schema = a.schema({
       inventory: a.hasOne('InventoryItem', 'productId'),
       cartItems: a.hasMany('CartItem', 'productId'),
       orderItems: a.hasMany('OrderItem', 'productId'),
+      wishlistItems: a.hasMany('Wishlist', 'productId'),
     })
     .authorization((allow) => [
       allow.guest().to(['read']),

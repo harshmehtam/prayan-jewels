@@ -10,10 +10,13 @@ const authRoutes = ['/auth/login', '/auth/signup'];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Check if user is authenticated by looking for the auth token in localStorage
-  // Since middleware runs on the server, we need to check cookies instead
-  const authCookie = request.cookies.get('mock_auth_user');
-  const isAuthenticated = !!authCookie;
+  // Check if user is authenticated by looking for Amplify auth tokens
+  // Amplify stores tokens in localStorage on client side, but we can check for session cookies
+  const amplifyTokens = request.cookies.get('amplify-signin-with-hostedUI_token') || 
+                       request.cookies.get('CognitoIdentityServiceProvider.7pcl9n0ij4c217ri21oc9q7sr6.LastAuthUser') ||
+                       request.cookies.get('amplify-auth-token');
+  
+  const isAuthenticated = !!amplifyTokens;
 
   // Check if the current path is a protected route
   const isProtectedRoute = protectedRoutes.some(route => 

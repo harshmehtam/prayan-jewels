@@ -17,6 +17,12 @@ export interface Product {
   metaDescription?: string | null;
   keywords?: string[] | null;
   isActive: boolean | null;
+  // New fields for enhanced search
+  averageRating?: number | null; // 1-5 star rating
+  totalReviews?: number | null; // Total number of reviews
+  popularityScore?: number | null; // Calculated popularity score
+  viewCount?: number | null; // Number of times viewed
+  purchaseCount?: number | null; // Number of times purchased
   createdAt: string;
   updatedAt: string;
 }
@@ -169,10 +175,18 @@ export interface CreateProductInput {
   metaDescription?: string;
   keywords?: string[];
   isActive?: boolean;
+  // Additional fields for inventory setup
+  initialStock?: number;
+  reorderPoint?: number;
+  supplierName?: string;
+  supplierContact?: string;
+  leadTime?: number;
 }
 
-export interface UpdateProductInput extends Partial<CreateProductInput> {
-  id: string;
+export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'initialStock' | 'reorderPoint' | 'supplierName' | 'supplierContact' | 'leadTime'>> {
+  id?: string;
+  viewCount?: number;
+  purchaseCount?: number;
 }
 
 export interface CreateOrderInput {
@@ -201,12 +215,35 @@ export interface ProductFilters {
   maxPrice?: number;
   inStock?: boolean;
   searchQuery?: string;
+  sortBy?: 'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating';
 }
 
 export interface ProductSearchResult {
   products: Product[];
   totalCount: number;
   hasNextPage: boolean;
+  nextToken?: string; // For pagination
+  suggestions?: string[]; // Alternative suggestions for no results
+  popularProducts?: Product[]; // Popular products for no results
+}
+
+// Search history and saved searches
+export interface SearchHistory {
+  id: string;
+  userId: string;
+  query: string;
+  timestamp: string;
+  resultCount: number;
+}
+
+export interface SavedSearch {
+  id: string;
+  userId: string;
+  name: string;
+  query: string;
+  filters?: ProductFilters;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Admin specific types

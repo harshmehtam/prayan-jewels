@@ -2,27 +2,57 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { ProductService } from '@/lib/data/products';
+import { SearchService } from '@/lib/services/search';
+import type { SearchHistory, SavedSearch } from '@/types';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
   placeholder?: string;
   className?: string;
+  userId?: string; // For search history and saved searches
 }
 
 export default function SearchBar({ 
   onSearch, 
   placeholder = "Search products...",
-  className = ""
+  className = "",
+  userId
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load search history and saved searches for logged-in users
+  useEffect(() => {
+    if (userId) {
+      loadUserSearchData();
+    }
+  }, [userId]);
+
+  const loadUserSearchData = async () => {
+    if (!userId) return;
+    
+    try {
+      const [history, saved] = await Promise.all([
+        SearchService.getSearchHistory(userId, 10),
+        SearchService.getSavedSearches(userId)
+      ]);
+      
+      setSearchHistory(history);
+      setSavedSearches(saved);
+    } catch (error) {
+      console.error('Failed to load search data:', error);
+    }
+  };
 
   // Fetch suggestions when query changes
   useEffect(() => {
@@ -37,6 +67,7 @@ export default function SearchBar({
           const suggestions = await ProductService.getSearchSuggestions(query.trim(), 5);
           setSuggestions(suggestions);
           setShowSuggestions(true);
+          setShowHistory(false);
         } catch (error) {
           console.error('Failed to fetch suggestions:', error);
           setSuggestions([]);
@@ -47,6 +78,9 @@ export default function SearchBar({
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
+      if (userId && (searchHistory.length > 0 || savedSearches.length > 0)) {
+        setShowHistory(true);
+      }
     }
 
     return () => {
@@ -54,13 +88,25 @@ export default function SearchBar({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query]);
+  }, [query, userId, searchHistory.length, savedSearches.length]);
 
   // Handle search submission
-  const handleSearch = (searchQuery: string = query) => {
-    onSearch(searchQuery.trim());
+  const handleSearch = async (searchQuery: string = query) => {
+    const trimmedQuery = searchQuery.trim();
+    onSearch(trimmedQuery);
     setShowSuggestions(false);
+    setShowHistory(false);
     setSelectedIndex(-1);
+
+    // Add to search history for logged-in users
+    if (userId && trimmedQuery) {
+      try {
+        await SearchService.addToSearchHistory(userId, trimmedQuery, 0); // Result count will be updated later
+        await loadUserSearchData(); // Refresh history
+      } catch (error) {
+        console.error('Failed to save search history:', error);
+      }
+    }
   };
 
   // Handle input change
@@ -77,7 +123,9 @@ export default function SearchBar({
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || suggestions.length === 0) {
+    const totalItems = suggestions.length + (showHistory ? searchHistory.length + savedSearches.length : 0);
+    
+    if (!showSuggestions && !showHistory) {
       if (e.key === 'Enter') {
         handleSearch();
       }
@@ -88,7 +136,7 @@ export default function SearchBar({
       case 'ArrowDown':
         e.preventDefault();
         setSelectedIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : prev
+          prev < totalItems - 1 ? prev + 1 : prev
         );
         break;
       case 'ArrowUp':
@@ -98,32 +146,59 @@ export default function SearchBar({
       case 'Enter':
         e.preventDefault();
         if (selectedIndex >= 0) {
-          const selectedSuggestion = suggestions[selectedIndex];
-          setQuery(selectedSuggestion);
-          handleSearch(selectedSuggestion);
+          if (showSuggestions && selectedIndex < suggestions.length) {
+            const selectedSuggestion = suggestions[selectedIndex];
+            setQuery(selectedSuggestion);
+            handleSearch(selectedSuggestion);
+          } else if (showHistory) {
+            const historyIndex = selectedIndex - suggestions.length;
+            if (historyIndex < searchHistory.length) {
+              const selectedHistory = searchHistory[historyIndex];
+              setQuery(selectedHistory.query);
+              handleSearch(selectedHistory.query);
+            } else {
+              const savedIndex = historyIndex - searchHistory.length;
+              if (savedIndex < savedSearches.length) {
+                const selectedSaved = savedSearches[savedIndex];
+                setQuery(selectedSaved.query);
+                handleSearch(selectedSaved.query);
+              }
+            }
+          }
         } else {
           handleSearch();
         }
         break;
       case 'Escape':
         setShowSuggestions(false);
+        setShowHistory(false);
         setSelectedIndex(-1);
         inputRef.current?.blur();
         break;
     }
   };
 
-  // Handle suggestion click
-  const handleSuggestionClick = (suggestion: string) => {
-    setQuery(suggestion);
-    handleSearch(suggestion);
+  // Handle suggestion/history click
+  const handleItemClick = (item: string) => {
+    setQuery(item);
+    handleSearch(item);
   };
 
-  // Handle click outside to close suggestions
+  // Handle focus to show history
+  const handleFocus = () => {
+    if (suggestions.length > 0) {
+      setShowSuggestions(true);
+    } else if (userId && (searchHistory.length > 0 || savedSearches.length > 0) && !query.trim()) {
+      setShowHistory(true);
+    }
+  };
+
+  // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setShowHistory(false);
         setSelectedIndex(-1);
       }
     };
@@ -131,6 +206,12 @@ export default function SearchBar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getItemIndex = (type: 'suggestion' | 'history' | 'saved', index: number): number => {
+    if (type === 'suggestion') return index;
+    if (type === 'history') return suggestions.length + index;
+    return suggestions.length + searchHistory.length + index;
+  };
 
   return (
     <div ref={searchRef} className={`relative ${className}`}>
@@ -157,11 +238,7 @@ export default function SearchBar({
           value={query}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setShowSuggestions(true);
-            }
-          }}
+          onFocus={handleFocus}
           placeholder={placeholder}
           className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
@@ -197,7 +274,7 @@ export default function SearchBar({
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
-              onClick={() => handleSuggestionClick(suggestion)}
+              onClick={() => handleItemClick(suggestion)}
               className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 ${
                 index === selectedIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
               }`}
@@ -220,6 +297,84 @@ export default function SearchBar({
               </div>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Search History and Saved Searches */}
+      {showHistory && userId && (searchHistory.length > 0 || savedSearches.length > 0) && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          {/* Recent Searches */}
+          {searchHistory.length > 0 && (
+            <>
+              <div className="px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                Recent Searches
+              </div>
+              {searchHistory.slice(0, 5).map((history, index) => (
+                <button
+                  key={history.id}
+                  onClick={() => handleItemClick(history.query)}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 ${
+                    getItemIndex('history', index) === selectedIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="h-4 w-4 text-gray-400 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="truncate">{history.query}</span>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+
+          {/* Saved Searches */}
+          {savedSearches.length > 0 && (
+            <>
+              <div className="px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50 border-b">
+                Saved Searches
+              </div>
+              {savedSearches.map((saved, index) => (
+                <button
+                  key={saved.id}
+                  onClick={() => handleItemClick(saved.query)}
+                  className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 ${
+                    getItemIndex('saved', index) === selectedIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="h-4 w-4 text-gray-400 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                      />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate font-medium">{saved.name}</div>
+                      <div className="truncate text-xs text-gray-500">{saved.query}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
 

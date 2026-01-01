@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthenticator } from '@aws-amplify/ui-react';
 import { WishlistService } from '@/lib/data/wishlist';
 import type { WishlistItem } from '@/types';
 
 export function useWishlist() {
-  const { user } = useAuthenticator((context) => [context.user]);
+  // Mock user for now - in real implementation, get from auth context
+  const user = { userId: 'user-1' };
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +24,32 @@ export function useWishlist() {
       if (result.errors && result.errors.length > 0) {
         setError(result.errors[0].message);
       } else {
-        setWishlistItems(result.items);
+        // Transform Amplify data to match our WishlistItem type
+        const transformedItems: WishlistItem[] = await Promise.all(
+          result.items.map(async (item: any) => {
+            let product = null;
+            try {
+              // Fetch the product data if available
+              if (item.product && typeof item.product === 'function') {
+                const productResult = await item.product();
+                product = productResult.data;
+              }
+            } catch (err) {
+              console.warn('Failed to load product for wishlist item:', err);
+            }
+
+            return {
+              id: item.id,
+              customerId: item.customerId,
+              productId: item.productId,
+              product: product,
+              createdAt: item.createdAt,
+              updatedAt: item.updatedAt
+            };
+          })
+        );
+        
+        setWishlistItems(transformedItems);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load wishlist');
