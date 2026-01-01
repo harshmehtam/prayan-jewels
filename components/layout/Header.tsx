@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { CartIcon } from '@/components/cart';
 import { AuthModal } from '@/components/auth';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import WishlistNotifications from '@/components/ui/WishlistNotifications';
 
 export default function Header() {

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import type { Product } from '@/types';
 
 interface AddToCartButtonProps {

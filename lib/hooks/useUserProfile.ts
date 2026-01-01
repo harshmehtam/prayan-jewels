@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { UserService } from '@/lib/data/users';
 
 export function useUserProfile() {

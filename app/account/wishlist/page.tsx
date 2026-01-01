@@ -2,7 +2,7 @@
 
 import { useWishlist } from '@/lib/hooks/useWishlist';
 import { useCart } from '@/components/providers/cart-provider';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';

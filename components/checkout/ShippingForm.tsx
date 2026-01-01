@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import type { Address } from '@/types';
 
 interface ShippingFormProps {

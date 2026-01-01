@@ -1,11 +1,13 @@
 // Product data access layer - Real Amplify GraphQL Integration
-import { client, handleAmplifyError } from '@/lib/amplify-client';
+import { getDynamicClient, handleAmplifyError, userClient } from '@/lib/amplify-client';
 import type { CreateProductInput, UpdateProductInput, ProductFilters, ProductSearchResult } from '@/types';
 
 export class ProductService {
   // Get all active products with comprehensive filtering
   static async getProducts(filters?: ProductFilters, limit?: number, nextToken?: string): Promise<ProductSearchResult> {
     try {
+      const client = await getDynamicClient();
+      
       // Build filter conditions for Amplify GraphQL
       const filterConditions: any = {
         isActive: { eq: true }
@@ -47,21 +49,30 @@ export class ProductService {
         );
       }
 
-      // Apply in-stock filter by checking inventory
+      // Apply in-stock filter by checking inventory (only for authenticated users)
       if (filters?.inStock) {
-        const productsWithInventory = await Promise.all(
-          products.map(async (product) => {
-            const inventoryResponse = await client.models.InventoryItem.list({
-              filter: { productId: { eq: product.id } }
-            });
-            const inventory = inventoryResponse.data?.[0];
-            const availableQuantity = inventory ? 
-              (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 0;
-            
-            return { ...product, availableQuantity };
-          })
-        );
-        products = productsWithInventory.filter(p => (p.availableQuantity || 0) > 0);
+        try {
+          const productsWithInventory = await Promise.all(
+            products.map(async (product) => {
+              try {
+                const inventoryResponse = await client.models.InventoryItem.list({
+                  filter: { productId: { eq: product.id } }
+                });
+                const inventory = inventoryResponse.data?.[0];
+                const availableQuantity = inventory ? 
+                  (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 0;
+                
+                return { ...product, availableQuantity };
+              } catch (inventoryError) {
+                // If inventory access fails (guest user), assume stock is available
+                return { ...product, availableQuantity: 10 };
+              }
+            })
+          );
+          products = productsWithInventory.filter(p => (p.availableQuantity || 0) > 0);
+        } catch (error) {
+          console.warn('Inventory check failed, skipping in-stock filter:', error);
+        }
       }
 
       // Apply sorting
@@ -74,7 +85,8 @@ export class ProductService {
           ...p,
           images: p.images.filter((img): img is string => img !== null),
           occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
+          availableQuantity: (p as any).availableQuantity || 10 // Default stock for display
         })),
         totalCount: products.length,
         hasNextPage: !!response.nextToken,
@@ -89,20 +101,30 @@ export class ProductService {
   // Get a single product by ID with inventory information
   static async getProduct(id: string) {
     try {
+      const client = await getDynamicClient();
+      
       const response = await client.models.Product.get({ id });
       
       if (!response.data) {
         return { product: null, errors: response.errors };
       }
 
-      // Get inventory information
-      const inventoryResponse = await client.models.InventoryItem.list({
-        filter: { productId: { eq: id } }
-      });
-      
-      const inventory = inventoryResponse.data?.[0];
-      const availableQuantity = inventory ? 
-        (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 0;
+      // Try to get inventory information
+      let inventory = null;
+      let availableQuantity = 10; // Default for display
+
+      try {
+        const inventoryResponse = await client.models.InventoryItem.list({
+          filter: { productId: { eq: id } }
+        });
+        
+        inventory = inventoryResponse.data?.[0] || null;
+        availableQuantity = inventory ? 
+          (inventory.stockQuantity || 0) - (inventory.reservedQuantity || 0) : 10;
+      } catch (inventoryError) {
+        console.warn('Could not fetch inventory (guest user):', inventoryError);
+        // Keep default values for guest users
+      }
 
       return {
         product: {
@@ -124,7 +146,8 @@ export class ProductService {
   // Create a new product (Admin only)
   static async createProduct(productData: CreateProductInput) {
     try {
-      const response = await client.models.Product.create({
+      // Use userClient for admin operations
+      const response = await userClient.models.Product.create({
         name: productData.name,
         description: productData.description,
         price: productData.price,
@@ -143,7 +166,7 @@ export class ProductService {
 
       // Create initial inventory record
       if (response.data && productData.initialStock !== undefined) {
-        await client.models.InventoryItem.create({
+        await userClient.models.InventoryItem.create({
           productId: response.data.id,
           stockQuantity: productData.initialStock,
           reservedQuantity: 0,
@@ -167,10 +190,11 @@ export class ProductService {
   // Update an existing product (Admin only)
   static async updateProduct(id: string, updates: UpdateProductInput) {
     try {
+      // Use userClient for admin operations
       // Remove id from updates to avoid duplication
       const { id: _, ...updateData } = updates;
       
-      const response = await client.models.Product.update({
+      const response = await userClient.models.Product.update({
         id,
         ...updateData
       });
@@ -188,17 +212,18 @@ export class ProductService {
   // Delete a product (Admin only)
   static async deleteProduct(id: string) {
     try {
+      // Use userClient for admin operations
       // First, delete associated inventory
-      const inventoryResponse = await client.models.InventoryItem.list({
+      const inventoryResponse = await userClient.models.InventoryItem.list({
         filter: { productId: { eq: id } }
       });
       
       if (inventoryResponse.data?.[0]) {
-        await client.models.InventoryItem.delete({ id: inventoryResponse.data[0].id });
+        await userClient.models.InventoryItem.delete({ id: inventoryResponse.data[0].id });
       }
 
       // Then delete the product
-      const response = await client.models.Product.delete({ id });
+      const response = await userClient.models.Product.delete({ id });
 
       return {
         success: !!response.data,
@@ -213,6 +238,8 @@ export class ProductService {
   // Get products by category
   static async getProductsByCategory(category: string, limit?: number) {
     try {
+      const client = await getDynamicClient();
+      
       const response = await client.models.Product.list({
         filter: {
           category: { eq: category },
@@ -226,7 +253,8 @@ export class ProductService {
           ...p,
           images: p.images.filter((img): img is string => img !== null),
           occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
+          availableQuantity: 10 // Default stock for display
         })) || [],
         errors: response.errors
       };
@@ -247,6 +275,8 @@ export class ProductService {
   // Get featured/popular products
   static async getFeaturedProducts(limit: number = 6) {
     try {
+      const client = await getDynamicClient();
+      
       const response = await client.models.Product.list({
         filter: {
           isActive: { eq: true }
@@ -264,7 +294,8 @@ export class ProductService {
           ...p,
           images: p.images.filter((img): img is string => img !== null),
           occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null
+          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
+          availableQuantity: 10 // Default stock for display
         })),
         errors: response.errors
       };

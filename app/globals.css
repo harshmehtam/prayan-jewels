@@ -121,3 +121,49 @@ html, body {
 .py-responsive {
   @apply py-4 sm:py-6 lg:py-8;
 }
+
+/* Fix input text visibility in dark mode */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select {
+  color: #374151 !important; /* Always use dark text for inputs */
+  background-color: #ffffff !important; /* Always use white background for inputs */
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus {
+  color: #374151 !important; /* Ensure text stays dark on focus */
+  background-color: #ffffff !important; /* Ensure background stays white on focus */
+}
+
+/* Placeholder text should be visible */
+input::placeholder,
+textarea::placeholder {
+  color: #9CA3AF !important; /* Gray placeholder text */
+}
+
+/* Ensure checkbox and radio inputs work properly */
+input[type="checkbox"],
+input[type="radio"] {
+  color: initial !important;
+  background-color: initial !important;
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MockOrderService } from '@/lib/data/mock-orders';

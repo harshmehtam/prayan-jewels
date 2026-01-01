@@ -155,7 +155,8 @@ For development and testing, the app includes:
 - `components/auth/`: Authentication forms and modals
 - `components/ui/`: Reusable UI components (LoadingSpinner, etc.)
 - `lib/data/products.ts`: Product service with Amplify integration
-- `lib/data/mock-products.ts`: Development mock data
+- `lib/data/cart.ts`: Cart service with Amplify integration
+- `lib/services/search.ts`: Search service with history and suggestions
 - `middleware.ts`: Next.js middleware for route protection
 - `app/`: Next.js App Router pages
 - `amplify/`: AWS Amplify configuration

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { WishlistNotificationService, type WishlistNotification } from '@/lib/services/wishlist-notifications';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import Link from 'next/link';
 
 interface WishlistNotificationsProps {

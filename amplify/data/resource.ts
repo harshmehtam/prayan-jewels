@@ -43,6 +43,7 @@ const schema = a.schema({
       product: a.belongsTo('Product', 'productId'),
     })
     .authorization((allow) => [
+      allow.guest().to(['read']),
       allow.authenticated().to(['read']),
       allow.group('admin').to(['create', 'read', 'update', 'delete']),
     ]),

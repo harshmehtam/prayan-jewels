@@ -1,9 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { MockCartService } from '@/lib/data/mock-cart';
+import { CartService } from '@/lib/data/cart';
 import { generateSessionId } from '@/lib/amplify-client';
-import { useAuth } from './mock-auth-provider';
+import { useAuth } from './auth-provider';
 import type { ShoppingCart, CartItem } from '@/types';
 
 interface CartContextType {
@@ -63,10 +63,10 @@ export function CartProvider({ children }: CartProviderProps) {
 
       if (isAuthenticated && user?.userId) {
         // Load user cart
-        cartResponse = await MockCartService.getUserCart(user.userId);
+        cartResponse = await CartService.getUserCart(user.userId);
       } else if (sessionId) {
         // Load guest cart
-        cartResponse = await MockCartService.getGuestCart(sessionId);
+        cartResponse = await CartService.getGuestCart(sessionId);
       } else {
         setIsLoading(false);
         return;
@@ -76,7 +76,7 @@ export function CartProvider({ children }: CartProviderProps) {
         setCart(cartResponse.cart as unknown as ShoppingCart);
         
         // Load cart items
-        const itemsResponse = await MockCartService.getCartItems(cartResponse.cart.id);
+        const itemsResponse = await CartService.getCartItems(cartResponse.cart.id);
         setItems(itemsResponse.items as unknown as CartItem[]);
       }
     } catch (error) {
@@ -93,7 +93,7 @@ export function CartProvider({ children }: CartProviderProps) {
     const transferGuestCart = async () => {
       if (isAuthenticated && user?.userId && sessionId) {
         try {
-          await MockCartService.transferGuestCartToUser(sessionId, user.userId);
+          await CartService.transferGuestCartToUser(sessionId, user.userId);
           // Clear session ID after transfer
           localStorage.removeItem('cart_session_id');
           setSessionId('');
@@ -125,9 +125,9 @@ export function CartProvider({ children }: CartProviderProps) {
         let cartResponse;
         
         if (isAuthenticated && user?.userId) {
-          cartResponse = await MockCartService.getUserCart(user.userId);
+          cartResponse = await CartService.getUserCart(user.userId);
         } else if (sessionId) {
-          cartResponse = await MockCartService.getGuestCart(sessionId);
+          cartResponse = await CartService.getGuestCart(sessionId);
         } else {
           throw new Error('No user ID or session ID available');
         }
@@ -145,7 +145,7 @@ export function CartProvider({ children }: CartProviderProps) {
     }
 
     try {
-      await MockCartService.addItemToCart(currentCart.id, productId, quantity, unitPrice);
+      await CartService.addItemToCart(currentCart.id, productId, quantity, unitPrice);
       await loadCart(); // Refresh cart data
     } catch (error) {
       console.error('Error adding item to cart:', error);
@@ -156,7 +156,7 @@ export function CartProvider({ children }: CartProviderProps) {
   // Remove item from cart
   const removeItem = async (itemId: string) => {
     try {
-      await MockCartService.removeItemFromCart(itemId);
+      await CartService.removeItemFromCart(itemId);
       await loadCart(); // Refresh cart data
     } catch (error) {
       console.error('Error removing item from cart:', error);
@@ -172,7 +172,7 @@ export function CartProvider({ children }: CartProviderProps) {
     }
 
     try {
-      await MockCartService.updateItemQuantity(itemId, quantity);
+      await CartService.updateItemQuantity(itemId, quantity);
       await loadCart(); // Refresh cart data
     } catch (error) {
       console.error('Error updating item quantity:', error);
@@ -185,7 +185,7 @@ export function CartProvider({ children }: CartProviderProps) {
     if (!cart) return;
 
     try {
-      await MockCartService.clearCart(cart.id);
+      await CartService.clearCart(cart.id);
       await loadCart(); // Refresh cart data
     } catch (error) {
       console.error('Error clearing cart:', error);
@@ -205,7 +205,7 @@ export function CartProvider({ children }: CartProviderProps) {
     }
 
     try {
-      const validation = await MockCartService.validateCartInventory(cart.id);
+      const validation = await CartService.validateCartInventory(cart.id);
       return {
         isValid: validation.isValid,
         unavailableItems: validation.unavailableItems

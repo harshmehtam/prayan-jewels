@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signUp } from 'aws-amplify/auth';
 
 interface SignupFormProps {
   onSuccess?: (email: string) => void;
@@ -19,7 +20,7 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signUp } = useAuth();
+  const { refreshUserProfile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/account';
@@ -51,7 +52,17 @@ export default function SignupForm({ onSuccess, onSwitchToLogin }: SignupFormPro
     }
 
     try {
-      await signUp(formData.email, formData.password, formData.firstName, formData.lastName);
+      await signUp({
+        username: formData.email,
+        password: formData.password,
+        options: {
+          userAttributes: {
+            email: formData.email,
+            given_name: formData.firstName,
+            family_name: formData.lastName,
+          }
+        }
+      });
 
       // Call success callback or redirect
       if (onSuccess) {

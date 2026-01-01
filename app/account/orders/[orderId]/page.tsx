@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { OrderService } from '@/lib/data/orders';
 import PageLoading from '@/components/ui/PageLoading';
 import OrderTracking from '@/components/order/OrderTracking';

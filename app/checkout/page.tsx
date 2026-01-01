@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import { CheckoutSteps } from '@/components/checkout/CheckoutSteps';
 import { ShippingForm } from '@/components/checkout/ShippingForm';

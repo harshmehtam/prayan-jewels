@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/components/providers/mock-auth-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'aws-amplify/auth';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -19,7 +20,7 @@ export default function LoginForm({
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn } = useAuth();
+  const { refreshUserProfile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/account';
@@ -30,7 +31,10 @@ export default function LoginForm({
     setError('');
 
     try {
-      await signIn(email, password);
+      await signIn({ username: email, password });
+      
+      // Refresh user profile after successful sign in
+      await refreshUserProfile();
 
       // Redirect to the intended page or account page
       if (onSuccess) {

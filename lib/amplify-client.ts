@@ -2,9 +2,28 @@
 import '@/lib/amplify-config'; // Ensure Amplify is configured
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
+import { getAuthMode } from '@/lib/utils/auth-mode';
 
 // Generate the typed client for GraphQL operations
 export const client = generateClient<Schema>();
+
+// Generate a client specifically for guest/public access using IAM
+export const guestClient = generateClient<Schema>({
+  authMode: 'iam'
+});
+
+// Generate a client specifically for authenticated users
+export const userClient = generateClient<Schema>({
+  authMode: 'userPool'
+});
+
+/**
+ * Get the appropriate client based on authentication status
+ */
+export const getDynamicClient = async () => {
+  const authMode = await getAuthMode();
+  return authMode === 'userPool' ? userClient : guestClient;
+};
 
 // Type exports for use throughout the application
 export type AmplifyClient = typeof client;
