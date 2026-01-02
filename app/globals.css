@@ -48,9 +48,36 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Enhanced focus styles for accessibility */
+/* Remove focus outlines for better UI */
 .focus-ring {
-  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  @apply focus:outline-none;
+}
+
+/* Remove default focus outlines from all interactive elements */
+button:focus,
+a:focus,
+input:focus,
+textarea:focus,
+select:focus,
+[role="button"]:focus,
+[tabindex]:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove focus outlines specifically for clickable elements */
+button,
+a,
+[role="button"],
+[tabindex] {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: none !important;
 }
 
 /* Mobile-first container padding */
@@ -137,6 +164,8 @@ textarea,
 select {
   color: #374151 !important; /* Always use dark text for inputs */
   background-color: #ffffff !important; /* Always use white background for inputs */
+  outline: none !important; /* Remove focus outline */
+  box-shadow: none !important; /* Remove focus box shadow */
 }
 
 input[type="text"]:focus,
@@ -153,6 +182,8 @@ textarea:focus,
 select:focus {
   color: #374151 !important; /* Ensure text stays dark on focus */
   background-color: #ffffff !important; /* Ensure background stays white on focus */
+  outline: none !important; /* Remove focus outline */
+  box-shadow: none !important; /* Remove focus box shadow */
 }
 
 /* Placeholder text should be visible */
@@ -166,4 +197,36 @@ input[type="checkbox"],
 input[type="radio"] {
   color: initial !important;
   background-color: initial !important;
+}
+
+/* Line clamp utilities for text truncation */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Hide scrollbar for mobile image carousel */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
 }

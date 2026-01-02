@@ -125,11 +125,12 @@ export default function Header() {
             {/* Logo - Responsive sizing */}
             <Link 
               href="/" 
-              className={`text-lg sm:text-xl lg:text-2xl font-normal transition-colors focus-ring rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 ${
+              className={`text-lg sm:text-xl lg:text-2xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${
                 isScrolled 
                   ? 'text-black hover:text-gray-700' 
                   : 'text-black hover:text-gray-700'
               }`}
+              style={{ outline: 'none', boxShadow: 'none' }}
             >
               PRAYAN JEWELS
             </Link>
@@ -138,11 +139,12 @@ export default function Header() {
             <nav className="hidden lg:flex items-center space-x-8">
               <Link 
                 href="/categories/necklaces" 
-                className={`transition-colors focus-ring rounded-md px-3 py-2 text-lg font-normal relative group ${
+                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
                   isScrolled 
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
+                style={{ outline: 'none', boxShadow: 'none' }}
               >
                 Necklaces
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
@@ -151,11 +153,12 @@ export default function Header() {
               </Link>
               <Link 
                 href="/categories/earrings" 
-                className={`transition-colors focus-ring rounded-md px-3 py-2 text-lg font-normal relative group ${
+                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
                   isScrolled 
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
+                style={{ outline: 'none', boxShadow: 'none' }}
               >
                 Earrings
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
@@ -164,11 +167,12 @@ export default function Header() {
               </Link>
               <Link 
                 href="/categories/rings" 
-                className={`transition-colors focus-ring rounded-md px-3 py-2 text-lg font-normal relative group ${
+                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
                   isScrolled 
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
+                style={{ outline: 'none', boxShadow: 'none' }}
               >
                 Rings
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
@@ -191,9 +195,9 @@ export default function Header() {
                         : 'bg-white bg-opacity-20 border border-gray-400 border-opacity-30 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                     }`}
                   />
-                  <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer ${
+                  <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
                     isScrolled ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-                  }`}>
+                  }`} style={{ outline: 'none', boxShadow: 'none' }}>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
@@ -202,9 +206,9 @@ export default function Header() {
               </div>
 
               {/* Wishlist - Hidden on very small screens, visible on sm+ */}
-              <button className={`hidden sm:block p-2 transition-colors cursor-pointer ${
+              <button className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                 isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-              }`}>
+              }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
@@ -214,9 +218,9 @@ export default function Header() {
               {/* User Account - Hidden on very small screens, visible on sm+ */}
               {isAuthenticated ? (
                 <div className="relative group hidden sm:block">
-                  <button className={`p-2 transition-colors cursor-pointer ${
+                  <button className={`p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                     isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                  }`}>
+                  }`} style={{ outline: 'none', boxShadow: 'none' }}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
@@ -224,17 +228,17 @@ export default function Header() {
                   </button>
                   
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
-                    <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">My Account</Link>
-                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Order History</Link>
-                    <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">My Wishlist</Link>
+                    <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>
+                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Order History</Link>
+                    <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Wishlist</Link>
                     <hr className="my-1" />
-                    <button onClick={handleSignOut} className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">Sign Out</button>
+                    <button onClick={handleSignOut} className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Sign Out</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => openAuthModal('login')} className={`hidden sm:block p-2 transition-colors cursor-pointer ${
+                <button onClick={() => openAuthModal('login')} className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                   isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`}>
+                }`} style={{ outline: 'none', boxShadow: 'none' }}>
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -243,9 +247,9 @@ export default function Header() {
               )}
 
               {/* Cart - Always visible, essential for e-commerce */}
-              <button className={`relative p-1.5 sm:p-2 transition-colors cursor-pointer ${
+              <button className={`relative p-1.5 sm:p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                 isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-              }`}>
+              }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
                 </svg>
@@ -258,9 +262,10 @@ export default function Header() {
               {/* Mobile Menu Button - Always visible, essential for navigation */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`lg:hidden touch-friendly p-1.5 sm:p-2 transition-colors focus-ring rounded-md cursor-pointer ${
+                className={`lg:hidden touch-friendly p-1.5 sm:p-2 transition-colors rounded-md cursor-pointer outline-none focus:outline-none ${
                   isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                 }`}
+                style={{ outline: 'none', boxShadow: 'none' }}
                 aria-expanded={isMenuOpen}
                 aria-label="Toggle navigation menu"
               >
@@ -287,9 +292,9 @@ export default function Header() {
                     : 'bg-white bg-opacity-90 border border-gray-300 border-opacity-50 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                 }`}
               />
-              <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer ${
+              <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
                 isScrolled ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-              }`}>
+              }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -325,7 +330,8 @@ export default function Header() {
                   <div className="flex justify-end items-center p-6 border-b border-white/20 backdrop-blur-sm">
                     <button
                       onClick={() => setIsMenuOpen(false)}
-                      className="p-3 text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-full transition-all duration-200 backdrop-blur-sm cursor-pointer"
+                      className="p-3 text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-full transition-all duration-200 backdrop-blur-sm cursor-pointer outline-none focus:outline-none"
+                      style={{ outline: 'none', boxShadow: 'none' }}
                     >
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -339,7 +345,8 @@ export default function Header() {
                       <div className="space-y-2">
                         <Link
                           href="/categories/necklaces"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
+                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                          style={{ outline: 'none', boxShadow: 'none' }}
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Necklaces</span>
@@ -350,7 +357,8 @@ export default function Header() {
 
                         <Link
                           href="/categories/earrings"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
+                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                          style={{ outline: 'none', boxShadow: 'none' }}
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Earrings</span>
@@ -361,7 +369,8 @@ export default function Header() {
 
                         <Link
                           href="/categories/rings"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
+                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                          style={{ outline: 'none', boxShadow: 'none' }}
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Rings</span>
@@ -460,7 +469,8 @@ export default function Header() {
                     <div className="sm:hidden">
                       <Link
                         href="/wishlist"
-                        className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
+                        className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                        style={{ outline: 'none', boxShadow: 'none' }}
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Wishlist</span>
@@ -472,7 +482,8 @@ export default function Header() {
                       {isAuthenticated ? (
                         <Link
                           href="/account"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
+                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                          style={{ outline: 'none', boxShadow: 'none' }}
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">My Account</span>
@@ -486,7 +497,8 @@ export default function Header() {
                             setIsMenuOpen(false);
                             openAuthModal('login');
                           }}
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer"
+                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer outline-none focus:outline-none"
+                          style={{ outline: 'none', boxShadow: 'none' }}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Sign In</span>
                           <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">

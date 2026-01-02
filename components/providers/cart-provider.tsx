@@ -59,6 +59,15 @@ export function CartProvider({ children }: CartProviderProps) {
   const loadCart = useCallback(async () => {
     try {
       setIsLoading(true);
+      
+      // TEMPORARY: Disable cart API calls for UI development
+      console.log('Cart API calls disabled for UI development');
+      
+      // Set mock empty cart data
+      setCart(null);
+      setItems([]);
+      
+      /* DISABLED FOR UI DEVELOPMENT
       let cartResponse;
 
       if (isAuthenticated && user?.userId) {
@@ -79,6 +88,7 @@ export function CartProvider({ children }: CartProviderProps) {
         const itemsResponse = await CartService.getCartItems(cartResponse.cart.id);
         setItems(itemsResponse.items as unknown as CartItem[]);
       }
+      */
     } catch (error) {
       console.error('Error loading cart:', error);
       setCart(null);
@@ -91,6 +101,11 @@ export function CartProvider({ children }: CartProviderProps) {
   // Transfer guest cart to user cart on login
   useEffect(() => {
     const transferGuestCart = async () => {
+      // TEMPORARY: Disable cart transfer for UI development
+      console.log('Mock: Cart transfer disabled for UI development');
+      return;
+      
+      /* DISABLED FOR UI DEVELOPMENT
       if (isAuthenticated && user?.userId && sessionId) {
         try {
           await CartService.transferGuestCartToUser(sessionId, user.userId);
@@ -103,6 +118,7 @@ export function CartProvider({ children }: CartProviderProps) {
           console.error('Error transferring guest cart:', error);
         }
       }
+      */
     };
 
     transferGuestCart();
@@ -117,6 +133,11 @@ export function CartProvider({ children }: CartProviderProps) {
 
   // Add item to cart
   const addItem = async (productId: string, quantity: number, unitPrice: number) => {
+    // TEMPORARY: Disable cart API calls for UI development
+    console.log(`Mock: Adding ${quantity} of product ${productId} to cart (price: ${unitPrice})`);
+    return;
+    
+    /* DISABLED FOR UI DEVELOPMENT - Original code below
     // Ensure we have a cart - create one if needed
     let currentCart = cart;
     
@@ -151,10 +172,16 @@ export function CartProvider({ children }: CartProviderProps) {
       console.error('Error adding item to cart:', error);
       throw error;
     }
+    */
   };
 
   // Remove item from cart
   const removeItem = async (itemId: string) => {
+    // TEMPORARY: Disable cart API calls for UI development
+    console.log(`Mock: Removing item ${itemId} from cart`);
+    return;
+    
+    /* DISABLED FOR UI DEVELOPMENT
     try {
       await CartService.removeItemFromCart(itemId);
       await loadCart(); // Refresh cart data
@@ -162,10 +189,16 @@ export function CartProvider({ children }: CartProviderProps) {
       console.error('Error removing item from cart:', error);
       throw error;
     }
+    */
   };
 
   // Update item quantity
   const updateQuantity = async (itemId: string, quantity: number) => {
+    // TEMPORARY: Disable cart API calls for UI development
+    console.log(`Mock: Updating item ${itemId} quantity to ${quantity}`);
+    return;
+    
+    /* DISABLED FOR UI DEVELOPMENT
     if (quantity <= 0) {
       await removeItem(itemId);
       return;
@@ -178,10 +211,16 @@ export function CartProvider({ children }: CartProviderProps) {
       console.error('Error updating item quantity:', error);
       throw error;
     }
+    */
   };
 
   // Clear entire cart
   const clearCart = async () => {
+    // TEMPORARY: Disable cart API calls for UI development
+    console.log('Mock: Clearing cart');
+    return;
+    
+    /* DISABLED FOR UI DEVELOPMENT
     if (!cart) return;
 
     try {
@@ -191,15 +230,27 @@ export function CartProvider({ children }: CartProviderProps) {
       console.error('Error clearing cart:', error);
       throw error;
     }
+    */
   };
 
   // Refresh cart data
   const refreshCart = async () => {
+    // TEMPORARY: Disable cart API calls for UI development
+    console.log('Mock: Refreshing cart');
+    return;
+    
+    /* DISABLED FOR UI DEVELOPMENT
     await loadCart();
+    */
   };
 
   // Validate cart inventory
   const validateInventory = async () => {
+    // TEMPORARY: Return mock validation for UI development
+    console.log('Mock: Validating cart inventory');
+    return { isValid: true, unavailableItems: [] };
+    
+    /* DISABLED FOR UI DEVELOPMENT
     if (!cart) {
       return { isValid: true, unavailableItems: [] };
     }
@@ -214,6 +265,7 @@ export function CartProvider({ children }: CartProviderProps) {
       console.error('Error validating cart inventory:', error);
       return { isValid: false, unavailableItems: [] };
     }
+    */
   };
 
   // Calculate derived values

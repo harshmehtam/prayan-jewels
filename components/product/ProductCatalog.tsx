@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ProductService } from '@/lib/data/products';
 import { ProductFilters, ProductSearchResult } from '@/types';
 import ProductCard from './ProductCard';
@@ -15,20 +16,39 @@ interface ProductCatalogProps {
   userId?: string; // For search history and saved searches
 }
 
-export default function ProductCatalog({ 
-  initialCategory, 
-  showFilters = true, 
+export default function ProductCatalog({
+  initialCategory,
+  showFilters = true,
   showSearch = true,
-  limit = 20,
+  limit = 15,
   userId
 }: ProductCatalogProps) {
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
   const [searchResult, setSearchResult] = useState<ProductSearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<ProductFilters>({
-    category: initialCategory
+
+  // Initialize filters from URL parameters
+  const [filters, setFilters] = useState<ProductFilters>(() => {
+    const initialFilters: ProductFilters = {
+      category: initialCategory
+    };
+
+    // Get price filters from URL
+    const maxPrice = searchParams.get('maxPrice');
+    if (maxPrice) {
+      initialFilters.maxPrice = parseInt(maxPrice);
+    }
+
+    const minPrice = searchParams.get('minPrice');
+    if (minPrice) {
+      initialFilters.minPrice = parseInt(minPrice);
+    }
+
+    return initialFilters;
   });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating'>('newest');
 
@@ -42,7 +62,7 @@ export default function ProductCatalog({
 
       if (searchQuery.trim()) {
         // If there's a search query, use search function with sorting
-        result = await ProductService.searchProducts(searchQuery, limit, sortBy);
+        result = await ProductService.searchProducts(searchQuery, { ...filters, sortBy }, limit);
       } else {
         // Otherwise use regular filtering with sorting
         const filtersWithSort = { ...filters, sortBy };
@@ -210,7 +230,7 @@ export default function ProductCatalog({
               </div>
               <h3 className="text-responsive-base font-medium text-gray-900 mb-2">No products found</h3>
               <p className="text-gray-600 mb-4 text-responsive-sm">
-                {searchQuery 
+                {searchQuery
                   ? `No products match your search for "${searchQuery}"`
                   : 'No products match your current filters'
                 }

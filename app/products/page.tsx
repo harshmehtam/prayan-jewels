@@ -1,3 +1,5 @@
+'use client';
+
 import { ProductCatalog } from '@/components/product';
 
 export default function ProductsPage() {

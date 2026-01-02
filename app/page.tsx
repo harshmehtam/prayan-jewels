@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import PriceRangeCards from '@/components/product/PriceRangeCards';
+import ProductGrid from '@/components/product/ProductGrid';
 
 export default function Home() {
   return (
@@ -51,22 +53,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Product Catalog - Temporarily disabled for UI changes */}
-      <section className="py-12 sm:py-16 lg:py-20 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-2xl sm:text-3xl font-light text-gray-900 mb-6 sm:mb-8 tracking-wide">
-              Featured Products
-            </h2>
-            <p className="text-gray-600">Product catalog temporarily disabled for UI updates</p>
-          </div>
-          {/* <ProductCatalog 
-            showFilters={true}
-            showSearch={true}
-            limit={20}
-          /> */}
-        </div>
-      </section>
+      {/* Price Range Cards Section */}
+      <PriceRangeCards />
+
+      {/* Featured Products Grid */}
+      <ProductGrid 
+        title="Handcrafted Jewelry Collection"
+        subtitle="Discover timeless pieces crafted with precision and care"
+        limit={4}
+        showViewAll={true}
+      />
     </div>
   );
 }
