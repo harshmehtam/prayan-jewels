@@ -1,11 +1,10 @@
-import { ProductCatalog } from '@/components/product';
 import Link from 'next/link';
 
 export default function Home() {
   return (
     <div>
-      {/* Hero Section - Push content down from fixed headers */}
-      <section className="relative min-h-90vh overflow-hidden pt-30">
+      {/* Hero Section - Mobile optimized */}
+      <section className="relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden pt-24 sm:pt-28 lg:pt-32">
         {/* Large Background Image Area */}
         <div className="absolute inset-0 top-0">
           {/* Full background with jewelry photography style */}
@@ -16,34 +15,34 @@ export default function Home() {
             {/* Split composition - left side for hands/jewelry, right side for model */}
             <div className="absolute left-0 top-0 w-1/2 h-full">
               <div className="w-full h-full bg-gradient-to-br from-amber-300/30 to-orange-300/30 relative">
-                <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-yellow-400/15 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/4 left-1/4 w-48 h-48 bg-orange-400/20 rounded-full blur-2xl"></div>
+                <div className="absolute top-1/3 left-1/3 w-32 h-32 sm:w-64 sm:h-64 bg-yellow-400/15 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/4 left-1/4 w-24 h-24 sm:w-48 sm:h-48 bg-orange-400/20 rounded-full blur-2xl"></div>
               </div>
             </div>
             
             <div className="absolute right-0 top-0 w-1/2 h-full">
               <div className="w-full h-full bg-gradient-to-bl from-orange-300/30 to-pink-300/30 relative">
-                <div className="absolute top-1/4 right-1/3 w-56 h-56 bg-pink-400/15 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-1/3 right-1/4 w-40 h-40 bg-rose-400/20 rounded-full blur-2xl"></div>
+                <div className="absolute top-1/4 right-1/3 w-28 h-28 sm:w-56 sm:h-56 bg-pink-400/15 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-1/3 right-1/4 w-20 h-20 sm:w-40 sm:h-40 bg-rose-400/20 rounded-full blur-2xl"></div>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Content positioned on LEFT side - pushed down from headers */}
-        <div className="relative z-10 h-full flex items-center pt-8">
-          <div className="container mx-auto container-mobile">
-            {/* LEFT-aligned content with proper spacing */}
-            <div className="max-w-lg ml-8 lg:ml-16">
-              <h1 className="text-5xl lg:text-7xl font-light text-gray-900 mb-6 leading-tight tracking-wide">
+        {/* Content positioned - Better mobile vertical centering */}
+        <div className="relative z-10 h-full flex items-center justify-center pt-20 pb-8 sm:pt-20 sm:pb-16">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Mobile-first content positioning */}
+            <div className="max-w-full sm:max-w-2xl mx-auto sm:mx-0 text-center sm:text-left sm:ml-8 lg:ml-20">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-8xl font-light text-gray-900 mb-4 sm:mb-6 lg:mb-8 leading-tight tracking-wide">
                 PLAYING FAVORITES
               </h1>
-              <p className="text-lg lg:text-xl text-gray-700 mb-8 font-light">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 mb-6 sm:mb-8 lg:mb-12 font-light px-4 sm:px-0">
                 Discover our most loved styles
               </p>
               <Link 
                 href="/products"
-                className="inline-block bg-white text-gray-900 px-6 py-3 text-sm font-medium uppercase tracking-wider border border-gray-300 hover:bg-gray-50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-md"
+                className="inline-block bg-white text-gray-900 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold uppercase tracking-wider border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-lg"
               >
                 SHOP BESTSELLERS
               </Link>
@@ -53,10 +52,10 @@ export default function Home() {
       </section>
 
       {/* Product Catalog - Temporarily disabled for UI changes */}
-      <section className="py-16 lg:py-20 bg-white">
-        <div className="container mx-auto container-mobile">
+      <section className="py-12 sm:py-16 lg:py-20 bg-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="text-3xl font-light text-gray-900 mb-8 tracking-wide">
+            <h2 className="text-2xl sm:text-3xl font-light text-gray-900 mb-6 sm:mb-8 tracking-wide">
               Featured Products
             </h2>
             <p className="text-gray-600">Product catalog temporarily disabled for UI updates</p>
