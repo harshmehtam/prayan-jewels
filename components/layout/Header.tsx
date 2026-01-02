@@ -2,16 +2,14 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { CartIcon } from '@/components/cart';
 import { AuthModal } from '@/components/auth';
 import { useAuth } from '@/components/providers/auth-provider';
-import WishlistNotifications from '@/components/ui/WishlistNotifications';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalStep, setAuthModalStep] = useState<'login' | 'signup'>('login');
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -30,133 +28,117 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+      {/* Top Promotional Banner - Very thin like in image */}
+      <div className="bg-gray-100 text-center py-2 px-4 text-xs text-gray-800 border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+        <span className="font-medium">Enjoy 20% Off Your First Order Over $200:</span>
+        <span className="font-semibold"> Code HELLO20</span>
+      </div>
+
+      {/* Main Header - Compact like in image */}
+      <header className="bg-black bg-opacity-40 backdrop-blur-sm fixed top-8 left-0 right-0 z-40 text-white">
         <div className="container mx-auto container-mobile">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo */}
+          <div className="flex items-center justify-between h-14 lg:h-16">
+            {/* Logo - Larger and more readable */}
             <Link 
               href="/" 
-              className="text-xl sm:text-2xl font-bold text-gray-900 hover:text-blue-600 transition-colors focus-ring rounded-md px-2 py-1"
+              className="text-lg sm:text-xl font-normal text-white hover:text-gray-200 transition-colors focus-ring rounded-md px-2 py-1 tracking-[0.15em]"
             >
-              Prayan Jewels
+              PRAYAN JEWELS
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-8">
+            {/* Desktop Navigation - Larger fonts */}
+            <nav className="hidden lg:flex items-center space-x-10">
               <Link 
-                href="/" 
-                className="text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md px-3 py-2"
+                href="/categories/necklaces" 
+                className="text-white hover:text-white transition-colors focus-ring rounded-md px-3 py-2 text-base font-normal relative group"
               >
-                Home
+                Necklaces
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
               </Link>
               <Link 
-                href="/products" 
-                className="text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md px-3 py-2"
+                href="/categories/earrings" 
+                className="text-white hover:text-white transition-colors focus-ring rounded-md px-3 py-2 text-base font-normal relative group"
               >
-                Products
+                Earrings
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
               </Link>
               <Link 
-                href="/categories/traditional" 
-                className="text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md px-3 py-2"
+                href="/categories/rings" 
+                className="text-white hover:text-white transition-colors focus-ring rounded-md px-3 py-2 text-base font-normal relative group"
               >
-                Traditional
-              </Link>
-              <Link 
-                href="/categories/modern" 
-                className="text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md px-3 py-2"
-              >
-                Modern
-              </Link>
-              <Link 
-                href="/categories/designer" 
-                className="text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md px-3 py-2"
-              >
-                Designer
+                Rings
+              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300 group-hover:w-full"></span>
               </Link>
             </nav>
 
             {/* Right Side Actions */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              {/* Search Icon - Hidden on mobile, shown on tablet+ */}
-              <button className="hidden sm:flex touch-friendly p-2 text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md">
+              {/* Search - Fixed styling */}
+              <div className="hidden sm:flex items-center">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search for a product or fin..."
+                    className="w-64 pl-4 pr-10 py-2 text-sm bg-white bg-opacity-10 border border-white border-opacity-20 rounded-full placeholder-gray-300 text-white focus:outline-none focus:ring-1 focus:ring-white focus:border-white backdrop-blur-sm"
+                  />
+                  <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-300 hover:text-white">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Icons - Fixed spacing and styling */}
+              <button className="p-2 text-white hover:text-gray-200 transition-colors">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
-                <span className="sr-only">Search</span>
+                <span className="sr-only">Wishlist</span>
               </button>
-
-              {/* Wishlist Notifications - Only show for authenticated users */}
-              {isAuthenticated && <WishlistNotifications />}
-
-              {/* Cart */}
-              <CartIcon />
 
               {/* User Account */}
               {isAuthenticated ? (
                 <div className="relative group">
-                  <button className="touch-friendly p-2 text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md">
+                  <button className="p-2 text-white hover:text-gray-200 transition-colors">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span className="sr-only">Account menu</span>
                   </button>
                   
-                  {/* Dropdown Menu */}
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
-                    <Link
-                      href="/account"
-                      className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
-                    >
-                      My Account
-                    </Link>
-                    <Link
-                      href="/account/orders"
-                      className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
-                    >
-                      Order History
-                    </Link>
-                    <Link
-                      href="/account/wishlist"
-                      className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
-                    >
-                      My Wishlist
-                    </Link>
-                    <Link
-                      href="/account/addresses"
-                      className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
-                    >
-                      Addresses
-                    </Link>
+                    <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">My Account</Link>
+                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">Order History</Link>
+                    <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">My Wishlist</Link>
                     <hr className="my-1" />
-                    <button
-                      onClick={handleSignOut}
-                      className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 focus-ring"
-                    >
-                      Sign Out
-                    </button>
+                    <button onClick={handleSignOut} className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">Sign Out</button>
                   </div>
                 </div>
               ) : (
-                <div className="hidden md:flex items-center space-x-2">
-                  <button
-                    onClick={() => openAuthModal('login')}
-                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md"
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    onClick={() => openAuthModal('signup')}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors focus-ring"
-                  >
-                    Sign Up
-                  </button>
-                </div>
+                <button onClick={() => openAuthModal('login')} className="p-2 text-white hover:text-gray-200 transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span className="sr-only">Sign In</span>
+                </button>
               )}
+
+              {/* Cart - Fixed styling */}
+              <button className="relative p-2 text-white hover:text-gray-200 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l-1 7H6L5 9z" />
+                </svg>
+                <span className="absolute -top-1 -right-1 bg-white text-gray-900 text-xs rounded-full h-4 w-4 flex items-center justify-center font-semibold">
+                  0
+                </span>
+                <span className="sr-only">Shopping cart</span>
+              </button>
 
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="lg:hidden touch-friendly p-2 text-gray-600 hover:text-gray-900 transition-colors focus-ring rounded-md"
+                className="lg:hidden touch-friendly p-2 text-white hover:text-white transition-colors focus-ring rounded-md"
                 aria-expanded={isMenuOpen}
                 aria-label="Toggle navigation menu"
               >
@@ -173,74 +155,66 @@ export default function Header() {
 
           {/* Mobile Navigation */}
           {isMenuOpen && (
-            <div className="lg:hidden border-t border-gray-200 py-4 bg-white">
+            <div className="lg:hidden border-t border-white border-opacity-20 py-4 bg-black bg-opacity-30 backdrop-blur-sm">
               <nav className="flex flex-col space-y-1">
                 {/* Search on mobile */}
                 <div className="px-3 py-2 sm:hidden">
-                  <button className="w-full flex items-center justify-center touch-friendly p-3 text-gray-600 hover:text-gray-900 transition-colors bg-gray-50 rounded-md focus-ring">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    Search Products
-                  </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search for a product..."
+                      className="w-full pl-4 pr-10 py-3 text-sm bg-black bg-opacity-20 border border-white border-opacity-30 rounded-full placeholder-white placeholder-opacity-70 text-white focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 focus:border-transparent backdrop-blur-sm"
+                    />
+                    <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white text-opacity-70 hover:text-white">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 <Link 
-                  href="/" 
-                  className="px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                  href="/categories/necklaces" 
+                  className="px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Home
+                  Necklaces
                 </Link>
                 <Link 
-                  href="/products" 
-                  className="px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                  href="/categories/earrings" 
+                  className="px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  All Products
+                  Earrings
                 </Link>
                 <Link 
-                  href="/categories/traditional" 
-                  className="px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                  href="/categories/rings" 
+                  className="px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                   onClick={() => setIsMenuOpen(false)}
                 >
-                  Traditional
-                </Link>
-                <Link 
-                  href="/categories/modern" 
-                  className="px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Modern
-                </Link>
-                <Link 
-                  href="/categories/designer" 
-                  className="px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Designer
+                  Rings
                 </Link>
                 
                 {/* Mobile Auth Buttons */}
                 {isAuthenticated ? (
-                  <div className="pt-4 border-t border-gray-200 space-y-1">
+                  <div className="pt-4 border-t border-white border-opacity-20 space-y-1">
                     <Link
                       href="/account"
-                      className="block px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      className="block px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       My Account
                     </Link>
                     <Link
                       href="/account/orders"
-                      className="block px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      className="block px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       Order History
                     </Link>
                     <Link
                       href="/account/wishlist"
-                      className="block px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      className="block px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       My Wishlist
@@ -250,19 +224,19 @@ export default function Header() {
                         setIsMenuOpen(false);
                         handleSignOut();
                       }}
-                      className="block w-full text-left px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      className="block w-full text-left px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                     >
                       Sign Out
                     </button>
                   </div>
                 ) : (
-                  <div className="pt-4 border-t border-gray-200 space-y-2">
+                  <div className="pt-4 border-t border-white border-opacity-20 space-y-2">
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
                         openAuthModal('login');
                       }}
-                      className="block w-full text-left px-3 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors rounded-md focus-ring"
+                      className="block w-full text-left px-3 py-3 text-white hover:text-white hover:bg-white hover:bg-opacity-10 transition-colors rounded-md focus-ring"
                     >
                       Sign In
                     </button>
@@ -271,7 +245,7 @@ export default function Header() {
                         setIsMenuOpen(false);
                         openAuthModal('signup');
                       }}
-                      className="block w-full text-left px-3 py-3 bg-blue-600 text-white hover:bg-blue-700 transition-colors rounded-md focus-ring"
+                      className="block w-full text-left px-3 py-3 bg-white text-gray-900 hover:bg-gray-100 transition-colors rounded-md focus-ring"
                     >
                       Sign Up
                     </button>
