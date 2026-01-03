@@ -47,7 +47,7 @@ export default function ProductGrid({
         const filters = category ? { category } : {};
         // const result = await ProductService.getProducts(filters, limit);
         const result = await MockProductService.getProducts(filters, limit); // TEMPORARY - REMOVE IN PRODUCTION
-        console.log(`Requested ${limit} products, got ${result.products.length} products`); // DEBUG
+        // console.log(`Requested ${limit} products, got ${result.products.length} products`); // DEBUG
         setProducts(result.products);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load products');
@@ -72,7 +72,7 @@ export default function ProductGrid({
             )}
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="animate-pulse">
                 <div className="bg-gray-200 aspect-square rounded-lg mb-3"></div>
@@ -117,8 +117,8 @@ export default function ProductGrid({
           )}
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6 mb-8 sm:mb-12">
+        {/* Products Grid - Better responsive layout like PriceRangeCards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-7xl mx-auto">
           {products.map((product, index) => (
             <ProductGridCard 
               key={product.id} 

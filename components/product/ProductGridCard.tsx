@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useCart } from '@/components/providers/cart-provider';
 
 interface Product {
   id: string;
@@ -24,18 +25,8 @@ interface ProductGridCardProps {
 export default function ProductGridCard({ product, index }: ProductGridCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  // Detect mobile device
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const { addItem } = useCart();
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -102,7 +93,7 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
 
   // Handle image scroll for mobile
   const handleImageScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!isMobile || product.images.length <= 1) return;
+    if (product.images.length <= 1) return;
     
     const container = e.currentTarget;
     const scrollLeft = container.scrollLeft;
@@ -116,18 +107,32 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
 
   // Desktop hover behavior
   const handleMouseEnter = () => {
-    if (!isMobile) {
-      setIsHovered(true);
-      if (product.images.length > 1) {
-        setCurrentImageIndex(1);
-      }
+    setIsHovered(true);
+    if (product.images.length > 1) {
+      setCurrentImageIndex(1);
     }
   };
 
   const handleMouseLeave = () => {
-    if (!isMobile) {
-      setIsHovered(false);
-      setCurrentImageIndex(0);
+    setIsHovered(false);
+    setCurrentImageIndex(0);
+  };
+
+  // Add to cart functionality
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsAddingToCart(true);
+    
+    try {
+      await addItem(product.id, 1, product.price);
+      // You could add a toast notification here
+      console.log('Added to cart:', product.name);
+    } catch (error) {
+      console.error('Failed to add to cart:', error);
+      // You could add error handling/toast here
+    } finally {
+      setIsAddingToCart(false);
     }
   };
 
@@ -138,74 +143,72 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="relative bg-white">
+      <div className="relative bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-200 hover:shadow-md">
         {/* Product Image Container */}
-        <div className="relative aspect-square overflow-hidden bg-gray-100 rounded-lg mb-3">
+        <div className="relative aspect-square overflow-hidden bg-gray-100 rounded-t-lg mb-3">
           {product.images.length > 0 ? (
             <>
-              {/* Desktop: Single image with hover effect - Same placeholder as mobile */}
-              {!isMobile ? (
-                <div className="w-full h-full relative bg-gray-100">
-                  <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-16 h-16 mx-auto mb-2 bg-amber-200 rounded-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                        </svg>
-                      </div>
-                      <p className="text-xs text-gray-600 font-medium px-2 leading-tight">
-                        {isHovered && product.images.length > 1 ? 
-                          `${product.name.substring(0, 15)}... (2)` : 
-                          product.name.substring(0, 20)
-                        }
-                      </p>
+              {/* Desktop: Single image with hover effect */}
+              <div className="hidden md:block w-full h-full relative bg-gray-100 rounded-t-lg">
+                <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-t-lg">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-2 bg-amber-200 rounded-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                      </svg>
                     </div>
+                    <p className="text-xs text-gray-600 font-medium px-2 leading-tight">
+                      {isHovered && product.images.length > 1 ? 
+                        `${product.name.substring(0, 15)}... (2)` : 
+                        product.name.substring(0, 20)
+                      }
+                    </p>
                   </div>
                 </div>
-              ) : (
-                /* Mobile: Scrollable images with indicators - ORIGINAL functionality */
-                <div className="relative w-full h-full bg-gray-100">
-                  <div 
-                    className="flex w-full h-full overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-                    onScroll={handleImageScroll}
-                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                  >
-                    {product.images.map((image, imgIndex) => (
-                      <div key={imgIndex} className="w-full h-full flex-shrink-0 snap-center bg-gray-100">
-                        {/* Original mobile placeholder */}
-                        <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="w-12 h-12 mx-auto mb-1 bg-amber-200 rounded-full flex items-center justify-center">
-                              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                              </svg>
-                            </div>
-                            <p className="text-xs text-gray-600 px-1">{product.name.substring(0, 15)}...</p>
+              </div>
+
+              {/* Mobile: Scrollable images with indicators */}
+              <div className="md:hidden relative w-full h-full bg-gray-100 rounded-t-lg">
+                <div 
+                  className="flex w-full h-full overflow-x-auto scrollbar-hide snap-x snap-mandatory rounded-t-lg"
+                  onScroll={handleImageScroll}
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  {product.images.map((image, imgIndex) => (
+                    <div key={imgIndex} className="w-full h-full flex-shrink-0 snap-center bg-gray-100">
+                      {/* Mobile placeholder */}
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="w-12 h-12 mx-auto mb-1 bg-amber-200 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            </svg>
                           </div>
+                          <p className="text-xs text-gray-600 px-1">{product.name.substring(0, 15)}...</p>
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Mobile Image Indicators */}
+                {product.images.length > 1 && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                    {product.images.map((_, imgIndex) => (
+                      <div
+                        key={imgIndex}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                          imgIndex === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                        }`}
+                      />
                     ))}
                   </div>
-                  
-                  {/* Mobile Image Indicators */}
-                  {product.images.length > 1 && (
-                    <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                      {product.images.map((_, imgIndex) => (
-                        <div
-                          key={imgIndex}
-                          className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                            imgIndex === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </>
           ) : (
             /* Placeholder when no images */
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-t-lg">
               <svg
                 className="w-8 h-8 text-gray-400"
                 fill="none"
@@ -236,14 +239,61 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             </div>
           )}
 
-          {/* Hover overlay for desktop */}
-          {!isMobile && (
-            <div className="absolute inset-0 bg-gray-900 bg-opacity-0 group-hover:bg-opacity-5 transition-all duration-300 rounded-lg" />
+          {/* Wishlist Heart Icon - Custom without circular background */}
+          <button
+            onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // For now, just console log - you can implement proper wishlist logic
+              console.log('Toggle wishlist for product:', product.id);
+            }}
+            className={`absolute top-2 right-2 z-20 p-1.5 bg-white/80 backdrop-blur-sm rounded-md shadow-sm hover:bg-white transition-all duration-200 group ${
+              isOutOfStock ? 'top-12' : ''
+            }`}
+            aria-label="Add to wishlist"
+          >
+            <svg 
+              className="w-5 h-5 text-gray-600 hover:text-red-500 transition-all duration-200 group-hover:scale-110" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+              strokeWidth={1.8}
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+              />
+            </svg>
+          </button>
+
+          {/* Add to Cart Icon - Always visible with better icon */}
+          {!isOutOfStock && (
+            <button
+              onClick={handleAddToCart}
+              disabled={isAddingToCart}
+              className="absolute bottom-2 right-2 p-2 bg-black text-white rounded-full transition-all duration-300 z-20 shadow-lg hover:bg-gray-800 hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100 group"
+              aria-label="Add to cart"
+            >
+              {isAddingToCart ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              )}
+            </button>
           )}
+
+          {/* Hover overlay for desktop */}
+          <div className="hidden md:block absolute inset-0 bg-gray-900 bg-opacity-0 group-hover:bg-opacity-5 transition-all duration-300 rounded-t-lg" />
         </div>
 
         {/* Product Info */}
-        <div className="space-y-1">
+        <div className="space-y-1 p-3 pt-0">
           {/* Product Name */}
           <h3 className="text-sm font-normal text-gray-900 line-clamp-2 group-hover:text-gray-700 transition-colors leading-tight">
             {product.name}

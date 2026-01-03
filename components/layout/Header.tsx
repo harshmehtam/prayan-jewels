@@ -244,8 +244,8 @@ export default function Header() {
               <button className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                 isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
               }`} style={{ outline: 'none', boxShadow: 'none' }}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
                 <span className="sr-only">Wishlist</span>
               </button>
@@ -256,8 +256,8 @@ export default function Header() {
                   <button className={`p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                     isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                   }`} style={{ outline: 'none', boxShadow: 'none' }}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span className="sr-only">Account menu</span>
                   </button>
@@ -274,21 +274,21 @@ export default function Header() {
                 <button onClick={() => openAuthModal('login')} className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                   isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                 }`} style={{ outline: 'none', boxShadow: 'none' }}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span className="sr-only">Sign In</span>
                 </button>
               )}
 
               {/* Cart - Always visible, essential for e-commerce */}
-              <button className={`relative p-1.5 sm:p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+              <button className={`relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                 isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
               }`} style={{ outline: 'none', boxShadow: 'none' }}>
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119.993z" />
                 </svg>
-                <span className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 bg-black text-white text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center font-semibold text-[10px] sm:text-xs">
+                <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold text-xs">
                   0
                 </span>
                 <span className="sr-only">Shopping cart</span>

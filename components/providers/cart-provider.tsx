@@ -39,21 +39,21 @@ export function CartProvider({ children }: CartProviderProps) {
   const [cart, setCart] = useState<ShoppingCart | null>(null);
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState<string>('');
   
-  // Initialize session ID immediately for guest users
-  const [sessionId, setSessionId] = useState<string>(() => {
+  // Initialize session ID after component mounts to prevent SSR mismatch
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedSessionId = localStorage.getItem('cart_session_id');
       if (storedSessionId) {
-        return storedSessionId;
+        setSessionId(storedSessionId);
       } else {
         const newSessionId = generateSessionId();
         localStorage.setItem('cart_session_id', newSessionId);
-        return newSessionId;
+        setSessionId(newSessionId);
       }
     }
-    return '';
-  });
+  }, []);
 
   // Load cart data
   const loadCart = useCallback(async () => {
