@@ -320,6 +320,13 @@ export class ProductService {
         return products.sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0));
       case 'rating':
         return products.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+      case 'most-relevant':
+        // For most relevant, we'll use a combination of popularity and rating
+        return products.sort((a, b) => {
+          const scoreA = ((a.popularityScore || 0) * 0.6) + ((a.averageRating || 0) * 0.4);
+          const scoreB = ((b.popularityScore || 0) * 0.6) + ((b.averageRating || 0) * 0.4);
+          return scoreB - scoreA;
+        });
       default:
         return products;
     }

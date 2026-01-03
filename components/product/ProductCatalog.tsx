@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ProductService } from '@/lib/data/products';
+import { MockProductService } from '@/lib/data/mockProducts'; // Using mock data
 import { ProductFilters, ProductSearchResult } from '@/types';
-import ProductCard from './ProductCard';
-import ProductFiltersComponent from './ProductFilters';
+import ProductGridCard from './ProductGridCard';
 import SearchBar from './SearchBar';
+import Pagination from '@/components/ui/Pagination';
 
 interface ProductCatalogProps {
   initialCategory?: 'traditional' | 'modern' | 'designer';
@@ -14,14 +14,18 @@ interface ProductCatalogProps {
   showSearch?: boolean;
   limit?: number;
   userId?: string; // For search history and saved searches
+  showBestsellers?: boolean; // New prop to show all products as bestsellers
+  itemsPerPage?: number; // Items per page for pagination
 }
 
 export default function ProductCatalog({
   initialCategory,
-  showFilters = true,
-  showSearch = true,
-  limit = 15,
-  userId
+  showFilters = false, // Default to false for simplified view
+  showSearch = false, // Default to false for simplified view
+  limit = 24,
+  userId,
+  showBestsellers = false,
+  itemsPerPage = 12
 }: ProductCatalogProps) {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
@@ -29,8 +33,12 @@ export default function ProductCatalog({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize filters from URL parameters
+  // Simplified filters - no category filtering for bestsellers view
   const [filters, setFilters] = useState<ProductFilters>(() => {
+    if (showBestsellers) {
+      return {}; // No filters for bestsellers - show all products
+    }
+    
     const initialFilters: ProductFilters = {
       category: initialCategory
     };
@@ -50,7 +58,8 @@ export default function ProductCatalog({
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating'>('newest');
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'rating' | 'newest' | 'most-relevant'>('most-relevant');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch products based on current filters and search
   const fetchProducts = async () => {
@@ -62,11 +71,11 @@ export default function ProductCatalog({
 
       if (searchQuery.trim()) {
         // If there's a search query, use search function with sorting
-        result = await ProductService.searchProducts(searchQuery, { ...filters, sortBy }, limit);
+        result = await MockProductService.searchProducts(searchQuery, { ...filters, sortBy }, limit);
       } else {
         // Otherwise use regular filtering with sorting
         const filtersWithSort = { ...filters, sortBy };
-        result = await ProductService.getProducts(filtersWithSort, limit);
+        result = await MockProductService.getProducts(filtersWithSort, limit);
       }
 
       setProducts(result.products);
@@ -90,22 +99,34 @@ export default function ProductCatalog({
     return products;
   }, [products]);
 
-  const handleFilterChange = (newFilters: ProductFilters) => {
-    setFilters(newFilters);
-  };
+  // Pagination logic
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return sortedProducts.slice(startIndex, endIndex);
+  }, [sortedProducts, currentPage, itemsPerPage]);
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+    setCurrentPage(1); // Reset to first page on search
   };
 
   const handleSortChange = (newSort: typeof sortBy) => {
     setSortBy(newSort);
+    setCurrentPage(1); // Reset to first page on sort change
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
     return (
       <div className="container mx-auto container-mobile py-responsive">
-        <div className="grid grid-responsive-1-2-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {Array.from({ length: 8 }).map((_, index) => (
             <div key={index} className="animate-pulse">
               <div className="bg-gray-200 aspect-square rounded-lg mb-4"></div>
@@ -142,17 +163,19 @@ export default function ProductCatalog({
 
   return (
     <div className="container mx-auto container-mobile py-responsive">
-      {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-responsive-2xl font-bold text-gray-900 mb-2">
-          Silver Mangalsutra Collection
-        </h1>
-        <p className="text-gray-600 text-responsive-sm">
-          Discover our exquisite collection of traditional and modern silver mangalsutra designs
-        </p>
-      </div>
+      {/* Header - Only show for non-bestsellers view */}
+      {!showBestsellers && (
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-responsive-2xl font-bold text-gray-900 mb-2">
+            Silver Mangalsutra Collection
+          </h1>
+          <p className="text-gray-600 text-responsive-sm">
+            Discover our exquisite collection of traditional and modern silver mangalsutra designs
+          </p>
+        </div>
+      )}
 
-      {/* Search Bar */}
+      {/* Search Bar - Only show if enabled */}
       {showSearch && (
         <div className="mb-4 sm:mb-6">
           <SearchBar
@@ -163,134 +186,138 @@ export default function ProductCatalog({
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-        {/* Filters Sidebar */}
-        {showFilters && (
-          <div className="lg:w-64 flex-shrink-0">
-            <div className="lg:sticky lg:top-8">
-              <ProductFiltersComponent
-                filters={filters}
-                onFilterChange={handleFilterChange}
-              />
-            </div>
-          </div>
-        )}
+      {/* Bestsellers Header */}
+      {showBestsellers && (
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-3xl sm:text-4xl font-light text-gray-900 mb-2">
+            Women's Jewellery
+          </h1>
+        </div>
+      )}
 
-        {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          {/* Sort and Results Count */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
-            <div className="text-responsive-xs text-gray-600">
-              {searchQuery ? (
-                <span>
-                  {sortedProducts.length} results for "{searchQuery}"
-                </span>
-              ) : (
-                <span>
-                  {sortedProducts.length} products
-                  {filters.category && ` in ${filters.category}`}
-                </span>
-              )}
-            </div>
-
-            {/* Sort Dropdown */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <label htmlFor="sort" className="text-responsive-xs font-medium text-gray-700 whitespace-nowrap">
-                Sort by:
-              </label>
-              <select
-                id="sort"
-                value={sortBy}
-                onChange={(e) => handleSortChange(e.target.value as typeof sortBy)}
-                className="flex-1 sm:flex-none border border-gray-300 rounded-md px-3 py-2 text-responsive-xs focus-ring bg-white min-w-0"
-              >
-                <option value="newest">Newest First</option>
-                <option value="name">Name A-Z</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="popularity">Most Popular</option>
-                <option value="rating">Highest Rated</option>
-              </select>
-            </div>
+      {/* Main Content - No sidebar for simplified view */}
+      <div className="w-full">
+        {/* Sort and Results Count - Mobile Optimized */}
+        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6">
+          {/* Results Count */}
+          <div className="text-sm text-gray-600 order-2 sm:order-1">
+            {searchQuery ? (
+              <span>
+                {sortedProducts.length} results for "{searchQuery}"
+              </span>
+            ) : (
+              <span>
+                Showing {paginatedProducts.length} of {sortedProducts.length} items
+              </span>
+            )}
           </div>
 
-          {/* Products Grid */}
-          {sortedProducts.length > 0 ? (
-            <div className="grid grid-responsive-1-2-4 gap-4 sm:gap-6">
-              {sortedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+          {/* Sort Dropdown - Full width on mobile */}
+          <div className="flex items-center gap-2 order-1 sm:order-2">
+            <label htmlFor="sort" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              Sort by:
+            </label>
+            <select
+              id="sort"
+              value={sortBy}
+              onChange={(e) => handleSortChange(e.target.value as typeof sortBy)}
+              className="flex-1 sm:flex-none border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white min-w-0 sm:min-w-[180px]"
+            >
+              <option value="most-relevant">Most Relevant</option>
+              <option value="newest">New In</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="rating">Ratings</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        {paginatedProducts.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8">
+              {paginatedProducts.map((product, index) => (
+                <ProductGridCard key={product.id} product={product} index={index} />
               ))}
             </div>
-          ) : (
-            <div className="text-center py-12 px-4">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-8 sm:mt-12">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
               </div>
-              <h3 className="text-responsive-base font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-600 mb-4 text-responsive-sm">
-                {searchQuery
-                  ? `No products match your search for "${searchQuery}"`
-                  : 'No products match your current filters'
-                }
-              </p>
-
-              {/* Alternative suggestions for search queries */}
-              {searchQuery && searchResult?.suggestions && searchResult.suggestions.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-gray-700 mb-3 text-responsive-sm font-medium">Try searching for:</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {searchResult.suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSearchQuery(suggestion)}
-                        className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-responsive-xs hover:bg-blue-100 transition-colors focus-ring"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Popular products for no results */}
-              {searchQuery && searchResult?.popularProducts && searchResult.popularProducts.length > 0 && (
-                <div className="mb-6">
-                  <p className="text-gray-700 mb-4 text-responsive-sm font-medium">Popular products you might like:</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto">
-                    {searchResult.popularProducts.map((product) => (
-                      <div key={product.id} className="text-center">
-                        <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
-                          <img
-                            src={product.images[0]}
-                            alt={product.name}
-                            className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                            onClick={() => window.location.href = `/products/${product.id}`}
-                          />
-                        </div>
-                        <h4 className="text-responsive-xs font-medium text-gray-900 truncate">{product.name}</h4>
-                        <p className="text-responsive-xs text-gray-600">₹{product.price.toLocaleString()}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(searchQuery || Object.keys(filters).some(key => filters[key as keyof ProductFilters])) && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('');
-                    setFilters({ category: initialCategory });
-                  }}
-                  className="text-blue-600 hover:text-blue-700 font-medium text-responsive-sm focus-ring rounded-md px-2 py-1"
-                >
-                  Clear all filters
-                </button>
-              )}
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12 px-4">
+            <div className="text-gray-400 mb-4">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
-          )}
-        </div>
+            <h3 className="text-responsive-base font-medium text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4 text-responsive-sm">
+              {searchQuery
+                ? `No products match your search for "${searchQuery}"`
+                : 'No products available at the moment'
+              }
+            </p>
+
+            {/* Alternative suggestions for search queries */}
+            {searchQuery && searchResult?.suggestions && searchResult.suggestions.length > 0 && (
+              <div className="mb-6">
+                <p className="text-gray-700 mb-3 text-responsive-sm font-medium">Try searching for:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {searchResult.suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSearchQuery(suggestion)}
+                      className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-responsive-xs hover:bg-blue-100 transition-colors focus-ring"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Popular products for no results */}
+            {searchQuery && searchResult?.popularProducts && searchResult.popularProducts.length > 0 && (
+              <div className="mb-6">
+                <p className="text-gray-700 mb-4 text-responsive-sm font-medium">Popular products you might like:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto">
+                  {searchResult.popularProducts.map((product) => (
+                    <div key={product.id} className="text-center">
+                      <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
+                        <img
+                          src={product.images[0]}
+                          alt={product.name}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                          onClick={() => window.location.href = `/products/${product.id}`}
+                        />
+                      </div>
+                      <h4 className="text-responsive-xs font-medium text-gray-900 truncate">{product.name}</h4>
+                      <p className="text-responsive-xs text-gray-600">₹{product.price.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-blue-600 hover:text-blue-700 font-medium text-responsive-sm focus-ring rounded-md px-2 py-1"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -215,7 +215,7 @@ export interface ProductFilters {
   maxPrice?: number;
   inStock?: boolean;
   searchQuery?: string;
-  sortBy?: 'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating';
+  sortBy?: 'price-asc' | 'price-desc' | 'name' | 'newest' | 'popularity' | 'rating' | 'most-relevant';
 }
 
 export interface ProductSearchResult {

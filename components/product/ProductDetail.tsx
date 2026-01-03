@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { ProductService } from '@/lib/data/products';
+import { MockProductService } from '@/lib/data/mockProducts';
 import { AddToCartButton } from '@/components/cart';
 import type { Product } from '@/types';
 
@@ -49,7 +49,7 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
         setLoading(true);
         setError(null);
         
-        const response = await ProductService.getProduct(productId);
+        const response = await MockProductService.getProduct(productId);
         
         if (response.product) {
           setProduct(response.product);

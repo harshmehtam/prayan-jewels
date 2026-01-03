@@ -127,60 +127,106 @@ export default function OptimizedImage({
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`} style={style}>
-      <Image
-        ref={imgRef}
-        src={optimizedSrc}
-        alt={alt}
-        width={fill ? undefined : width}
-        height={fill ? undefined : height}
-        fill={fill}
-        priority={priority}
-        loading={shouldUseLazyLoading ? loading : 'eager'}
-        quality={optimalQuality}
-        placeholder={placeholder}
-        blurDataURL={placeholderDataURL}
-        sizes={responsiveSizes}
-        className={`transition-opacity duration-300 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
-        } ${fill ? 'object-cover' : ''}`}
-        onLoad={handleLoad}
-        onError={handleError}
-        {...props}
-      />
-      
-      {/* Loading placeholder */}
-      {!isLoaded && !imageError && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
-          {isSlowConnection ? (
-            // Simple loading indicator for slow connections
-            <div className="w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
-          ) : (
-            // Spinner for faster connections
-            <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+    <>
+      {fill ? (
+        // When using fill, don't add wrapper div to avoid height issues
+        <>
+          <Image
+            ref={imgRef}
+            src={optimizedSrc}
+            alt={alt}
+            fill={fill}
+            priority={priority}
+            loading={shouldUseLazyLoading ? loading : 'eager'}
+            quality={optimalQuality}
+            placeholder={placeholder}
+            blurDataURL={placeholderDataURL}
+            sizes={responsiveSizes}
+            className={`transition-opacity duration-300 object-cover ${
+              isLoaded ? 'opacity-100' : 'opacity-0'
+            } ${className}`}
+            style={style}
+            onLoad={handleLoad}
+            onError={handleError}
+            {...props}
+          />
+          
+          {/* Loading placeholder */}
+          {!isLoaded && !imageError && (
+            <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+              {isSlowConnection ? (
+                // Simple loading indicator for slow connections
+                <div className="w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
+              ) : (
+                // Spinner for faster connections
+                <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+              )}
+            </div>
+          )}
+          
+          {/* Connection indicator for debugging (only in development) */}
+          {process.env.NODE_ENV === 'development' && isSlowConnection && (
+            <div className="absolute top-1 left-1 bg-orange-500 text-white text-xs px-1 rounded">
+              Slow
+            </div>
+          )}
+        </>
+      ) : (
+        // When not using fill, use wrapper div
+        <div className={`relative overflow-hidden ${className}`} style={style}>
+          <Image
+            ref={imgRef}
+            src={optimizedSrc}
+            alt={alt}
+            width={width}
+            height={height}
+            priority={priority}
+            loading={shouldUseLazyLoading ? loading : 'eager'}
+            quality={optimalQuality}
+            placeholder={placeholder}
+            blurDataURL={placeholderDataURL}
+            sizes={responsiveSizes}
+            className={`transition-opacity duration-300 ${
+              isLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoad={handleLoad}
+            onError={handleError}
+            {...props}
+          />
+          
+          {/* Loading placeholder */}
+          {!isLoaded && !imageError && (
+            <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+              {isSlowConnection ? (
+                // Simple loading indicator for slow connections
+                <div className="w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
+              ) : (
+                // Spinner for faster connections
+                <div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+              )}
+            </div>
+          )}
+          
+          {/* Connection indicator for debugging (only in development) */}
+          {process.env.NODE_ENV === 'development' && isSlowConnection && (
+            <div className="absolute top-1 left-1 bg-orange-500 text-white text-xs px-1 rounded">
+              Slow
+            </div>
           )}
         </div>
       )}
-      
-      {/* Connection indicator for debugging (only in development) */}
-      {process.env.NODE_ENV === 'development' && isSlowConnection && (
-        <div className="absolute top-1 left-1 bg-orange-500 text-white text-xs px-1 rounded">
-          Slow
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
 // Specialized components for common use cases
 export function ProductCardImage({ src, alt, className, ...props }: Omit<OptimizedImageProps, 'config'>) {
   return (
-    <OptimizedImage
+    <Image
       src={src}
       alt={alt}
-      config="productCard"
-      className={className}
       fill
+      className={`object-cover ${className || ''}`}
       sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
       {...props}
     />

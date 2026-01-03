@@ -44,7 +44,7 @@ export default function Home() {
                 Discover our most loved styles
               </p>
               <Link 
-                href="/products"
+                href="/bestsellers"
                 className="inline-block bg-white text-gray-900 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold uppercase tracking-wider border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-lg"
               >
                 SHOP BESTSELLERS

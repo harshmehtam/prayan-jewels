@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 // import { ProductService } from '@/lib/data/products';
-import { MockProductService } from '@/lib/data/mock-products'; // TEMPORARY - REMOVE IN PRODUCTION
+import { MockProductService } from '@/lib/data/mockProducts';
 import ProductGridCard from './ProductGridCard';
 
 interface Product {
@@ -46,7 +46,7 @@ export default function ProductGrid({
         setLoading(true);
         const filters = category ? { category } : {};
         // const result = await ProductService.getProducts(filters, limit);
-        const result = await MockProductService.getProducts(filters, limit); // TEMPORARY - REMOVE IN PRODUCTION
+        const result = await MockProductService.getProducts(filters, limit);
         // console.log(`Requested ${limit} products, got ${result.products.length} products`); // DEBUG
         setProducts(result.products);
       } catch (err) {
@@ -117,7 +117,7 @@ export default function ProductGrid({
           )}
         </div>
 
-        {/* Products Grid - Better responsive layout like PriceRangeCards */}
+        {/* Products Grid - Using ProductGridCard design */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-7xl mx-auto">
           {products.map((product, index) => (
             <ProductGridCard 
