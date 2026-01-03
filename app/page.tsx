@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import PriceRangeCards from '@/components/product/PriceRangeCards';
 import ProductGrid from '@/components/product/ProductGrid';
+import FeaturesSection from '@/components/layout/FeaturesSection';
 
 export default function Home() {
   return (
     <div>
       {/* Hero Section - Mobile optimized */}
-      <section className="relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden pt-24 sm:pt-28 lg:pt-32">
+      <section className="relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden pt-28 sm:pt-32 lg:pt-36">
         {/* Large Background Image Area */}
         <div className="absolute inset-0 top-0">
           {/* Full background with jewelry photography style */}
@@ -63,6 +64,9 @@ export default function Home() {
         limit={4}
         showViewAll={true}
       />
+
+      {/* Features Section */}
+      <FeaturesSection />
     </div>
   );
 }

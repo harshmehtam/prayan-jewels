@@ -12,15 +12,50 @@ export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, signOut } = useAuth();
 
-  // Scroll detection
+  // Scroll detection with over-scroll prevention
   useEffect(() => {
+    let ticking = false;
+    
     const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      setIsScrolled(scrollTop > 50);
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const scrollTop = window.scrollY;
+          
+          // Prevent over-scrolling at the top
+          if (scrollTop < 0) {
+            window.scrollTo(0, 0);
+            return;
+          }
+          
+          setIsScrolled(scrollTop > 100);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Add scroll listener
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Prevent touch-based over-scrolling on mobile
+    const preventOverScroll = (e: TouchEvent) => {
+      const scrollTop = window.scrollY;
+      if (scrollTop <= 0 && e.touches[0].clientY > e.touches[0].clientY) {
+        e.preventDefault();
+      }
+    };
+    
+    // Only add touch prevention on mobile devices
+    if ('ontouchstart' in window) {
+      document.addEventListener('touchmove', preventOverScroll, { passive: false });
+    }
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if ('ontouchstart' in window) {
+        document.removeEventListener('touchmove', preventOverScroll);
+      }
+    };
   }, []);
 
   // Prevent body scroll when mobile menu is open and add blur effect
@@ -106,7 +141,7 @@ export default function Header() {
   return (
     <>
       {/* Top Promotional Banner - Better mobile text wrapping */}
-      <div className="bg-gray-100 text-center py-2 px-2 sm:px-4 text-xs sm:text-sm text-gray-800 border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+      <div className="bg-gray-100 text-center py-2 px-2 sm:px-4 text-sm sm:text-base text-gray-800 border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
         <div className="max-w-screen-xl mx-auto">
           <span className="font-medium">Enjoy 20% Off Your First Order Over $200:</span>
           <span className="font-semibold"> Code HELLO20</span>
@@ -121,11 +156,11 @@ export default function Header() {
       }`}>
         <div className="container mx-auto container-mobile">
           {/* Main header row - Logo and icons with better mobile spacing */}
-          <div className="flex items-center justify-between h-16 lg:h-18 px-3 sm:px-4 pt-2 lg:pt-0">
+          <div className="flex items-center justify-between h-20 lg:h-24 px-3 sm:px-4">
             {/* Logo - Responsive sizing */}
             <Link 
               href="/" 
-              className={`text-lg sm:text-xl lg:text-2xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${
+              className={`text-xl sm:text-2xl lg:text-3xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${
                 isScrolled 
                   ? 'text-black hover:text-gray-700' 
                   : 'text-black hover:text-gray-700'
@@ -304,95 +339,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/* Mobile Navigation - Moved completely outside header to avoid blur inheritance */}
-      {isMenuOpen && (
-            <>
-              {/* Invisible backdrop for click-to-close */}
-              <div 
-                className="lg:hidden fixed inset-0 z-[100]" 
-                onClick={() => setIsMenuOpen(false)}
-              />
-              
-              {/* Sidebar drawer - Enhanced with gradients and beautiful styling */}
-              <div className="lg:hidden fixed top-0 right-0 w-80 h-screen z-[101] shadow-2xl">
-                {/* Beautiful gradient background similar to hero section */}
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-pink-50">
-                  <div className="absolute inset-0 bg-gradient-to-r from-amber-100/40 via-orange-100/30 to-pink-100/40"></div>
-                  
-                  {/* Subtle decorative elements */}
-                  <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-yellow-200/20 rounded-full blur-2xl"></div>
-                  <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-pink-200/25 rounded-full blur-xl"></div>
-                </div>
 
-                {/* Content overlay - Flex layout for proper scrolling */}
-                <div className="relative z-10 h-full flex flex-col">
-                  {/* Close button header */}
-                  <div className="flex justify-end items-center p-6 border-b border-white/20 backdrop-blur-sm">
-                    <button
-                      onClick={() => setIsMenuOpen(false)}
-                      className="p-3 text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-full transition-all duration-200 backdrop-blur-sm cursor-pointer outline-none focus:outline-none"
-                      style={{ outline: 'none', boxShadow: 'none' }}
-                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* Navigation menu - Scrollable if needed */}
-                  <div className="px-6 py-8 overflow-y-auto flex-1">
-                    <nav>
-                      <div className="space-y-2">
-                        <Link
-                          href="/categories/necklaces"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                          style={{ outline: 'none', boxShadow: 'none' }}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Necklaces</span>
-                          <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
-
-                        <Link
-                          href="/categories/earrings"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                          style={{ outline: 'none', boxShadow: 'none' }}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Earrings</span>
-                          <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
-
-                        <Link
-                          href="/categories/rings"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                          style={{ outline: 'none', boxShadow: 'none' }}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Rings</span>
-                          <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </nav>
-
-                    {/* Elegant bottom decoration */}
-                    <div className="mt-16">
-                      <div className="h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
-                      <div className="mt-4 text-center">
-                        <p className="text-sm font-light text-gray-600 tracking-wider">PRAYAN JEWELS</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
 
       {/* Mobile Navigation - Moved completely outside header to avoid blur inheritance */}
       {isMenuOpen && (

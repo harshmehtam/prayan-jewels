@@ -12,12 +12,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* Disable dark mode to prevent black backgrounds */
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
@@ -46,6 +47,22 @@ body {
 /* Prevent horizontal scroll on mobile */
 html, body {
   overflow-x: hidden;
+}
+
+/* Prevent over-scrolling at the top and bottom of the page */
+html {
+  overscroll-behavior: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+/* Prevent rubber band scrolling on iOS */
+body {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Remove focus outlines for better UI */

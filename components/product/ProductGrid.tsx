@@ -61,7 +61,7 @@ export default function ProductGrid({
 
   if (loading) {
     return (
-      <section className="py-12 sm:py-16 lg:py-20 bg-white">
+      <section className="pt-6 sm:pt-8 lg:pt-10 pb-12 sm:pb-16 lg:pb-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-2xl sm:text-3xl font-light text-gray-900 mb-2 tracking-wide">
@@ -89,7 +89,7 @@ export default function ProductGrid({
 
   if (error || products.length === 0) {
     return (
-      <section className="py-12 sm:py-16 lg:py-20 bg-white">
+      <section className="pt-6 sm:pt-8 lg:pt-10 pb-12 sm:pb-16 lg:pb-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-2xl sm:text-3xl font-light text-gray-900 mb-4 tracking-wide">
@@ -105,7 +105,7 @@ export default function ProductGrid({
   }
 
   return (
-    <section className="py-12 sm:py-16 lg:py-20 bg-white">
+    <section className="pt-6 sm:pt-8 lg:pt-10 pb-12 sm:pb-16 lg:pb-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-8 sm:mb-12">
