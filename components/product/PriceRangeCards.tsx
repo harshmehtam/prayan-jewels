@@ -68,54 +68,51 @@ export default function PriceRangeCards() {
         {/* Price Range Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
           {priceRanges.map((range, index) => (
-            <Link
+            <div
               key={index}
-              href={`/products?maxPrice=${range.maxPrice}`}
-              className="group block"
-            >
-              <div className={`
+              className={`
                 relative overflow-hidden rounded-2xl p-6 sm:p-8 h-56 sm:h-64 lg:h-72
-                ${range.backgroundColor} ${range.hoverColor}
-                transition-all duration-200 ease-out
-                hover:shadow-lg
-                focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50
-                border border-gray-200 hover:border-gray-300
-              `}>
-                
-                {/* Content */}
-<div className="relative z-10 h-full flex flex-col justify-center items-center text-center">
-                  <div className="mb-16">
-                    <h3 className={`
-                      text-xl sm:text-2xl lg:text-3xl font-bold ${range.textColor} mb-3
-                    `}>
-                      {range.title}
-                    </h3>
-                    <p className={`
-                      text-base sm:text-lg lg:text-xl ${range.textColor} font-medium opacity-80
-                    `}>
-                      {range.catchPhrase}
-                    </p>
-                  </div>
-                  
-                  {/* Call to Action */}
-                  <div className="flex items-center">
-                    <div className={`
-                      bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200
-                      hover:bg-gray-50 transition-colors duration-200
-                    `}>
-                      <span className={`
-                        text-sm sm:text-base ${range.textColor} font-semibold uppercase tracking-wider
-                      `}>
-                        Explore Collection
-                      </span>
-                    </div>
-                  </div>
+                ${range.backgroundColor}
+                border border-gray-200
+              `}
+            >
+              
+              {/* Content */}
+              <div className="relative z-10 h-full flex flex-col justify-center items-center text-center">
+                <div className="mb-16">
+                  <h3 className={`
+                    text-xl sm:text-2xl lg:text-3xl font-bold ${range.textColor} mb-3
+                  `}>
+                    {range.title}
+                  </h3>
+                  <p className={`
+                    text-base sm:text-lg lg:text-xl ${range.textColor} font-medium opacity-80
+                  `}>
+                    {range.catchPhrase}
+                  </p>
                 </div>
-
-                {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                
+                {/* Call to Action */}
+                <div className="flex items-center">
+                  <Link
+                    href={`/products?maxPrice=${range.maxPrice}`}
+                    className={`
+                      bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200
+                      hover:bg-gray-900 hover:border-gray-900 transition-all duration-300
+                      focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50
+                      inline-block group
+                    `}
+                  >
+                    <span className={`
+                      text-sm sm:text-base text-gray-800 font-semibold uppercase tracking-wider
+                      group-hover:text-white transition-colors duration-300
+                    `}>
+                      Explore Collection
+                    </span>
+                  </Link>
+                </div>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
 
