@@ -130,25 +130,34 @@ export function OrderReview({
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Items</h2>
         
         <div className="space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
-              <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md"></div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-gray-900">
-                  Product {item.productId}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Quantity: {item.quantity}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Unit Price: ₹{item.unitPrice.toLocaleString()}
-                </p>
+          {items.map((item, index) => {
+            // Mock product names for UI development
+            const productNames = [
+              'Fine Chain Necklace 22"',
+              'December Birthstone Locket',
+              'Silver Chain Bracelet'
+            ];
+            
+            return (
+              <div key={item.id} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
+                <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md"></div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-gray-900">
+                    {productNames[index] || `Product ${item.productId}`}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Quantity: {item.quantity}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Unit Price: ₹{item.unitPrice.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-sm font-medium text-gray-900">
+                  ₹{item.totalPrice.toLocaleString()}
+                </div>
               </div>
-              <div className="text-sm font-medium text-gray-900">
-                ₹{item.totalPrice.toLocaleString()}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Order totals */}
@@ -201,7 +210,7 @@ export function OrderReview({
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Method</h2>
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
-            <div className="w-12 h-8 bg-blue-600 rounded flex items-center justify-center">
+            <div className="w-12 h-8 bg-black rounded flex items-center justify-center">
               <span className="text-white text-xs font-bold">RAZORPAY</span>
             </div>
           </div>
@@ -225,15 +234,15 @@ export function OrderReview({
             id="terms"
             type="checkbox"
             defaultChecked
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
+            className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded mt-0.5"
           />
           <label htmlFor="terms" className="text-sm text-gray-700">
             I agree to the{' '}
-            <a href="/terms" className="text-blue-600 hover:text-blue-500 underline">
+            <a href="/terms" className="text-black hover:text-gray-700 underline">
               Terms and Conditions
             </a>{' '}
             and{' '}
-            <a href="/privacy" className="text-blue-600 hover:text-blue-500 underline">
+            <a href="/privacy" className="text-black hover:text-gray-700 underline">
               Privacy Policy
             </a>
           </label>

@@ -4,14 +4,18 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { AuthModal } from '@/components/auth';
+import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
+import { useCart } from '@/components/providers/cart-provider';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [authModalStep, setAuthModalStep] = useState<'login' | 'signup'>('login');
   const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, signOut } = useAuth();
+  const { itemCount } = useCart();
   const pathname = usePathname();
   
   // Check if we're on the home page
@@ -287,14 +291,18 @@ export default function Header() {
               )}
 
               {/* Cart - Always visible, essential for e-commerce */}
-              <button className={`relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-              }`} style={{ outline: 'none', boxShadow: 'none' }}>
+              <button 
+                onClick={() => setIsCartModalOpen(true)}
+                className={`relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                }`} 
+                style={{ outline: 'none', boxShadow: 'none' }}
+              >
                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119.993z" />
                 </svg>
                 <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold text-xs">
-                  0
+                  {itemCount}
                 </span>
                 <span className="sr-only">Shopping cart</span>
               </button>
@@ -474,6 +482,12 @@ export default function Header() {
           </div>
         </>
       )}
+
+      {/* Cart Modal */}
+      <CartModal
+        isOpen={isCartModalOpen}
+        onClose={() => setIsCartModalOpen(false)}
+      />
 
       {/* Auth Modal */}
       <AuthModal

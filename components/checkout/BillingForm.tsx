@@ -157,7 +157,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
               name="firstName"
               value={formData.firstName}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.firstName ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter your first name"
@@ -177,7 +177,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
               name="lastName"
               value={formData.lastName}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.lastName ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter your last name"
@@ -199,7 +199,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
             name="addressLine1"
             value={formData.addressLine1}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
               errors.addressLine1 ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="Street address, P.O. Box, company name"
@@ -219,7 +219,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
             name="addressLine2"
             value={formData.addressLine2}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
             placeholder="Apartment, suite, unit, building, floor, etc."
           />
         </div>
@@ -236,7 +236,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
               name="city"
               value={formData.city}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.city ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter city"
@@ -255,7 +255,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
               name="state"
               value={formData.state}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.state ? 'border-red-300' : 'border-gray-300'
               }`}
             >
@@ -281,7 +281,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
               name="postalCode"
               value={formData.postalCode}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.postalCode ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="6-digit PIN code"
@@ -303,7 +303,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
             name="country"
             value={formData.country}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
               errors.country ? 'border-red-300' : 'border-gray-300'
             }`}
           >
@@ -327,7 +327,7 @@ export function BillingForm({ onSubmit, onBack, initialData }: BillingFormProps)
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? 'Processing...' : 'Review Order'}
           </button>

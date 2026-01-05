@@ -32,7 +32,7 @@ export function PaymentButton({
   const razorpayService = RazorpayService.getInstance();
 
   const handlePayment = async () => {
-    if (!user || !userProfile || !cart || !items.length || !shippingAddress || !billingAddress) {
+    if (!cart || !items.length || !shippingAddress || !billingAddress) {
       onError('Missing required information for payment');
       return;
     }
@@ -41,9 +41,9 @@ export function PaymentButton({
     onProcessingChange(true);
 
     try {
-      // Prepare order data
+      // Prepare order data for guest or authenticated user
       const orderData: CreateOrderInput = {
-        customerId: user.userId,
+        customerId: user?.userId || 'guest', // Use 'guest' for non-authenticated users
         items: items.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -73,12 +73,20 @@ export function PaymentButton({
         },
       };
 
+      // Get customer information from shipping address if not authenticated
+      const customerName = user && userProfile 
+        ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || user.username
+        : `${shippingAddress.firstName} ${shippingAddress.lastName}`;
+      
+      const customerEmail = user?.username || (shippingAddress as any).email || 'guest@example.com';
+      const customerPhone = (user && userProfile?.phone) || ''; // Optional for guest
+
       // Open Razorpay checkout
       await razorpayService.openCheckout({
         orderData,
-        customerName: `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || user.username,
-        customerEmail: user.username, // username is the email in mock auth
-        customerPhone: userProfile.phone || '',
+        customerName,
+        customerEmail,
+        customerPhone,
         onSuccess: async (orderId: string, paymentId: string) => {
           try {
             // Clear the cart after successful payment
@@ -87,8 +95,12 @@ export function PaymentButton({
             // Call success handler
             onSuccess(orderId, paymentId);
             
-            // Redirect to order confirmation page
-            router.push(`/account/orders/${orderId}?payment=success`);
+            // For guest users, redirect to a generic success page
+            if (user?.userId) {
+              router.push(`/account/orders/${orderId}?payment=success`);
+            } else {
+              router.push(`/order-confirmation?orderId=${orderId}&payment=success`);
+            }
           } catch (error) {
             console.error('Error handling payment success:', error);
             onError('Payment successful but failed to complete order. Please contact support.');
@@ -141,7 +153,7 @@ export function PaymentButton({
         type="button"
         onClick={handlePayment}
         disabled={isProcessing}
-        className="w-full bg-green-600 text-white px-8 py-4 rounded-lg font-medium text-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full bg-black text-white px-8 py-4 rounded-lg font-medium text-lg hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {isProcessing ? (
           <div className="flex items-center justify-center">

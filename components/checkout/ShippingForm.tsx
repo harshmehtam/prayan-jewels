@@ -14,6 +14,7 @@ interface ShippingFormProps {
 interface FormData {
   firstName: string;
   lastName: string;
+  email: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -25,6 +26,7 @@ interface FormData {
 const initialFormData: FormData = {
   firstName: '',
   lastName: '',
+  email: '',
   addressLine1: '',
   addressLine2: '',
   city: '',
@@ -49,7 +51,6 @@ export function ShippingForm({
   onSameAsShippingChange, 
   initialData 
 }: ShippingFormProps) {
-  const { user, userProfile } = useAuth();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<Partial<FormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +61,7 @@ export function ShippingForm({
       setFormData({
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
+        email: (initialData as any).email || '',
         addressLine1: initialData.addressLine1 || '',
         addressLine2: initialData.addressLine2 || '',
         city: initialData.city || '',
@@ -67,15 +69,8 @@ export function ShippingForm({
         postalCode: initialData.postalCode || '',
         country: initialData.country || 'India',
       });
-    } else if (user && userProfile) {
-      // Pre-fill with user profile data
-      setFormData(prev => ({
-        ...prev,
-        firstName: userProfile.firstName || '',
-        lastName: userProfile.lastName || '',
-      }));
     }
-  }, [initialData, user, userProfile]);
+  }, [initialData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -96,6 +91,12 @@ export function ShippingForm({
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!formData.addressLine1.trim()) {
@@ -145,6 +146,8 @@ export function ShippingForm({
         postalCode: formData.postalCode.trim(),
         country: formData.country.trim(),
         isDefault: false,
+        // Add email for guest checkout
+        ...(formData.email && { email: formData.email.trim() }),
       };
 
       onSubmit(addressData);
@@ -172,7 +175,7 @@ export function ShippingForm({
               name="firstName"
               value={formData.firstName}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.firstName ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter your first name"
@@ -192,7 +195,7 @@ export function ShippingForm({
               name="lastName"
               value={formData.lastName}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.lastName ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter your last name"
@@ -201,6 +204,30 @@ export function ShippingForm({
               <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
             )}
           </div>
+        </div>
+
+        {/* Email field for guest checkout */}
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            Email Address *
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
+              errors.email ? 'border-red-300' : 'border-gray-300'
+            }`}
+            placeholder="Enter your email address"
+          />
+          {errors.email && (
+            <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500">
+            We'll send your order confirmation to this email address
+          </p>
         </div>
 
         {/* Address fields */}
@@ -214,7 +241,7 @@ export function ShippingForm({
             name="addressLine1"
             value={formData.addressLine1}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
               errors.addressLine1 ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="Street address, P.O. Box, company name"
@@ -234,7 +261,7 @@ export function ShippingForm({
             name="addressLine2"
             value={formData.addressLine2}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
             placeholder="Apartment, suite, unit, building, floor, etc."
           />
         </div>
@@ -251,7 +278,7 @@ export function ShippingForm({
               name="city"
               value={formData.city}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.city ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter city"
@@ -270,7 +297,7 @@ export function ShippingForm({
               name="state"
               value={formData.state}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.state ? 'border-red-300' : 'border-gray-300'
               }`}
             >
@@ -296,7 +323,7 @@ export function ShippingForm({
               name="postalCode"
               value={formData.postalCode}
               onChange={handleInputChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                 errors.postalCode ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="6-digit PIN code"
@@ -318,7 +345,7 @@ export function ShippingForm({
             name="country"
             value={formData.country}
             onChange={handleInputChange}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
               errors.country ? 'border-red-300' : 'border-gray-300'
             }`}
           >
@@ -336,7 +363,7 @@ export function ShippingForm({
             type="checkbox"
             checked={sameAsShipping}
             onChange={(e) => onSameAsShippingChange(e.target.checked)}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded"
           />
           <label htmlFor="sameAsShipping" className="ml-2 block text-sm text-gray-700">
             Use this address for billing
@@ -348,7 +375,7 @@ export function ShippingForm({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSubmitting ? 'Processing...' : 'Continue to Billing'}
           </button>

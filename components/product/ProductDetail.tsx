@@ -515,57 +515,57 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
 
             {/* Why Choose Us - Right after price */}
             <div className="mb-6 md:mb-8">
-              <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Why Choose Us</h3>
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Why Choose Us</h3>
+              <div className="grid grid-cols-2 gap-6">
                 {/* 92.5 Silver */}
                 <div className="flex items-center">
-                  <div className="w-6 h-6 md:w-10 md:h-10 bg-gray-100 rounded-full flex items-center justify-center mr-2 md:mr-4 flex-shrink-0">
-                    <svg className="w-3 h-3 md:w-5 md:h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs md:text-base font-medium text-gray-900">92.5 Silver</p>
-                    <p className="text-xs md:text-sm text-gray-600">Premium quality</p>
+                    <p className="font-medium text-gray-900">92.5 Silver</p>
+                    <p className="text-gray-600">Premium quality</p>
                   </div>
                 </div>
 
                 {/* BIS Hallmarked */}
                 <div className="flex items-center">
-                  <div className="w-6 h-6 md:w-10 md:h-10 bg-gray-100 rounded-full flex items-center justify-center mr-2 md:mr-4 flex-shrink-0">
-                    <svg className="w-3 h-3 md:w-5 md:h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.623 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs md:text-base font-medium text-gray-900">BIS Hallmarked</p>
-                    <p className="text-xs md:text-sm text-gray-600">Certified quality</p>
+                    <p className="font-medium text-gray-900">BIS Hallmarked</p>
+                    <p className="text-gray-600">Certified quality</p>
                   </div>
                 </div>
 
                 {/* 7-Day Return */}
                 <div className="flex items-center">
-                  <div className="w-6 h-6 md:w-10 md:h-10 bg-gray-100 rounded-full flex items-center justify-center mr-2 md:mr-4 flex-shrink-0">
-                    <svg className="w-3 h-3 md:w-5 md:h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs md:text-base font-medium text-gray-900">7-Day Return</p>
-                    <p className="text-xs md:text-sm text-gray-600">Easy returns</p>
+                    <p className="font-medium text-gray-900">7-Day Return</p>
+                    <p className="text-gray-600">Easy returns</p>
                   </div>
                 </div>
 
                 {/* Purity Certificate */}
                 <div className="flex items-center">
-                  <div className="w-6 h-6 md:w-10 md:h-10 bg-gray-100 rounded-full flex items-center justify-center mr-2 md:mr-4 flex-shrink-0">
-                    <svg className="w-3 h-3 md:w-5 md:h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                   </div>
                   <div>
-                    <p className="text-xs md:text-base font-medium text-gray-900">Purity Certificate</p>
-                    <p className="text-xs md:text-sm text-gray-600">Authenticity guaranteed</p>
+                    <p className="font-medium text-gray-900">Purity Certificate</p>
+                    <p className="text-gray-600">Authenticity guaranteed</p>
                   </div>
                 </div>
               </div>
@@ -573,30 +573,58 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
 
             {/* Specifications */}
             <div className="mb-6 md:mb-8">
-              <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">Specifications</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 text-sm md:text-base">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">Specifications</h3>
+              <div className="grid grid-cols-2 gap-6 text-base">
                 {product.material && (
-                  <div>
-                    <span className="font-medium text-gray-700">Material:</span>
-                    <span className="ml-2 text-gray-600 capitalize">{product.material}</span>
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.611L5 14.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Material</p>
+                      <p className="text-gray-600 capitalize">{product.material}</p>
+                    </div>
                   </div>
                 )}
                 {product.weight && (
-                  <div>
-                    <span className="font-medium text-gray-700">Weight:</span>
-                    <span className="ml-2 text-gray-600">{product.weight}g</span>
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.589-1.202L18.75 4.97zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.589-1.202L5.25 4.97z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Weight</p>
+                      <p className="text-gray-600">{product.weight}g</p>
+                    </div>
                   </div>
                 )}
                 {product.length && (
-                  <div>
-                    <span className="font-medium text-gray-700">Length:</span>
-                    <span className="ml-2 text-gray-600">{product.length}"</span>
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Length</p>
+                      <p className="text-gray-600">{product.length}"</p>
+                    </div>
                   </div>
                 )}
                 {product.style && (
-                  <div>
-                    <span className="font-medium text-gray-700">Style:</span>
-                    <span className="ml-2 text-gray-600">{product.style}</span>
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Style</p>
+                      <p className="text-gray-600">{product.style}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -615,6 +643,78 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
               <p className="text-xs md:text-sm text-gray-600">
                 Free shipping on orders above ₹{DELIVERY_CONFIG.freeShippingThreshold}
               </p>
+            </div>
+
+            {/* Offers & Coupons */}
+            <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center mb-3 md:mb-4">
+                <svg className="w-5 md:w-6 h-5 md:h-6 text-gray-700 mr-2 md:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <span className="text-sm md:text-base font-medium text-gray-900">Available Offers</span>
+              </div>
+              
+              <div className="space-y-3 md:space-y-4">
+                {/* Coupon 1 */}
+                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-1 md:mb-2">
+                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">FIRST10</span>
+                      <span className="text-sm font-medium text-green-600">10% OFF</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Get 10% off on your first order. Valid for new customers only.</p>
+                  </div>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText('FIRST10')}
+                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+
+                {/* Coupon 2 */}
+                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-1 md:mb-2">
+                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">SAVE500</span>
+                      <span className="text-sm font-medium text-green-600">₹500 OFF</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Save ₹500 on orders above ₹5,000. Limited time offer.</p>
+                  </div>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText('SAVE500')}
+                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+
+                {/* Coupon 3 */}
+                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
+                  <div className="flex-1">
+                    <div className="flex items-center mb-1 md:mb-2">
+                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">SILVER15</span>
+                      <span className="text-sm font-medium text-green-600">15% OFF</span>
+                    </div>
+                    <p className="text-sm text-gray-600">Special discount on silver jewelry. Valid till month end.</p>
+                  </div>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText('SILVER15')}
+                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Action Buttons */}

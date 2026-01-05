@@ -60,12 +60,57 @@ export function CartProvider({ children }: CartProviderProps) {
     try {
       setIsLoading(true);
       
-      // TEMPORARY: Disable cart API calls for UI development
-      console.log('Cart API calls disabled for UI development');
+      // TEMPORARY: Use mock cart data for UI development
+      console.log('Using mock cart data for UI development');
       
-      // Set mock empty cart data
-      setCart(null);
-      setItems([]);
+      // Set mock cart data
+      const mockCart: ShoppingCart = {
+        id: 'mock-cart-1',
+        customerId: user?.userId || undefined,
+        sessionId: !user?.userId ? sessionId : undefined,
+        subtotal: 778,
+        estimatedTax: 140.04, // 18% GST
+        estimatedShipping: 0, // No shipping for now
+        estimatedTotal: 918.04,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const mockItems: CartItem[] = [
+        {
+          id: 'item-1',
+          cartId: 'mock-cart-1',
+          productId: 'prod-1',
+          quantity: 2,
+          unitPrice: 240,
+          totalPrice: 480,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'item-2',
+          cartId: 'mock-cart-1',
+          productId: 'prod-2',
+          quantity: 1,
+          unitPrice: 149,
+          totalPrice: 149,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 'item-3',
+          cartId: 'mock-cart-1',
+          productId: 'prod-3',
+          quantity: 1,
+          unitPrice: 149,
+          totalPrice: 149,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+
+      setCart(mockCart);
+      setItems(mockItems);
       
       /* DISABLED FOR UI DEVELOPMENT
       let cartResponse;
