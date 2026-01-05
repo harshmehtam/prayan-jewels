@@ -8,26 +8,28 @@ interface CategoryPageProps {
 
 export default function CategoryPage({ params }: CategoryPageProps) {
   const categoryTitles = {
-    traditional: 'Traditional Mangalsutra',
-    modern: 'Modern Mangalsutra',
-    designer: 'Designer Mangalsutra'
+    traditional: 'Traditional Jewelry',
+    modern: 'Modern Jewelry',
+    designer: 'Designer Jewelry'
   };
 
   const categoryDescriptions = {
     traditional: 'Timeless designs that honor age-old traditions and cultural heritage',
     modern: 'Contemporary styles that blend tradition with modern aesthetics',
-    designer: 'Exclusive designer pieces crafted for the discerning bride'
+    designer: 'Exclusive designer pieces crafted for the discerning customer'
   };
 
   return (
-    <div className="py-8">
-      <div className="container mx-auto px-4 mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4 capitalize">
-          {categoryTitles[params.category]}
-        </h1>
-        <p className="text-gray-600">
-          {categoryDescriptions[params.category]}
-        </p>
+    <div className="pt-52 sm:pt-44 lg:pt-48 pb-8">
+      <div className="container mx-auto px-4 mb-8 sm:mb-10 lg:mb-12">
+        <div className="text-center">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 mb-4 tracking-wide capitalize">
+            {categoryTitles[params.category]}
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto">
+            {categoryDescriptions[params.category]}
+          </p>
+        </div>
       </div>
       
       <ProductCatalog 

@@ -11,7 +11,6 @@ import Pagination from '@/components/ui/Pagination';
 interface ProductCatalogProps {
   initialCategory?: 'traditional' | 'modern' | 'designer';
   showFilters?: boolean;
-  showSearch?: boolean;
   limit?: number;
   userId?: string; // For search history and saved searches
   showBestsellers?: boolean; // New prop to show all products as bestsellers
@@ -21,7 +20,6 @@ interface ProductCatalogProps {
 export default function ProductCatalog({
   initialCategory,
   showFilters = false, // Default to false for simplified view
-  showSearch = false, // Default to false for simplified view
   limit = 24,
   userId,
   showBestsellers = false,
@@ -29,7 +27,6 @@ export default function ProductCatalog({
 }: ProductCatalogProps) {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<any[]>([]);
-  const [searchResult, setSearchResult] = useState<ProductSearchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,7 +35,7 @@ export default function ProductCatalog({
     if (showBestsellers) {
       return {}; // No filters for bestsellers - show all products
     }
-    
+
     const initialFilters: ProductFilters = {
       category: initialCategory
     };
@@ -79,7 +76,6 @@ export default function ProductCatalog({
       }
 
       setProducts(result.products);
-      setSearchResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load products');
       setProducts([]);
@@ -125,7 +121,7 @@ export default function ProductCatalog({
 
   if (loading) {
     return (
-      <div className="container mx-auto container-mobile py-responsive">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-12 sm:pb-8 lg:pb-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {Array.from({ length: 8 }).map((_, index) => (
             <div key={index} className="animate-pulse">
@@ -141,18 +137,18 @@ export default function ProductCatalog({
 
   if (error) {
     return (
-      <div className="container mx-auto container-mobile py-responsive">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-12 sm:pb-8 lg:pb-10">
         <div className="text-center px-4">
           <div className="text-red-600 mb-4">
             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
           </div>
-          <h3 className="text-responsive-base font-medium text-gray-900 mb-2">Error Loading Products</h3>
-          <p className="text-gray-600 mb-4 text-responsive-sm">{error}</p>
+          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">Error Loading Products</h3>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base">{error}</p>
           <button
             onClick={fetchProducts}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus-ring text-responsive-sm"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
           >
             Try Again
           </button>
@@ -162,43 +158,20 @@ export default function ProductCatalog({
   }
 
   return (
-    <div className="container mx-auto container-mobile py-responsive">
-      {/* Header - Only show for non-bestsellers view */}
-      {!showBestsellers && (
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-responsive-2xl font-bold text-gray-900 mb-2">
-            Silver Mangalsutra Collection
-          </h1>
-          <p className="text-gray-600 text-responsive-sm">
-            Discover our exquisite collection of traditional and modern silver mangalsutra designs
-          </p>
-        </div>
-      )}
-
-      {/* Search Bar - Only show if enabled */}
-      {showSearch && (
-        <div className="mb-4 sm:mb-6">
-          <SearchBar
-            onSearch={handleSearchChange}
-            placeholder="Search for mangalsutra designs..."
-            userId={userId}
-          />
-        </div>
-      )}
-
-      {/* Bestsellers Header */}
-      {showBestsellers && (
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-light text-gray-900 mb-2">
-            Women's Jewellery
-          </h1>
-        </div>
-      )}
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-12 sm:pb-8 lg:pb-10">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 mb-2 tracking-wide">
+          Our Collection
+        </h1>
+        <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
+          Our most popular and trending jewelry pieces
+        </p>
+      </div>
 
       {/* Main Content - No sidebar for simplified view */}
       <div className="w-full">
         {/* Sort and Results Count - Mobile Optimized */}
-        <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6">
           {/* Results Count */}
           <div className="text-sm text-gray-600 order-2 sm:order-1">
             {searchQuery ? (
@@ -212,16 +185,16 @@ export default function ProductCatalog({
             )}
           </div>
 
-          {/* Sort Dropdown - Full width on mobile */}
-          <div className="flex items-center gap-2 order-1 sm:order-2">
-            <label htmlFor="sort" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+          {/* Sort Dropdown - Better mobile layout */}
+          <div className="flex items-center gap-2 order-1 sm:order-2 w-full sm:w-auto">
+            <label htmlFor="sort" className="text-sm font-medium text-gray-700 shrink-0">
               Sort by:
             </label>
             <select
               id="sort"
               value={sortBy}
               onChange={(e) => handleSortChange(e.target.value as typeof sortBy)}
-              className="flex-1 sm:flex-none border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white min-w-0 sm:min-w-[180px]"
+              className="flex-1 sm:flex-none border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:border-gray-500 bg-white sm:min-w-[180px]"
             >
               <option value="most-relevant">Most Relevant</option>
               <option value="newest">New In</option>
@@ -259,63 +232,13 @@ export default function ProductCatalog({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <h3 className="text-responsive-base font-medium text-gray-900 mb-2">No products found</h3>
-            <p className="text-gray-600 mb-4 text-responsive-sm">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No products found</h3>
+            <p className="text-gray-600 mb-4 text-sm sm:text-base">
               {searchQuery
                 ? `No products match your search for "${searchQuery}"`
                 : 'No products available at the moment'
               }
             </p>
-
-            {/* Alternative suggestions for search queries */}
-            {searchQuery && searchResult?.suggestions && searchResult.suggestions.length > 0 && (
-              <div className="mb-6">
-                <p className="text-gray-700 mb-3 text-responsive-sm font-medium">Try searching for:</p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  {searchResult.suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSearchQuery(suggestion)}
-                      className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-responsive-xs hover:bg-blue-100 transition-colors focus-ring"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Popular products for no results */}
-            {searchQuery && searchResult?.popularProducts && searchResult.popularProducts.length > 0 && (
-              <div className="mb-6">
-                <p className="text-gray-700 mb-4 text-responsive-sm font-medium">Popular products you might like:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto">
-                  {searchResult.popularProducts.map((product) => (
-                    <div key={product.id} className="text-center">
-                      <div className="aspect-square bg-gray-100 rounded-lg mb-2 overflow-hidden">
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
-                          onClick={() => window.location.href = `/products/${product.id}`}
-                        />
-                      </div>
-                      <h4 className="text-responsive-xs font-medium text-gray-900 truncate">{product.name}</h4>
-                      <p className="text-responsive-xs text-gray-600">₹{product.price.toLocaleString()}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="text-blue-600 hover:text-blue-700 font-medium text-responsive-sm focus-ring rounded-md px-2 py-1"
-              >
-                Clear search
-              </button>
-            )}
           </div>
         )}
       </div>

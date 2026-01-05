@@ -10,7 +10,7 @@ export default function CartPage() {
 
   if (isLoading) {
     return (
-      <div className="py-4 sm:py-8">
+      <div className="pt-52 sm:pt-44 lg:pt-48 pb-4 sm:pb-8">
         <div className="container mx-auto container-mobile">
           <div className="flex items-center justify-center py-12 sm:py-16">
             <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-blue-600"></div>
@@ -22,7 +22,7 @@ export default function CartPage() {
 
   if (!cart || itemCount === 0) {
     return (
-      <div className="py-4 sm:py-8">
+      <div className="pt-52 sm:pt-44 lg:pt-48 pb-4 sm:pb-8">
         <div className="container mx-auto container-mobile">
           <h1 className="text-responsive-2xl font-bold text-gray-900 mb-6 sm:mb-8">
             Shopping Cart
@@ -64,7 +64,7 @@ export default function CartPage() {
   };
 
   return (
-    <div className="py-4 sm:py-8">
+    <div className="pt-52 sm:pt-44 lg:pt-48 pb-4 sm:pb-8">
       <div className="container mx-auto container-mobile">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
           <h1 className="text-responsive-2xl font-bold text-gray-900">

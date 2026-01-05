@@ -64,10 +64,10 @@ export default function SearchBar({
       debounceRef.current = setTimeout(async () => {
         try {
           setLoading(true);
-          const suggestions = await ProductService.getSearchSuggestions(query.trim(), 5);
-          setSuggestions(suggestions);
-          setShowSuggestions(true);
-          setShowHistory(false);
+          // const suggestions = await ProductService.getSearchSuggestions(query.trim(), 5);
+          // setSuggestions(suggestions);
+          // setShowSuggestions(true);
+          // setShowHistory(false);
         } catch (error) {
           console.error('Failed to fetch suggestions:', error);
           setSuggestions([]);

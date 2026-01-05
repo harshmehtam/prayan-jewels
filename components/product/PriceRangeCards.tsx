@@ -95,7 +95,7 @@ export default function PriceRangeCards() {
                 {/* Call to Action */}
                 <div className="flex items-center">
                   <Link
-                    href={`/products?maxPrice=${range.maxPrice}`}
+                    href="/products"
                     className={`
                       bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200
                       hover:bg-gray-900 hover:border-gray-900 transition-all duration-300

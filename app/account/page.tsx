@@ -35,7 +35,7 @@ export default function AccountPage() {
   }, [user]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pt-52 sm:pt-44 lg:pt-48 pb-8">
       <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">

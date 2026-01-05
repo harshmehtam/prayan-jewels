@@ -230,7 +230,7 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             </div>
           )}
 
-          {/* Wishlist Heart Icon - Custom without circular background */}
+          {/* Wishlist Heart Icon - Luxury jewelry style */}
           <button
             onClick={async (e) => {
               e.preventDefault();
@@ -238,17 +238,17 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
               // For now, just console log - you can implement proper wishlist logic
               console.log('Toggle wishlist for product:', product.id);
             }}
-            className={`absolute top-2 right-2 z-20 p-1.5 bg-white/80 backdrop-blur-sm rounded-md shadow-sm hover:bg-white transition-all duration-200 group ${
-              isOutOfStock ? 'top-12' : ''
+            className={`absolute top-3 right-3 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300 group ${
+              isOutOfStock ? 'top-14' : ''
             }`}
             aria-label="Add to wishlist"
           >
             <svg 
-              className="w-5 h-5 text-gray-600 hover:text-red-500 transition-all duration-200 group-hover:scale-110" 
+              className="w-4 h-4 text-gray-600 hover:text-rose-500 transition-all duration-300 group-hover:scale-110" 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"
-              strokeWidth={1.8}
+              strokeWidth={1.5}
             >
               <path 
                 strokeLinecap="round" 
@@ -279,8 +279,8 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             </button>
           )}
 
-          {/* Hover overlay for desktop */}
-          <div className="hidden md:block absolute inset-0 bg-gray-900 bg-opacity-0 group-hover:bg-opacity-5 transition-all duration-300 rounded-t-lg" />
+          {/* Hover overlay for desktop - subtle luxury effect */}
+          <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-t-lg" />
         </div>
 
         {/* Product Info */}
@@ -304,7 +304,7 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
 
           {/* Category/Material */}
           {product.category && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-amber-600 font-medium">
               18k Gold Vermeil
             </p>
           )}

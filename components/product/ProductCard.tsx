@@ -204,7 +204,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           {/* Category Badge */}
           {product.category && (
-            <div className="absolute top-2 right-2 bg-black/70 text-white text-xs font-medium px-2 py-1 rounded capitalize">
+            <div className="absolute top-3 right-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-md capitalize">
               {product.category}
             </div>
           )}

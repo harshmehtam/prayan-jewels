@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
-import { useAuth } from '@/components/providers/auth-provider';
 import type { Product } from '@/types';
 
 interface AddToCartButtonProps {
@@ -10,16 +9,17 @@ interface AddToCartButtonProps {
   quantity?: number;
   className?: string;
   disabled?: boolean;
+  buttonText?: string;
 }
 
 export function AddToCartButton({ 
   product, 
   quantity = 1, 
   className = '',
-  disabled = false 
+  disabled = false,
+  buttonText = 'Add to Cart'
 }: AddToCartButtonProps) {
   const { addItem } = useCart();
-  const { isAuthenticated } = useAuth();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -42,14 +42,16 @@ export function AddToCartButton({
   };
 
   const baseClasses = `
-    px-6 py-3 rounded-lg font-medium transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+    transition-all duration-200
+    focus:outline-none focus:ring-2 focus:ring-offset-2
     disabled:opacity-50 disabled:cursor-not-allowed
   `;
 
   const buttonClasses = showSuccess
-    ? `${baseClasses} bg-green-600 text-white`
-    : `${baseClasses} bg-blue-600 text-white hover:bg-blue-700 ${className}`;
+    ? `${baseClasses} bg-green-600 text-white px-6 py-3 rounded-lg font-medium focus:ring-green-500`
+    : className 
+      ? `${baseClasses} ${className}`
+      : `${baseClasses} px-6 py-3 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500`;
 
   return (
     <button
@@ -74,7 +76,7 @@ export function AddToCartButton({
           Added to Cart!
         </span>
       ) : (
-        'Add to Cart'
+        buttonText
       )}
     </button>
   );

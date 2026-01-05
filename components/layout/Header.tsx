@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { AuthModal } from '@/components/auth';
 import { useAuth } from '@/components/providers/auth-provider';
 
@@ -11,6 +12,10 @@ export default function Header() {
   const [authModalStep, setAuthModalStep] = useState<'login' | 'signup'>('login');
   const [isScrolled, setIsScrolled] = useState(false);
   const { isAuthenticated, signOut } = useAuth();
+  const pathname = usePathname();
+  
+  // Check if we're on the home page
+  const isHomePage = pathname === '/';
 
   // Scroll detection with over-scroll prevention
   useEffect(() => {
@@ -148,9 +153,9 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Main Header - Dynamic background based on scroll */}
+      {/* Main Header - Dynamic background based on scroll and route */}
       <header className={`fixed top-8 left-0 right-0 z-40 transition-all duration-300 ${
-        isScrolled 
+        isScrolled || !isHomePage
           ? 'bg-white shadow-md text-black' 
           : 'bg-transparent backdrop-blur-sm text-black'
       }`}>
@@ -161,7 +166,7 @@ export default function Header() {
             <Link 
               href="/" 
               className={`text-xl sm:text-2xl lg:text-3xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${
-                isScrolled 
+                isScrolled || !isHomePage
                   ? 'text-black hover:text-gray-700' 
                   : 'text-black hover:text-gray-700'
               }`}
@@ -175,7 +180,7 @@ export default function Header() {
               <Link 
                 href="/categories/necklaces" 
                 className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled 
+                  isScrolled || !isHomePage
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
@@ -183,13 +188,13 @@ export default function Header() {
               >
                 Necklaces
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled ? 'bg-black' : 'bg-black'
+                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
                 }`}></span>
               </Link>
               <Link 
                 href="/categories/earrings" 
                 className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled 
+                  isScrolled || !isHomePage
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
@@ -197,13 +202,13 @@ export default function Header() {
               >
                 Earrings
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled ? 'bg-black' : 'bg-black'
+                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
                 }`}></span>
               </Link>
               <Link 
                 href="/categories/rings" 
                 className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled 
+                  isScrolled || !isHomePage
                     ? 'text-black hover:text-gray-700' 
                     : 'text-black hover:text-gray-700'
                 }`}
@@ -211,7 +216,7 @@ export default function Header() {
               >
                 Rings
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled ? 'bg-black' : 'bg-black'
+                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
                 }`}></span>
               </Link>
             </nav>
@@ -225,13 +230,13 @@ export default function Header() {
                     type="text"
                     placeholder="Search for a product or finish"
                     className={`w-72 pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
-                      isScrolled
+                      isScrolled || !isHomePage
                         ? 'bg-gray-100 border border-gray-300 placeholder-gray-500 text-black focus:ring-gray-500 focus:border-gray-500'
                         : 'bg-white bg-opacity-20 border border-gray-400 border-opacity-30 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                     }`}
                   />
                   <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                    isScrolled ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
+                    isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
                   }`} style={{ outline: 'none', boxShadow: 'none' }}>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -242,7 +247,7 @@ export default function Header() {
 
               {/* Wishlist - Hidden on very small screens, visible on sm+ */}
               <button className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
               }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -254,7 +259,7 @@ export default function Header() {
               {isAuthenticated ? (
                 <div className="relative group hidden sm:block">
                   <button className={`p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                    isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                    isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                   }`} style={{ outline: 'none', boxShadow: 'none' }}>
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -272,7 +277,7 @@ export default function Header() {
                 </div>
               ) : (
                 <button onClick={() => openAuthModal('login')} className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                 }`} style={{ outline: 'none', boxShadow: 'none' }}>
                   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -283,7 +288,7 @@ export default function Header() {
 
               {/* Cart - Always visible, essential for e-commerce */}
               <button className={`relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
               }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119.993z" />
@@ -298,7 +303,7 @@ export default function Header() {
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className={`lg:hidden touch-friendly p-1.5 sm:p-2 transition-colors rounded-md cursor-pointer outline-none focus:outline-none ${
-                  isScrolled ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                 }`}
                 style={{ outline: 'none', boxShadow: 'none' }}
                 aria-expanded={isMenuOpen}
@@ -322,13 +327,13 @@ export default function Header() {
                 type="text"
                 placeholder="Search for a product or finish"
                 className={`w-full pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
-                  isScrolled
+                  isScrolled || !isHomePage
                     ? 'bg-gray-100 border border-gray-300 placeholder-gray-500 text-black focus:ring-gray-500 focus:border-gray-500'
                     : 'bg-white bg-opacity-90 border border-gray-300 border-opacity-50 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                 }`}
               />
               <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
+                isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
               }`} style={{ outline: 'none', boxShadow: 'none' }}>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
