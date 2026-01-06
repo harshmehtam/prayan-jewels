@@ -140,6 +140,8 @@ export class RazorpayService {
         throw new Error('Failed to create payment order');
       }
 
+      console.log('Opening Razorpay checkout modal for order:', orderResponse.orderId);
+
       // Configure Razorpay options
       const razorpayOptions: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -150,6 +152,8 @@ export class RazorpayService {
         order_id: orderResponse.razorpayOrder.id,
         handler: async (response: RazorpayResponse) => {
           try {
+            console.log('Payment successful, verifying...', response);
+            
             // Verify payment on server
             const verificationResult = await this.verifyPayment({
               ...response,
@@ -162,6 +166,7 @@ export class RazorpayService {
               options.onError(new Error('Payment verification failed'));
             }
           } catch (error) {
+            console.error('Payment verification error:', error);
             options.onError(error as Error);
           }
         },
@@ -179,6 +184,7 @@ export class RazorpayService {
         },
         modal: {
           ondismiss: () => {
+            console.log('Razorpay modal dismissed');
             if (options.onDismiss) {
               options.onDismiss();
             }
@@ -186,6 +192,7 @@ export class RazorpayService {
         },
       };
 
+      console.log('Opening Razorpay checkout modal...');
       // Open Razorpay checkout
       const razorpay = new window.Razorpay(razorpayOptions);
       razorpay.open();

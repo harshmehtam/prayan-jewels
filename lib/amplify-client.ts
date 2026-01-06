@@ -1,8 +1,8 @@
 // Amplify client configuration and utilities
 import '@/lib/amplify-config'; // Ensure Amplify is configured
 import { generateClient } from 'aws-amplify/data';
+import { getCurrentUser } from 'aws-amplify/auth';
 import type { Schema } from '@/amplify/data/resource';
-import { getAuthMode } from '@/lib/utils/auth-mode';
 
 // Generate the typed client for GraphQL operations
 export const client = generateClient<Schema>();
@@ -16,6 +16,18 @@ export const guestClient = generateClient<Schema>({
 export const userClient = generateClient<Schema>({
   authMode: 'userPool'
 });
+
+/**
+ * Simple auth mode check without React hooks
+ */
+const getAuthMode = async (): Promise<'userPool' | 'iam'> => {
+  try {
+    await getCurrentUser();
+    return 'userPool';
+  } catch (error) {
+    return 'iam';
+  }
+};
 
 /**
  * Get the appropriate client based on authentication status

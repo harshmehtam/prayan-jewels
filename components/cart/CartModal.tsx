@@ -48,7 +48,7 @@ const mockCartItems: CartItem[] = [
     inStock: true,
   },
   {
-    id: 'item-3',
+    id: 'item-4',
     name: 'Silver Chain Bracelet',
     image: '/images/products/bracelet-1.jpg',
     price: 149,

@@ -1,16 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function CheckoutHeader() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleBackToShopping = () => {
     if (window.confirm('Are you sure you want to leave checkout? Your progress will be lost.')) {
       router.push('/');
     }
   };
+
+  // Don't show confirmation on order confirmation page
+  const isOrderConfirmation = pathname.startsWith('/order-confirmation');
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
@@ -28,17 +32,27 @@ export default function CheckoutHeader() {
           </button> */}
 
           {/* Centered Brand Logo */}
-          <Link 
-            href="/" 
-            className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-normal text-black hover:text-gray-700 transition-colors tracking-[0.15em] outline-none focus:outline-none"
-            style={{ outline: 'none', boxShadow: 'none' }}
-            onClick={(e) => {
-              e.preventDefault();
-              handleBackToShopping();
-            }}
-          >
-            PRAYAN JEWELS
-          </Link>
+          {isOrderConfirmation ? (
+            <Link 
+              href="/" 
+              className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-normal text-black hover:text-gray-700 transition-colors tracking-[0.15em] outline-none focus:outline-none"
+              style={{ outline: 'none', boxShadow: 'none' }}
+            >
+              PRAYAN JEWELS
+            </Link>
+          ) : (
+            <Link 
+              href="/" 
+              className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-normal text-black hover:text-gray-700 transition-colors tracking-[0.15em] outline-none focus:outline-none"
+              style={{ outline: 'none', boxShadow: 'none' }}
+              onClick={(e) => {
+                e.preventDefault();
+                handleBackToShopping();
+              }}
+            >
+              PRAYAN JEWELS
+            </Link>
+          )}
 
           {/* Secure Checkout Badge */}
           <div className="flex items-center text-sm text-gray-600">

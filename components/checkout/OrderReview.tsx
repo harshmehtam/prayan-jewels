@@ -250,17 +250,17 @@ export function OrderReview({
       </div>
 
       {/* Action buttons */}
-      <div className="flex justify-between pt-6">
-        <button
+      <div className="flex flex-col sm:flex-row gap-4 pt-6">
+        {/* <button
           type="button"
           onClick={onBack}
           disabled={isProcessing || paymentProcessing}
-          className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full sm:w-48 bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-medium text-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Back
-        </button>
+          ← Back
+        </button> */}
         
-        <div className="flex-1 max-w-md ml-4">
+        <div className="flex-1 sm:max-w-md">
           <PaymentButton
             shippingAddress={shippingAddress}
             billingAddress={billingAddress}
