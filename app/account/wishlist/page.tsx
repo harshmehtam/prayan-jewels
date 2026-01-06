@@ -4,7 +4,7 @@ import { useWishlist } from '@/lib/hooks/useWishlist';
 import { useCart } from '@/components/providers/cart-provider';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useState } from 'react';
-import Link from 'next/link';
+import { LoginButton } from '@/components/auth';
 import Image from 'next/image';
 import WishlistButton from '@/components/ui/WishlistButton';
 import { LoadingSpinner } from '@/components/ui';
@@ -88,12 +88,12 @@ export default function WishlistPage() {
             </svg>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Please Log In</h3>
             <p className="text-gray-600 mb-4">You need to be logged in to view your wishlist.</p>
-            <Link
-              href="/auth/login"
+            <LoginButton 
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              redirectTo="/account/wishlist"
             >
               Log In
-            </Link>
+            </LoginButton>
           </div>
         </div>
       </div>

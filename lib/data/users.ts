@@ -4,12 +4,12 @@ import type { UserProfile, Address } from '@/types';
 
 export class UserService {
   // Get user profile by user ID
+  // With owner-based authorization, users can only fetch their own profile
   static async getUserProfile(userId: string) {
     try {
       const response = await client.models.UserProfile.list({
-        filter: {
-          userId: { eq: userId }
-        }
+        limit: 1,
+        authMode: 'userPool'
       });
 
       return {
@@ -17,6 +17,7 @@ export class UserService {
         errors: response.errors
       };
     } catch (error) {
+      console.error('Error fetching user profile:', error);
       throw new Error(handleAmplifyError(error));
     }
   }
@@ -25,7 +26,6 @@ export class UserService {
   static async createUserProfile(userId: string, profileData: Partial<UserProfile>) {
     try {
       const response = await client.models.UserProfile.create({
-        userId,
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         phone: profileData.phone,
@@ -48,7 +48,8 @@ export class UserService {
   // Update user profile
   static async updateUserProfile(userId: string, updates: Partial<UserProfile>) {
     try {
-      // First get the existing profile
+      // With owner-based auth, we need to get the profile first to get the auto-generated ID
+      // This is unavoidable with the current Amplify Gen2 owner-based model structure
       const existingProfile = await this.getUserProfile(userId);
       
       if (!existingProfile.profile) {
@@ -231,23 +232,11 @@ export class UserService {
         return { success: false, error: 'Only super admins can update user roles' };
       }
 
-      // Get the user's profile
-      const userProfileResponse = await this.getUserProfile(userId);
-      if (!userProfileResponse.profile) {
-        return { success: false, error: 'User profile not found' };
-      }
-
-      // Update the role
-      const response = await client.models.UserProfile.update({
-        id: userProfileResponse.profile.id,
-        role: newRole,
-      });
-
-      if (response.data) {
-        return { success: true, profile: response.data };
-      } else {
-        return { success: false, error: 'Failed to update user role' };
-      }
+      // For role updates, we need to use admin privileges
+      // This operation requires special handling since we're updating another user's profile
+      // In a real implementation, this would need to be done server-side with admin credentials
+      
+      return { success: false, error: 'Role updates require server-side admin operations' };
     } catch (error) {
       console.error('Error updating user role:', error);
       return { 

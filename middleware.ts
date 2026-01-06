@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 // Define protected routes that require authentication
 const protectedRoutes = ['/account'];
 
-// Define auth routes that should redirect to home if already authenticated
-const authRoutes = ['/auth/login', '/auth/signup'];
+// Define admin routes that require admin/super_admin role
+const adminRoutes = ['/admin'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -23,21 +23,22 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // Check if the current path is an auth route
-  const isAuthRoute = authRoutes.some(route => 
+  // Check if the current path is an admin route
+  const isAdminRoute = adminRoutes.some(route => 
     pathname.startsWith(route)
   );
 
-  // Redirect unauthenticated users away from protected routes
+  // Redirect unauthenticated users away from protected routes to home
+  // They can use the login modal from there
   if (isProtectedRoute && !isAuthenticated) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Redirect authenticated users away from auth routes
-  if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/', request.url));
+  // Redirect unauthenticated users away from admin routes
+  if (isAdminRoute && !isAuthenticated) {
+    const loginUrl = new URL('/admin/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

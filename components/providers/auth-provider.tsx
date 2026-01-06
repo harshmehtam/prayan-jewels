@@ -1,24 +1,20 @@
 'use client';
 
-import '@/lib/amplify-config'; // Ensure Amplify is configured
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, signOut, type AuthUser, fetchUserAttributes } from 'aws-amplify/auth';
-import { UserService } from '@/lib/data/users';
+import { getCurrentUser, signOut, type AuthUser, fetchUserAttributes, updateUserAttributes } from 'aws-amplify/auth';
 
-// Define a simplified user profile type for the auth context
+// Define user profile type based on Cognito attributes
 interface AuthUserProfile {
-  id: string;
   userId: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  phone?: string | null;
-  dateOfBirth?: string | null;
-  newsletter?: boolean | null;
-  smsUpdates?: boolean | null;
-  preferredCategories?: (string | null)[] | null;
-  role?: 'customer' | 'admin' | 'super_admin' | null;
-  createdAt: string;
-  updatedAt: string;
+  phone?: string;
+  email?: string;
+  firstName?: string; // givenName
+  lastName?: string;  // familyName
+  dateOfBirth?: string; // birthdate
+  role?: 'customer' | 'admin' | 'super_admin';
+  newsletter?: boolean;
+  smsUpdates?: boolean;
+  preferredCategories?: string[];
 }
 
 interface AuthContextType {
@@ -28,6 +24,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
+  refreshAuthState: () => Promise<void>;
+  updateUserProfile: (updates: Partial<AuthUserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -49,35 +47,68 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [userProfile, setUserProfile] = useState<AuthUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const createProfileFromAttributes = (user: AuthUser, attributes: Record<string, string>): AuthUserProfile => {
+    return {
+      userId: user.userId,
+      phone: attributes.phone_number || user.username,
+      email: attributes.email,
+      firstName: attributes.given_name,
+      lastName: attributes.family_name,
+      dateOfBirth: attributes.birthdate,
+      role: (attributes['custom:role'] as 'customer' | 'admin' | 'super_admin') || 'customer',
+      newsletter: attributes['custom:newsletter'] === 'true',
+      smsUpdates: attributes['custom:smsUpdates'] === 'true',
+      preferredCategories: attributes['custom:preferredCategories'] 
+        ? JSON.parse(attributes['custom:preferredCategories']) 
+        : [],
+    };
+  };
+
   const refreshUserProfile = async () => {
     if (user?.userId) {
       try {
-        const profileResponse = await UserService.getUserProfile(user.userId);
-        if (profileResponse.profile) {
-          // Convert the Amplify types to our simplified types
-          setUserProfile({
-            id: profileResponse.profile.id,
-            userId: profileResponse.profile.userId,
-            firstName: profileResponse.profile.firstName,
-            lastName: profileResponse.profile.lastName,
-            phone: profileResponse.profile.phone,
-            dateOfBirth: profileResponse.profile.dateOfBirth,
-            newsletter: profileResponse.profile.newsletter,
-            smsUpdates: profileResponse.profile.smsUpdates,
-            preferredCategories: profileResponse.profile.preferredCategories,
-            role: profileResponse.profile.role,
-            createdAt: profileResponse.profile.createdAt,
-            updatedAt: profileResponse.profile.updatedAt,
-          });
-        } else {
-          setUserProfile(null);
-        }
+        console.log('📋 Fetching user attributes from Cognito...');
+        const attributes = await fetchUserAttributes();
+        console.log('👤 User Attributes:', attributes);
+        
+        const profile = createProfileFromAttributes(user, attributes as Record<string, string>);
+        console.log('✅ Created Profile from Cognito Attributes:', profile);
+        
+        setUserProfile(profile);
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('❌ Error fetching user attributes:', error);
         setUserProfile(null);
       }
     } else {
       setUserProfile(null);
+    }
+  };
+
+  const updateUserProfile = async (updates: Partial<AuthUserProfile>) => {
+    try {
+      console.log('🔄 Updating user attributes in Cognito:', updates);
+      
+      const attributeUpdates: Record<string, string> = {};
+      
+      if (updates.firstName !== undefined) attributeUpdates.given_name = updates.firstName || '';
+      if (updates.lastName !== undefined) attributeUpdates.family_name = updates.lastName || '';
+      if (updates.email !== undefined) attributeUpdates.email = updates.email || '';
+      if (updates.dateOfBirth !== undefined) attributeUpdates.birthdate = updates.dateOfBirth || '';
+      if (updates.role !== undefined) attributeUpdates['custom:role'] = updates.role || 'customer';
+      if (updates.newsletter !== undefined) attributeUpdates['custom:newsletter'] = updates.newsletter.toString();
+      if (updates.smsUpdates !== undefined) attributeUpdates['custom:smsUpdates'] = updates.smsUpdates.toString();
+      if (updates.preferredCategories !== undefined) {
+        attributeUpdates['custom:preferredCategories'] = JSON.stringify(updates.preferredCategories || []);
+      }
+
+      await updateUserAttributes({ userAttributes: attributeUpdates });
+      console.log('✅ User attributes updated successfully');
+      
+      // Refresh the profile to get updated data
+      await refreshUserProfile();
+    } catch (error) {
+      console.error('❌ Error updating user attributes:', error);
+      throw error;
     }
   };
 
@@ -91,13 +122,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const refreshAuthState = async () => {
+    try {
+      console.log('🔄 Refreshing Auth State...');
+      const currentUser = await getCurrentUser();
+      console.log('👤 Current User from Cognito:', {
+        userId: currentUser.userId,
+        username: currentUser.username,
+        signInDetails: currentUser.signInDetails
+      });
+      
+      setUser(currentUser);
+      
+      // Fetch user profile from Cognito attributes
+      if (currentUser?.userId) {
+        await refreshUserProfile();
+      }
+    } catch (error) {
+      console.log('❌ User not authenticated:', error);
+      // User is not authenticated
+      setUser(null);
+      setUserProfile(null);
+    }
+  };
+
   useEffect(() => {
     const checkAuthState = async () => {
       try {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
         
-        // Fetch user profile
+        // Fetch user profile from Cognito attributes
         if (currentUser?.userId) {
           await refreshUserProfile();
         }
@@ -115,44 +170,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Refresh user profile when user changes
   useEffect(() => {
-    if (user) {
+    if (user && !isLoading) {
       refreshUserProfile();
     }
   }, [user]);
-
-  // Create user profile if it doesn't exist after authentication
-  useEffect(() => {
-    const createProfileIfNeeded = async () => {
-      if (user?.userId && !userProfile) {
-        try {
-          // Wait a bit for the profile to load first
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Check if profile exists
-          const existingProfile = await UserService.getUserProfile(user.userId);
-          
-          if (!existingProfile.profile) {
-            // Create a basic profile
-            await UserService.createUserProfile(user.userId, {
-              role: 'customer',
-              newsletter: false,
-              smsUpdates: false,
-              preferredCategories: [],
-            });
-            
-            // Refresh the profile
-            await refreshUserProfile();
-          }
-        } catch (error) {
-          console.error('Error creating user profile:', error);
-        }
-      }
-    };
-
-    if (user && !userProfile) {
-      createProfileIfNeeded();
-    }
-  }, [user, userProfile, refreshUserProfile]);
 
   const value: AuthContextType = {
     user,
@@ -161,6 +182,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isAuthenticated: !!user,
     signOut: handleSignOut,
     refreshUserProfile,
+    refreshAuthState,
+    updateUserProfile,
   };
 
   return (

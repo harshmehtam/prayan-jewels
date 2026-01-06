@@ -1,8 +1,14 @@
 // Amplify client configuration and utilities
-import '@/lib/amplify-config'; // Ensure Amplify is configured
 import { generateClient } from 'aws-amplify/data';
 import { getCurrentUser } from 'aws-amplify/auth';
+import { Amplify } from 'aws-amplify';
+import outputs from '@/amplify_outputs.json';
 import type { Schema } from '@/amplify/data/resource';
+
+// Ensure Amplify is configured (especially for server-side usage)
+if (!Amplify.getConfig().Auth?.Cognito) {
+  Amplify.configure(outputs, { ssr: true });
+}
 
 // Generate the typed client for GraphQL operations
 export const client = generateClient<Schema>();
@@ -90,8 +96,26 @@ export function isValidEmail(email: string): boolean {
 
 // Helper function to validate phone number (Indian format)
 export function isValidPhoneNumber(phone: string): boolean {
-  const phoneRegex = /^[+]?[91]?[6-9]\d{9}$/;
-  return phoneRegex.test(phone.replace(/\s+/g, ''));
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // Check if it's a valid 10-digit Indian mobile number (6-9 as first digit)
+  if (cleanPhone.length === 10) {
+    return /^[6-9]\d{9}$/.test(cleanPhone);
+  }
+  
+  // Check if it's a valid 12-digit number with country code 91
+  if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
+    const number = cleanPhone.slice(2);
+    return /^[6-9]\d{9}$/.test(number);
+  }
+  
+  // Check if it's already in E.164 format (+919999999999)
+  if (phone.startsWith('+91') && cleanPhone.length === 12) {
+    const number = cleanPhone.slice(2);
+    return /^[6-9]\d{9}$/.test(number);
+  }
+  
+  return false;
 }
 
 // Helper function to validate postal code (Indian format)

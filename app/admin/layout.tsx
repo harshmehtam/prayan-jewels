@@ -1,10 +1,19 @@
-// Admin section layout with dynamic rendering
-export const dynamic = 'force-dynamic';
+'use client';
 
+import { AdminRoute } from '@/components/auth/AdminRoute';
+import AdminLayout from '@/components/admin/AdminLayout';
+
+// Admin section layout with authentication enforcement
 export default function AdminSectionLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <AdminRoute>
+      <AdminLayout>
+        {children}
+      </AdminLayout>
+    </AdminRoute>
+  );
 }

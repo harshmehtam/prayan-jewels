@@ -6,12 +6,17 @@ import { defineAuth } from '@aws-amplify/backend';
  */
 export const auth = defineAuth({
   loginWith: {
-    email: true,
+    phone: true,
+    email: true, // Keep email as backup for admin users
   },
   groups: ['admin', 'super_admin'],
   userAttributes: {
-    email: {
+    phoneNumber: {
       required: true,
+      mutable: true,
+    },
+    email: {
+      required: false,
       mutable: true,
     },
     givenName: {
@@ -22,10 +27,27 @@ export const auth = defineAuth({
       required: false,
       mutable: true,
     },
-    phoneNumber: {
+    birthdate: {
       required: false,
       mutable: true,
     },
+    // Custom attributes for our application
+    'custom:role': {
+      dataType: 'String',
+      mutable: true,
+    },
+    'custom:newsletter': {
+      dataType: 'Boolean',
+      mutable: true,
+    },
+    'custom:smsUpdates': {
+      dataType: 'Boolean',
+      mutable: true,
+    },
+    'custom:preferredCategories': {
+      dataType: 'String', // JSON string array
+      mutable: true,
+    },
   },
-  accountRecovery: 'EMAIL_ONLY',
+  accountRecovery: 'PHONE_ONLY_WITHOUT_MFA',
 });

@@ -3,18 +3,16 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { AuthModal } from '@/components/auth';
+import { LoginButton } from '@/components/auth';
 import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
-  const [authModalStep, setAuthModalStep] = useState<'login' | 'signup'>('login');
   const [isScrolled, setIsScrolled] = useState(false);
-  const { isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated, userProfile, signOut } = useAuth();
   const { itemCount } = useCart();
   const pathname = usePathname();
   
@@ -142,10 +140,7 @@ export default function Header() {
     }
   };
 
-  const openAuthModal = (step: 'login' | 'signup') => {
-    setAuthModalStep(step);
-    setIsAuthModalOpen(true);
-  };
+
 
   return (
     <>
@@ -259,19 +254,56 @@ export default function Header() {
                 <span className="sr-only">Wishlist</span>
               </button>
 
-              {/* User Account - Hidden on very small screens, visible on sm+ */}
+              {/* User Account - Role-based UI after login */}
               {isAuthenticated ? (
                 <div className="relative group hidden sm:block">
-                  <button className={`p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                  <button className={`flex items-center space-x-2 p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
                     isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
                   }`} style={{ outline: 'none', boxShadow: 'none' }}>
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
+                    {/* User indicator */}
+                    {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    ) : (
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    )}
                     <span className="sr-only">Account menu</span>
                   </button>
                   
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
+                    {/* User info header */}
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <p className="text-sm font-medium text-gray-900">
+                        {userProfile?.firstName && userProfile?.lastName 
+                          ? `${userProfile.firstName} ${userProfile.lastName}`
+                          : 'User'
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">
+                        {userProfile?.role === 'super_admin' ? 'Super Admin' : userProfile?.role || 'Customer'}
+                      </p>
+                    </div>
+                    
+                    {/* Role-based menu items */}
+                    {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
+                      <>
+                        <Link href="/admin" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
+                          <div className="flex items-center">
+                            <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            Admin Dashboard
+                          </div>
+                        </Link>
+                        <Link href="/admin/products" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Products</Link>
+                        <Link href="/admin/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Orders</Link>
+                        <hr className="my-1" />
+                      </>
+                    ) : null}
+                    
+                    {/* Customer menu items */}
                     <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>
                     <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Order History</Link>
                     <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Wishlist</Link>
@@ -280,14 +312,18 @@ export default function Header() {
                   </div>
                 </div>
               ) : (
-                <button onClick={() => openAuthModal('login')} className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`} style={{ outline: 'none', boxShadow: 'none' }}>
+                <LoginButton 
+                  className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                    isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                  }`}
+                  variant="icon"
+                  redirectTo="/account"
+                >
                   <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span className="sr-only">Sign In</span>
-                </button>
+                </LoginButton>
               )}
 
               {/* Cart - Always visible, essential for e-commerce */}
@@ -440,31 +476,65 @@ export default function Header() {
                       </Link>
 
                       {isAuthenticated ? (
-                        <Link
-                          href="/account"
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                          style={{ outline: 'none', boxShadow: 'none' }}
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">My Account</span>
-                          <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
+                        <>
+                          {/* Admin links for mobile */}
+                          {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
+                            <>
+                              <Link
+                                href="/admin"
+                                className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                                style={{ outline: 'none', boxShadow: 'none' }}
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <div className="flex items-center">
+                                  <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                  </svg>
+                                  <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Admin Dashboard</span>
+                                </div>
+                                <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Link>
+                              <Link
+                                href="/admin/products"
+                                className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                                style={{ outline: 'none', boxShadow: 'none' }}
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Manage Products</span>
+                                <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Link>
+                            </>
+                          ) : null}
+                          
+                          {/* Customer account link */}
+                          <Link
+                            href="/account"
+                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                            style={{ outline: 'none', boxShadow: 'none' }}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">My Account</span>
+                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        </>
                       ) : (
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            openAuthModal('login');
-                          }}
+                        <LoginButton 
                           className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer outline-none focus:outline-none"
-                          style={{ outline: 'none', boxShadow: 'none' }}
+                          variant="icon"
+                          redirectTo="/account"
+                          onModalOpen={() => setIsMenuOpen(false)}
                         >
                           <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Sign In</span>
                           <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
-                        </button>
+                        </LoginButton>
                       )}
                     </div>
                   </div>
@@ -487,13 +557,6 @@ export default function Header() {
       <CartModal
         isOpen={isCartModalOpen}
         onClose={() => setIsCartModalOpen(false)}
-      />
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        initialStep={authModalStep}
       />
     </>
   );

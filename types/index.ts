@@ -51,21 +51,6 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
-export interface UserProfile {
-  id: string;
-  userId: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  phone?: string | null;
-  dateOfBirth?: string | null;
-  newsletter: boolean | null;
-  smsUpdates: boolean | null;
-  preferredCategories?: string[] | null;
-  role: 'customer' | 'admin' | 'super_admin' | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Address {
   id: string;
   userId: string;
@@ -79,7 +64,6 @@ export interface Address {
   postalCode: string;
   country: string;
   isDefault: boolean | null;
-  userProfile?: UserProfile;
   createdAt: string;
   updatedAt: string;
 }
@@ -139,7 +123,7 @@ export interface Order {
   billingState: string;
   billingPostalCode: string;
   billingCountry: string;
-  customer?: UserProfile;
+  customer?: any; // Will be replaced with Cognito user data
   items?: OrderItem[];
   createdAt: string;
   updatedAt: string;

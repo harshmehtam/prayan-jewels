@@ -48,24 +48,6 @@ const schema = a.schema({
       allow.group('admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
-  // User profile extension
-  UserProfile: a
-    .model({
-      userId: a.id().required(),
-      firstName: a.string(),
-      lastName: a.string(),
-      phone: a.string(),
-      dateOfBirth: a.date(),
-      newsletter: a.boolean().default(false),
-      smsUpdates: a.boolean().default(false),
-      preferredCategories: a.string().array(),
-      role: a.enum(['customer', 'admin', 'super_admin']),
-    })
-    .authorization((allow) => [
-      allow.authenticated().to(['create', 'read', 'update', 'delete']),
-      allow.group('admin').to(['read', 'update']),
-    ]),
-
   // Address management
   Address: a
     .model({
@@ -82,7 +64,8 @@ const schema = a.schema({
       isDefault: a.boolean().default(false),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['create', 'read', 'update', 'delete']),
+      // Users can only access their own addresses using owner field
+      allow.ownerDefinedIn('userId'),
       allow.group('admin').to(['read']),
     ]),
 

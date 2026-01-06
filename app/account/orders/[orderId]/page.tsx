@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { LoginButton } from '@/components/auth';
 import { useAuth } from '@/components/providers/auth-provider';
 import { OrderService } from '@/lib/data/orders';
 import PageLoading from '@/components/ui/PageLoading';
@@ -111,12 +111,12 @@ export default function OrderDetailsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-gray-600 mb-6">Please log in to view your order details.</p>
-          <Link
-            href="/auth/login"
+          <LoginButton
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            redirectTo={`/account/orders/${orderId}`}
           >
             Log In
-          </Link>
+          </LoginButton>
         </div>
       </div>
     );

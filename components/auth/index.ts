@@ -1,6 +1,3 @@
-export { default as LoginForm } from './LoginForm';
-export { default as SignupForm } from './SignupForm';
-export { default as ConfirmSignupForm } from './ConfirmSignupForm';
-export { default as ForgotPasswordForm } from './ForgotPasswordForm';
-export { default as AuthModal } from './AuthModal';
+export { default as PhoneLoginModal } from './PhoneLoginModal';
+export { default as LoginButton } from './LoginButton';
 export { AdminRoute, PermissionGate } from './AdminRoute';
