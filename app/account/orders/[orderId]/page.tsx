@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { LoginButton } from '@/components/auth';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -271,15 +272,15 @@ export default function OrderDetailsPage() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Tax (GST 18%)</span>
-              <span className="text-gray-900">₹{order.tax.toLocaleString()}</span>
+              <span className="text-gray-900">₹{(order.tax || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Shipping</span>
               <span className="text-gray-900">
-                {order.shipping === 0 ? (
+                {(order.shipping || 0) === 0 ? (
                   <span className="text-green-600">Free</span>
                 ) : (
-                  `₹${order.shipping.toLocaleString()}`
+                  `₹${(order.shipping || 0).toLocaleString()}`
                 )}
               </span>
             </div>
@@ -296,8 +297,8 @@ export default function OrderDetailsPage() {
         <OrderTracking
           orderId={order.id}
           currentStatus={(order.status as OrderStatus) || 'pending'}
-          trackingNumber={order.trackingNumber}
-          estimatedDelivery={order.estimatedDelivery}
+          trackingNumber={order.trackingNumber || undefined}
+          estimatedDelivery={order.estimatedDelivery || undefined}
         />
 
         {/* Order cancellation */}

@@ -17,16 +17,8 @@ interface ProductWithInventory {
   description: string;
   price: number;
   images: string[];
-  category: string | null;
-  material: string | null;
-  weight?: number | null;
-  length?: number | null;
-  style?: string | null;
-  occasion?: string[] | null;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  keywords?: string[] | null;
   isActive: boolean | null;
+  viewCount?: number | null;
   createdAt: string;
   updatedAt: string;
   inventory?: {
@@ -53,10 +45,10 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
         setLoading(true);
         setError(null);
         
-        const response = await MockProductService.getProduct(productId);
+        const product = await MockProductService.getProductById(productId);
         
-        if (response.product) {
-          setProduct(response.product);
+        if (product) {
+          setProduct(product);
         } else {
           setError('Product not found');
         }
@@ -571,66 +563,7 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
               </div>
             </div>
 
-            {/* Specifications */}
-            <div className="mb-6 md:mb-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Specifications</h3>
-              <div className="grid grid-cols-2 gap-6 text-base">
-                {product.material && (
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.611L5 14.5" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Material</p>
-                      <p className="text-gray-600 capitalize">{product.material}</p>
-                    </div>
-                  </div>
-                )}
-                {product.weight && (
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.589-1.202L18.75 4.97zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 01-2.031.352 5.989 5.989 0 01-2.031-.352c-.483-.174-.711-.703-.589-1.202L5.25 4.97z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Weight</p>
-                      <p className="text-gray-600">{product.weight}g</p>
-                    </div>
-                  </div>
-                )}
-                {product.length && (
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Length</p>
-                      <p className="text-gray-600">{product.length}"</p>
-                    </div>
-                  </div>
-                )}
-                {product.style && (
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mr-4 flex-shrink-0">
-                      <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Style</p>
-                      <p className="text-gray-600">{product.style}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Delivery Information - After specifications */}
+            {/* Delivery Information */}
             <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center mb-2 md:mb-3">
                 <svg className="w-5 md:w-6 h-5 md:h-6 text-gray-700 mr-2 md:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

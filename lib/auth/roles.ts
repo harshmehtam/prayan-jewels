@@ -1,5 +1,4 @@
 // Role-based access control utilities for admin authentication
-import { UserProfile } from '@/types';
 
 export type UserRole = 'customer' | 'admin' | 'super_admin';
 

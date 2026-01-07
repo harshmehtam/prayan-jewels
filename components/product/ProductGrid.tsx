@@ -14,7 +14,6 @@ interface Product {
   description: string;
   price: number;
   images: string[];
-  category: string | null;
   isActive: boolean | null;
   availableQuantity?: number;
   averageRating?: number | null;
@@ -26,15 +25,13 @@ interface ProductGridProps {
   subtitle?: string;
   limit?: number;
   showViewAll?: boolean;
-  category?: 'traditional' | 'modern' | 'designer';
 }
 
 export default function ProductGrid({ 
   title = "Discover Our Collection",
   subtitle,
   limit = 15,
-  showViewAll = true,
-  category
+  showViewAll = true
 }: ProductGridProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,9 +41,8 @@ export default function ProductGrid({
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const filters = category ? { category } : {};
-        // const result = await ProductService.getProducts(filters, limit);
-        const result = await MockProductService.getProducts(filters, limit);
+        // const result = await ProductService.getProducts({}, limit);
+        const result = await MockProductService.getProducts({}, limit);
         // console.log(`Requested ${limit} products, got ${result.products.length} products`); // DEBUG
         setProducts(result.products);
       } catch (err) {
@@ -57,7 +53,7 @@ export default function ProductGrid({
     };
 
     fetchProducts();
-  }, [category, limit]);
+  }, [limit]);
 
   if (loading) {
     return (

@@ -5,19 +5,11 @@ const schema = a.schema({
   Product: a
     .model({
       name: a.string().required(),
-      description: a.string().required(),
+      description: a.string().required(), // Single comprehensive description with all details
       price: a.float().required(),
-      images: a.string().array().required(),
-      category: a.enum(['traditional', 'modern', 'designer']),
-      material: a.string().default('silver'),
-      weight: a.float(), // in grams
-      length: a.float(), // in inches
-      style: a.string(),
-      occasion: a.string().array(),
-      metaTitle: a.string(),
-      metaDescription: a.string(),
-      keywords: a.string().array(),
+      images: a.string().array().required(), // Local image paths
       isActive: a.boolean().default(true),
+      viewCount: a.integer().default(0), // Track product views
       inventory: a.hasOne('InventoryItem', 'productId'),
       cartItems: a.hasMany('CartItem', 'productId'),
       orderItems: a.hasMany('OrderItem', 'productId'),

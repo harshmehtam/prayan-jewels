@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MockUserService } from '@/lib/data/mock-users';
+import { UserService } from '@/lib/data/users';
 import { isValidPhoneNumber } from '@/lib/amplify-client';
 
 // Prevent SSR for this page
@@ -33,10 +33,10 @@ export default function ProfilePage() {
         firstName: userProfile.firstName || '',
         lastName: userProfile.lastName || '',
         phone: userProfile.phone || '',
-        dateOfBirth: userProfile.dateOfBirth || '',
-        newsletter: userProfile.newsletter || false,
-        smsUpdates: userProfile.smsUpdates || false,
-        preferredCategories: (userProfile.preferredCategories || []).filter((cat): cat is string => cat !== null),
+        dateOfBirth: '',
+        newsletter: false,
+        smsUpdates: false,
+        preferredCategories: [],
       });
     }
   }, [userProfile]);
@@ -305,10 +305,10 @@ export default function ProfilePage() {
                           firstName: userProfile.firstName || '',
                           lastName: userProfile.lastName || '',
                           phone: userProfile.phone || '',
-                          dateOfBirth: userProfile.dateOfBirth || '',
-                          newsletter: userProfile.newsletter || false,
-                          smsUpdates: userProfile.smsUpdates || false,
-                          preferredCategories: (userProfile.preferredCategories || []).filter((cat): cat is string => cat !== null),
+                          dateOfBirth: '',
+                          newsletter: false,
+                          smsUpdates: false,
+                          preferredCategories: [],
                         });
                       }
                     }}

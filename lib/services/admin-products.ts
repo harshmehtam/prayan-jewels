@@ -6,6 +6,55 @@ import type { CreateProductInput, UpdateProductInput, Product } from '@/types';
 
 const client = generateClient<Schema>();
 
+// Request deduplication cache
+const requestCache = new Map<string, Promise<any>>();
+const CACHE_DURATION = 1000; // 1 second cache to prevent duplicate requests
+
+// Clear cache periodically to prevent memory leaks
+setInterval(() => {
+  if (requestCache.size > 0) {
+    console.log(`🧹 Clearing request cache (${requestCache.size} entries)`);
+    requestCache.clear();
+  }
+}, 5000); // Clear every 5 seconds
+
+// Helper function to create cache key
+function createCacheKey(method: string, params: any): string {
+  return `${method}:${JSON.stringify(params)}`;
+}
+
+// Helper function to deduplicate requests
+function deduplicateRequest<T>(cacheKey: string, requestFn: () => Promise<T>): Promise<T> {
+  // Check if request is already in progress
+  if (requestCache.has(cacheKey)) {
+    console.log(`🔄 Deduplicating request: ${cacheKey}`);
+    return requestCache.get(cacheKey)!;
+  }
+
+  // Create new request
+  console.log(`🚀 Making new request: ${cacheKey}`);
+  const promise = requestFn()
+    .then(result => {
+      console.log(`✅ Request completed: ${cacheKey}`);
+      return result;
+    })
+    .catch(error => {
+      console.error(`❌ Request failed: ${cacheKey}`, error);
+      throw error;
+    })
+    .finally(() => {
+      // Remove from cache after completion
+      setTimeout(() => {
+        requestCache.delete(cacheKey);
+        console.log(`🗑️ Removed from cache: ${cacheKey}`);
+      }, CACHE_DURATION);
+    });
+
+  // Store in cache
+  requestCache.set(cacheKey, promise);
+  return promise;
+}
+
 export class AdminProductService {
   // Upload image to Amplify Storage and return the URL
   static async uploadProductImage(file: File, productId?: string): Promise<string> {
@@ -247,60 +296,64 @@ export class AdminProductService {
 
   // Get all products with filtering and pagination
   static async getProducts(filters?: {
-    category?: 'traditional' | 'modern' | 'designer';
     isActive?: boolean;
     searchQuery?: string;
   }, limit?: number) {
-    try {
-      let query = client.models.Product.list();
+    const cacheKey = createCacheKey('getProducts', { filters, limit });
+    
+    return deduplicateRequest(cacheKey, async () => {
+      try {
+        console.log('🚀 AdminProductService.getProducts called with:', { filters, limit });
+        
+        let query = client.models.Product.list();
 
-      // Apply filters
-      if (filters?.category) {
-        query = client.models.Product.list({
-          filter: { category: { eq: filters.category } }
-        });
+        // Apply filters
+        if (filters?.isActive !== undefined) {
+          query = client.models.Product.list({
+            filter: { isActive: { eq: filters.isActive } }
+          });
+        }
+
+        console.log('📡 Executing GraphQL query...');
+        const result = await query;
+        console.log('📦 GraphQL result received, products count:', result.data?.length || 0);
+
+        let products = result.data || [];
+
+        // Apply search filter (client-side for now)
+        if (filters?.searchQuery) {
+          const searchLower = filters.searchQuery.toLowerCase();
+          products = products.filter(product =>
+            product.name.toLowerCase().includes(searchLower) ||
+            product.description.toLowerCase().includes(searchLower)
+          );
+        }
+
+        // Apply limit
+        if (limit) {
+          products = products.slice(0, limit);
+        }
+
+        const response = {
+          products,
+          totalCount: products.length,
+          hasNextPage: false,
+          errors: null,
+        };
+        
+        console.log('✅ Returning products:', response.totalCount);
+        return response;
+      } catch (error) {
+        console.error('❌ Error fetching products:', error);
+        const errorResponse = {
+          products: [],
+          totalCount: 0,
+          hasNextPage: false,
+          errors: [{ message: error instanceof Error ? error.message : 'Failed to fetch products' }],
+        };
+        return errorResponse;
       }
-
-      if (filters?.isActive !== undefined) {
-        query = client.models.Product.list({
-          filter: { isActive: { eq: filters.isActive } }
-        });
-      }
-
-      const result = await query;
-
-      let products = result.data || [];
-
-      // Apply search filter (client-side for now)
-      if (filters?.searchQuery) {
-        const searchLower = filters.searchQuery.toLowerCase();
-        products = products.filter(product =>
-          product.name.toLowerCase().includes(searchLower) ||
-          product.description.toLowerCase().includes(searchLower) ||
-          product.style?.toLowerCase().includes(searchLower)
-        );
-      }
-
-      // Apply limit
-      if (limit) {
-        products = products.slice(0, limit);
-      }
-
-      return {
-        products,
-        totalCount: products.length,
-        hasNextPage: false,
-        errors: null,
-      };
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      return {
-        products: [],
-        totalCount: 0,
-        hasNextPage: false,
-        errors: [{ message: error instanceof Error ? error.message : 'Failed to fetch products' }],
-      };
-    }
+    });
   }
 
   // Get a single product with inventory
@@ -379,11 +432,6 @@ export class AdminProductService {
         totalProducts: products.length,
         activeProducts: products.filter(p => p.isActive).length,
         inactiveProducts: products.filter(p => !p.isActive).length,
-        productsByCategory: {
-          traditional: products.filter(p => p.category === 'traditional').length,
-          modern: products.filter(p => p.category === 'modern').length,
-          designer: products.filter(p => p.category === 'designer').length,
-        },
         lowStockProducts: inventory.filter(inv => {
           const availableStock = (inv.stockQuantity || 0) - (inv.reservedQuantity || 0);
           const reorderPoint = inv.reorderPoint || 0;

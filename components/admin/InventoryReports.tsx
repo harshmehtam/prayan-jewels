@@ -14,7 +14,6 @@ interface InventoryReportsProps {
 interface InventoryReport {
   productId: string;
   productName: string;
-  category: string;
   currentStock: number;
   reservedStock: number;
   availableStock: number;
@@ -62,7 +61,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<'summary' | 'detailed' | 'movements' | 'analytics'>('summary');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'traditional' | 'modern' | 'designer'>('all');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
 
   // Load inventory reports
@@ -100,7 +98,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
             const report: InventoryReport = {
               productId: product.id,
               productName: product.name,
-              category: product.category || 'traditional',
               currentStock: inventory.stockQuantity || 0,
               reservedStock: inventory.reservedQuantity || 0,
               availableStock: available,
@@ -122,23 +119,18 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
         }
       }
 
-      // Filter by category if specified
-      const filteredReports = categoryFilter === 'all' 
-        ? inventoryReports 
-        : inventoryReports.filter(report => report.category === categoryFilter);
-
-      setReports(filteredReports);
+      setReports(inventoryReports);
 
       // Generate analytics
       const analytics: InventoryAnalytics = {
-        totalProducts: filteredReports.length,
+        totalProducts: inventoryReports.length,
         totalStockValue: totalValue,
-        averageStockLevel: filteredReports.length > 0 ? totalStock / filteredReports.length : 0,
+        averageStockLevel: inventoryReports.length > 0 ? totalStock / inventoryReports.length : 0,
         stockTurnoverRate: 0, // Would need sales data to calculate
-        lowStockPercentage: filteredReports.length > 0 ? (lowStockCount / filteredReports.length) * 100 : 0,
-        outOfStockPercentage: filteredReports.length > 0 ? (outOfStockCount / filteredReports.length) * 100 : 0,
+        lowStockPercentage: inventoryReports.length > 0 ? (lowStockCount / inventoryReports.length) * 100 : 0,
+        outOfStockPercentage: inventoryReports.length > 0 ? (outOfStockCount / inventoryReports.length) * 100 : 0,
         topSellingProducts: [], // Would need sales data
-        slowMovingProducts: filteredReports
+        slowMovingProducts: inventoryReports
           .filter(report => report.currentStock > report.reorderPoint * 2)
           .map(report => ({
             productName: report.productName,
@@ -186,7 +178,7 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
 
   useEffect(() => {
     loadInventoryReports();
-  }, [categoryFilter]);
+  }, []);
 
   // Export reports
   const exportReports = () => {
@@ -200,7 +192,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
   const exportToCSV = () => {
     const headers = [
       'Product Name',
-      'Category',
       'Current Stock',
       'Reserved Stock',
       'Available Stock',
@@ -217,7 +208,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
       headers.join(','),
       ...reports.map(report => [
         `"${report.productName}"`,
-        report.category,
         report.currentStock,
         report.reservedStock,
         report.availableStock,
@@ -362,19 +352,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
               <option value="1y">Last year</option>
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Categories</option>
-              <option value="traditional">Traditional</option>
-              <option value="modern">Modern</option>
-              <option value="designer">Designer</option>
-            </select>
-          </div>
           <div className="flex items-end">
             <button
               onClick={loadInventoryReports}
@@ -449,9 +426,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
                         Product
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Stock Level
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -467,15 +441,6 @@ export default function InventoryReports({ className = '' }: InventoryReportsPro
                       <tr key={report.productId} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{report.productName}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            report.category === 'traditional' ? 'bg-green-100 text-green-800' :
-                            report.category === 'modern' ? 'bg-blue-100 text-blue-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
-                            {report.category}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {report.availableStock} / {report.currentStock}

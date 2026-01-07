@@ -177,7 +177,7 @@ export default function Header() {
             {/* Desktop Navigation - Hidden on mobile */}
             <nav className="hidden lg:flex items-center space-x-8">
               <Link 
-                href="/categories/necklaces" 
+                href="/products" 
                 className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
                   isScrolled || !isHomePage
                     ? 'text-black hover:text-gray-700' 
@@ -185,35 +185,7 @@ export default function Header() {
                 }`}
                 style={{ outline: 'none', boxShadow: 'none' }}
               >
-                Necklaces
-                <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
-                }`}></span>
-              </Link>
-              <Link 
-                href="/categories/earrings" 
-                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled || !isHomePage
-                    ? 'text-black hover:text-gray-700' 
-                    : 'text-black hover:text-gray-700'
-                }`}
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                Earrings
-                <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
-                }`}></span>
-              </Link>
-              <Link 
-                href="/categories/rings" 
-                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled || !isHomePage
-                    ? 'text-black hover:text-gray-700' 
-                    : 'text-black hover:text-gray-700'
-                }`}
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                Rings
+                Products
                 <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
                   isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
                 }`}></span>
@@ -429,33 +401,11 @@ export default function Header() {
                 <nav>
                   <div className="space-y-2">
                     <Link
-                      href="/categories/necklaces"
+                      href="/products"
                       className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Necklaces</span>
-                      <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-
-                    <Link
-                      href="/categories/earrings"
-                      className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Earrings</span>
-                      <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-
-                    <Link
-                      href="/categories/rings"
-                      className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Rings</span>
+                      <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Products</span>
                       <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>

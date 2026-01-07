@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MockOrderService } from '@/lib/data/mock-orders';
+import { OrderService } from '@/lib/data/orders';
 import type { Order } from '@/types';
 
 // Prevent SSR for this page
@@ -19,8 +19,8 @@ export default function OrdersPage() {
     const loadOrders = async () => {
       if (user?.userId) {
         try {
-          const response = await MockOrderService.getUserOrders(user.userId);
-          setOrders(response.orders);
+          const response = await OrderService.getCustomerOrders(user.userId);
+          setOrders(response.orders as unknown as Order[]);
         } catch (error) {
           console.error('Error loading orders:', error);
         } finally {
@@ -94,8 +94,8 @@ export default function OrdersPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(order.status)}`}>
-                        {order.status}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(order.status || 'pending')}`}>
+                        {order.status || 'pending'}
                       </span>
                       <p className="text-lg font-semibold text-gray-900 mt-1">
                         ₹{order.totalAmount.toFixed(2)}

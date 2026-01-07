@@ -51,6 +51,20 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       }
     ],
+    
+    // Allow local API routes for image proxy
+    domains: [],
+    
+    // Allow local patterns with query strings
+    localPatterns: [
+      {
+        pathname: '/api/image',
+        search: '**',
+      },
+      {
+        pathname: '/images/**',
+      },
+    ],
   },
   
   // Performance optimizations

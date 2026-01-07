@@ -11,7 +11,6 @@ interface Product {
   description: string;
   price: number;
   images: string[];
-  category: string | null;
   isActive: boolean | null;
   availableQuantity?: number;
   averageRating?: number | null;
@@ -83,7 +82,6 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
     // Add badges similar to the jewelry image
     if (index === 1) return "Bestseller";
     if (index === 3) return "Reserve Now";
-    if (product.category === 'designer') return "Designer";
     if (product.averageRating && product.averageRating >= 4.5) return "Top Rated";
     if (product.availableQuantity && product.availableQuantity < 5) return "Limited";
     return null;
@@ -302,12 +300,10 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             </div>
           )}
 
-          {/* Category/Material */}
-          {product.category && (
-            <p className="text-xs text-amber-600 font-medium">
-              18k Gold Vermeil
-            </p>
-          )}
+          {/* Material/Quality Badge */}
+          <p className="text-xs text-amber-600 font-medium">
+            925 Silver
+          </p>
 
           {/* Price */}
           <p className="text-sm font-semibold text-gray-900 pt-1">

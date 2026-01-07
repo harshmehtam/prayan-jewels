@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     
     // Parse query parameters
-    const category = searchParams.get('category') || undefined;
     const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined;
     const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined;
     const searchQuery = searchParams.get('search') || undefined;
@@ -17,11 +16,10 @@ export async function GET(request: NextRequest) {
     const nextToken = searchParams.get('nextToken') || undefined;
 
     const filters: ProductFilters = {
-      category: category as any,
       minPrice,
       maxPrice,
       searchQuery,
-      sortBy,
+      sortBy: sortBy as ProductFilters['sortBy'],
       inStock: inStock || undefined
     };
 

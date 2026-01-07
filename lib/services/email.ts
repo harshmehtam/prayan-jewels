@@ -172,10 +172,6 @@ export class EmailService {
     `;
   }
 
-export class EmailService {
-  private static readonly FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@silvermangalsutra.com';
-  private static readonly COMPANY_NAME = 'Silver Mangalsutra Store';
-
   /**
    * Send order confirmation email to customer
    */

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CartService } from '@/lib/data/cart';
+import { ProductService } from '@/lib/data/products';
 import { generateSessionId } from '@/lib/amplify-client';
 
 export async function POST(request: NextRequest) {
@@ -16,6 +17,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Get product to get the unit price
+    const productResult = await ProductService.getProduct(productId);
+    if (!productResult.product) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Product not found' 
+        },
+        { status: 404 }
+      );
+    }
+
+    const unitPrice = productResult.product.price;
 
     let cartId;
     
@@ -36,7 +51,7 @@ export async function POST(request: NextRequest) {
       cartId = cartResult.cart.id;
     }
 
-    const result = await CartService.addToCart(cartId, productId, quantity);
+    const result = await CartService.addItemToCart(cartId, productId, quantity, unitPrice);
 
     if (result.errors) {
       return NextResponse.json(

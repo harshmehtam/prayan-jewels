@@ -198,7 +198,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
                     <select
-                      value={status}
+                      value={status || 'pending'}
                       onChange={(e) => setStatus(e.target.value as Order['status'])}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
@@ -266,11 +266,11 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
             </div>
             <div className="flex justify-between py-2">
               <span className="text-sm text-gray-600">Tax:</span>
-              <span className="text-sm text-gray-900">₹{order.tax.toLocaleString()}</span>
+              <span className="text-sm text-gray-900">₹{(order.tax || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-2">
               <span className="text-sm text-gray-600">Shipping:</span>
-              <span className="text-sm text-gray-900">₹{order.shipping.toLocaleString()}</span>
+              <span className="text-sm text-gray-900">₹{(order.shipping || 0).toLocaleString()}</span>
             </div>
             <div className="flex justify-between py-2 border-t border-gray-200 font-semibold">
               <span className="text-sm text-gray-900">Total:</span>

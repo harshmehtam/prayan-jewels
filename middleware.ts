@@ -4,9 +4,6 @@ import type { NextRequest } from 'next/server';
 // Define protected routes that require authentication
 const protectedRoutes = ['/account'];
 
-// Define admin routes that require admin/super_admin role
-const adminRoutes = ['/admin'];
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
@@ -23,23 +20,14 @@ export function middleware(request: NextRequest) {
     pathname.startsWith(route)
   );
 
-  // Check if the current path is an admin route
-  const isAdminRoute = adminRoutes.some(route => 
-    pathname.startsWith(route)
-  );
-
   // Redirect unauthenticated users away from protected routes to home
   // They can use the login modal from there
   if (isProtectedRoute && !isAuthenticated) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Redirect unauthenticated users away from admin routes
-  if (isAdminRoute && !isAuthenticated) {
-    const loginUrl = new URL('/admin/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
-  }
+  // Note: Admin routes are handled by client-side AdminRoute component
+  // This allows proper authentication checking using Amplify's client-side auth state
 
   return NextResponse.next();
 }

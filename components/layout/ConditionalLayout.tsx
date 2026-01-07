@@ -12,9 +12,10 @@ export default function ConditionalLayout({ children }: ConditionalLayoutProps) 
   
   // Pages that should not show the main header and footer
   const isCheckoutFlow = pathname.startsWith('/checkout') || pathname.startsWith('/order-confirmation');
+  const isAdminArea = pathname.startsWith('/admin');
   
-  if (isCheckoutFlow) {
-    // Minimal layout for checkout flow
+  if (isCheckoutFlow || isAdminArea) {
+    // Minimal layout for checkout flow and admin area
     return (
       <div className="min-h-screen">
         {children}

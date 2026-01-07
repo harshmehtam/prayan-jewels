@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useWishlist } from '@/lib/hooks/useWishlist';
 import { useCart } from '@/components/providers/cart-provider';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -256,13 +257,6 @@ export default function WishlistPage() {
                   <p className="text-lg font-semibold text-gray-900 mt-2">
                     ₹{item.product?.price?.toFixed(2) || '0.00'}
                   </p>
-
-                  {/* Product Category */}
-                  {item.product?.category && (
-                    <p className="text-sm text-gray-600 mt-1 capitalize">
-                      {item.product.category}
-                    </p>
-                  )}
 
                   {/* Action Buttons */}
                   <div className="flex items-center space-x-2 mt-4">

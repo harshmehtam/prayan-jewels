@@ -2,19 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getCurrentUser, signOut, type AuthUser, fetchUserAttributes, updateUserAttributes } from 'aws-amplify/auth';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 // Define user profile type based on Cognito attributes
 interface AuthUserProfile {
   userId: string;
   phone?: string;
-  email?: string;
   firstName?: string; // givenName
   lastName?: string;  // familyName
-  dateOfBirth?: string; // birthdate
-  role?: 'customer' | 'admin' | 'super_admin';
-  newsletter?: boolean;
-  smsUpdates?: boolean;
-  preferredCategories?: string[];
+  groups?: string[]; // User groups from Cognito
+  role?: 'customer' | 'admin' | 'super_admin'; // Derived from groups
 }
 
 interface AuthContextType {
@@ -47,36 +44,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [userProfile, setUserProfile] = useState<AuthUserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const createProfileFromAttributes = (user: AuthUser, attributes: Record<string, string>): AuthUserProfile => {
+  const createProfileFromAttributes = async (user: AuthUser, attributes: Record<string, string>): Promise<AuthUserProfile> => {
+    // Get user groups from Cognito
+    let groups: string[] = [];
+    let role: 'customer' | 'admin' | 'super_admin' = 'customer';
+    
+    try {
+      const session = await fetchAuthSession();
+      const accessToken = session.tokens?.accessToken;
+      if (accessToken) {
+        groups = accessToken.payload['cognito:groups'] as string[] || [];
+        
+        // Determine role based on groups (priority: super_admin > admin > customer)
+        if (groups.includes('super_admin')) {
+          role = 'super_admin';
+        } else if (groups.includes('admin')) {
+          role = 'admin';
+        } else {
+          role = 'customer';
+        }
+      }
+    } catch (error) {
+      console.log('Could not fetch user groups:', error);
+    }
+
     return {
       userId: user.userId,
       phone: attributes.phone_number || user.username,
-      email: attributes.email,
       firstName: attributes.given_name,
       lastName: attributes.family_name,
-      dateOfBirth: attributes.birthdate,
-      role: (attributes['custom:role'] as 'customer' | 'admin' | 'super_admin') || 'customer',
-      newsletter: attributes['custom:newsletter'] === 'true',
-      smsUpdates: attributes['custom:smsUpdates'] === 'true',
-      preferredCategories: attributes['custom:preferredCategories'] 
-        ? JSON.parse(attributes['custom:preferredCategories']) 
-        : [],
+      groups,
+      role,
     };
   };
 
   const refreshUserProfile = async () => {
     if (user?.userId) {
       try {
-        console.log('📋 Fetching user attributes from Cognito...');
         const attributes = await fetchUserAttributes();
-        console.log('👤 User Attributes:', attributes);
-        
-        const profile = createProfileFromAttributes(user, attributes as Record<string, string>);
-        console.log('✅ Created Profile from Cognito Attributes:', profile);
-        
+        const profile = await createProfileFromAttributes(user, attributes as Record<string, string>);
         setUserProfile(profile);
       } catch (error) {
-        console.error('❌ Error fetching user attributes:', error);
         setUserProfile(null);
       }
     } else {
@@ -86,28 +94,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const updateUserProfile = async (updates: Partial<AuthUserProfile>) => {
     try {
-      console.log('🔄 Updating user attributes in Cognito:', updates);
-      
       const attributeUpdates: Record<string, string> = {};
-      
       if (updates.firstName !== undefined) attributeUpdates.given_name = updates.firstName || '';
       if (updates.lastName !== undefined) attributeUpdates.family_name = updates.lastName || '';
-      if (updates.email !== undefined) attributeUpdates.email = updates.email || '';
-      if (updates.dateOfBirth !== undefined) attributeUpdates.birthdate = updates.dateOfBirth || '';
       if (updates.role !== undefined) attributeUpdates['custom:role'] = updates.role || 'customer';
-      if (updates.newsletter !== undefined) attributeUpdates['custom:newsletter'] = updates.newsletter.toString();
-      if (updates.smsUpdates !== undefined) attributeUpdates['custom:smsUpdates'] = updates.smsUpdates.toString();
-      if (updates.preferredCategories !== undefined) {
-        attributeUpdates['custom:preferredCategories'] = JSON.stringify(updates.preferredCategories || []);
-      }
-
       await updateUserAttributes({ userAttributes: attributeUpdates });
-      console.log('✅ User attributes updated successfully');
       
       // Refresh the profile to get updated data
       await refreshUserProfile();
     } catch (error) {
-      console.error('❌ Error updating user attributes:', error);
       throw error;
     }
   };
@@ -124,14 +119,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshAuthState = async () => {
     try {
-      console.log('🔄 Refreshing Auth State...');
       const currentUser = await getCurrentUser();
-      console.log('👤 Current User from Cognito:', {
-        userId: currentUser.userId,
-        username: currentUser.username,
-        signInDetails: currentUser.signInDetails
-      });
-      
       setUser(currentUser);
       
       // Fetch user profile from Cognito attributes
@@ -140,7 +128,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     } catch (error) {
       console.log('❌ User not authenticated:', error);
-      // User is not authenticated
       setUser(null);
       setUserProfile(null);
     }

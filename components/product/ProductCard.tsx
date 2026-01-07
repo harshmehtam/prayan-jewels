@@ -77,7 +77,6 @@ interface ProductCardProps {
     description: string;
     price: number;
     images: string[];
-    category: string | null;
     isActive: boolean | null;
     availableQuantity?: number;
     averageRating?: number | null;
@@ -199,13 +198,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           {isOutOfStock && (
             <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-medium px-2 py-1 rounded">
               Out of Stock
-            </div>
-          )}
-
-          {/* Category Badge */}
-          {product.category && (
-            <div className="absolute top-3 right-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-full shadow-md capitalize">
-              {product.category}
             </div>
           )}
         </div>

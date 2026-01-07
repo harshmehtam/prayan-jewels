@@ -23,7 +23,7 @@ const mockCartItems: CartItem[] = [
   {
     id: 'item-1',
     name: 'Fine Chain Necklace 22"',
-    image: '/images/products/necklace-1.jpg',
+    image: '/placeholder-product.svg',
     price: 240,
     quantity: 2,
     size: '56cm/22"',
@@ -32,7 +32,7 @@ const mockCartItems: CartItem[] = [
   {
     id: 'item-2',
     name: 'December Birthstone Locket',
-    image: '/images/products/locket-1.jpg',
+    image: '/placeholder-product.svg',
     price: 149,
     quantity: 1,
     size: '12. December',
@@ -41,7 +41,7 @@ const mockCartItems: CartItem[] = [
   {
     id: 'item-3',
     name: 'Silver Chain Bracelet',
-    image: '/images/products/bracelet-1.jpg',
+    image: '/placeholder-product.svg',
     price: 149,
     quantity: 1,
     size: '18cm',
@@ -50,7 +50,7 @@ const mockCartItems: CartItem[] = [
   {
     id: 'item-4',
     name: 'Silver Chain Bracelet',
-    image: '/images/products/bracelet-1.jpg',
+    image: '/placeholder-product.svg',
     price: 149,
     quantity: 1,
     size: '18cm',

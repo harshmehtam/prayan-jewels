@@ -3,16 +3,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRoleAccess } from '@/lib/hooks/useRoleAccess';
-import { AdminUserService } from '@/lib/services/admin-users';
+import { OrderService } from '@/lib/data/orders';
 import { PermissionGate } from '@/components/auth/AdminRoute';
 import { getRoleDisplayName } from '@/lib/auth/roles';
 
 interface DashboardStats {
-  totalUsers: number;
-  totalCustomers: number;
-  totalAdmins: number;
-  totalSuperAdmins: number;
-  recentUsers: number;
+  totalOrders: number;
+  totalRevenue: number;
+  pendingOrders: number;
+  processingOrders: number;
+  shippedOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
 }
 
 interface AdminDashboardProps {
@@ -30,8 +32,21 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
       setLoading(true);
       setError(null);
       
-      const userStats = await AdminUserService.getUserStatistics();
-      setStats(userStats);
+      const orderStats = await OrderService.getOrderStatistics();
+      
+      if (orderStats.errors) {
+        throw new Error('Failed to load order statistics');
+      }
+      
+      setStats({
+        totalOrders: orderStats.stats.totalOrders,
+        totalRevenue: orderStats.stats.totalRevenue,
+        pendingOrders: orderStats.stats.pendingOrders,
+        processingOrders: orderStats.stats.processingOrders,
+        shippedOrders: orderStats.stats.shippedOrders,
+        deliveredOrders: orderStats.stats.deliveredOrders,
+        cancelledOrders: orderStats.stats.cancelledOrders,
+      });
     } catch (err) {
       console.error('Error loading dashboard stats:', err);
       setError(err instanceof Error ? err.message : 'Failed to load dashboard statistics');
@@ -53,7 +68,7 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
     title: string; 
     value: number | string; 
     icon: React.ReactNode; 
-    color?: 'blue' | 'green' | 'purple' | 'yellow' | 'red';
+    color?: 'blue' | 'green' | 'purple' | 'yellow' | 'red' | 'orange';
   }) => {
     const colorClasses = {
       blue: 'bg-blue-50 text-blue-600 border-blue-200',
@@ -61,6 +76,7 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
       purple: 'bg-purple-50 text-purple-600 border-purple-200',
       yellow: 'bg-yellow-50 text-yellow-600 border-yellow-200',
       red: 'bg-red-50 text-red-600 border-red-200',
+      orange: 'bg-orange-50 text-orange-600 border-orange-200',
     };
 
     return (
@@ -76,6 +92,13 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
         </div>
       </div>
     );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+    }).format(amount);
   };
 
   return (
@@ -121,7 +144,7 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
         <div className="grid grid-responsive-1-2-4 gap-4 sm:gap-6">
           {loading ? (
             // Loading skeletons
-            Array.from({ length: 4 }).map((_, i) => (
+            Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
                 <div className="animate-pulse">
                   <div className="flex items-center">
@@ -137,42 +160,62 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
           ) : stats ? (
             <>
               <StatCard
-                title="Total Users"
-                value={stats.totalUsers}
+                title="Total Orders"
+                value={stats.totalOrders}
                 color="blue"
                 icon={
                   <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
                 }
               />
               <StatCard
-                title="Customers"
-                value={stats.totalCustomers}
+                title="Total Revenue"
+                value={formatCurrency(stats.totalRevenue)}
                 color="green"
                 icon={
                   <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 }
               />
               <StatCard
-                title="Admins"
-                value={stats.totalAdmins}
-                color="purple"
-                icon={
-                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                }
-              />
-              <StatCard
-                title="Recent Users"
-                value={stats.recentUsers}
+                title="Pending Orders"
+                value={stats.pendingOrders}
                 color="yellow"
                 icon={
                   <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
+              />
+              <StatCard
+                title="Processing Orders"
+                value={stats.processingOrders}
+                color="orange"
+                icon={
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                }
+              />
+              <StatCard
+                title="Shipped Orders"
+                value={stats.shippedOrders}
+                color="purple"
+                icon={
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                }
+              />
+              <StatCard
+                title="Delivered Orders"
+                value={stats.deliveredOrders}
+                color="green"
+                icon={
+                  <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 }
               />
@@ -237,37 +280,20 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
             </a>
           </PermissionGate>
 
-          <PermissionGate resource="admin/customers" action="read">
-            <a
-              href="/admin/customers"
-              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus-ring"
-            >
-              <div className="flex-shrink-0 p-2 bg-purple-100 rounded-lg">
-                <svg className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <div className="ml-3 min-w-0 flex-1">
-                <p className="text-responsive-xs font-medium text-gray-900 truncate">Customer Management</p>
-                <p className="text-xs text-gray-500 truncate">View and support customers</p>
-              </div>
-            </a>
-          </PermissionGate>
-
           {canManageAdmins && (
-            <PermissionGate resource="admin/users" action="read">
+            <PermissionGate resource="admin/audit" action="read">
               <a
-                href="/admin/users"
+                href="/admin/audit"
                 className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus-ring"
               >
                 <div className="flex-shrink-0 p-2 bg-red-100 rounded-lg">
                   <svg className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
                 <div className="ml-3 min-w-0 flex-1">
-                  <p className="text-responsive-xs font-medium text-gray-900 truncate">Admin Users</p>
-                  <p className="text-xs text-gray-500 truncate">Manage admin accounts and roles</p>
+                  <p className="text-responsive-xs font-medium text-gray-900 truncate">Audit Logs</p>
+                  <p className="text-xs text-gray-500 truncate">View system activity and logs</p>
                 </div>
               </a>
             </PermissionGate>
@@ -303,7 +329,7 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
             <div className="mt-2 text-responsive-xs text-blue-700">
               <p>
                 You are logged in as a <strong>{getRoleDisplayName(userRole)}</strong>.
-                {isSuperAdmin && ' You have full access to all admin features including user management.'}
+                {isSuperAdmin && ' You have full access to all admin features including audit logs.'}
                 {isAdmin && !isSuperAdmin && ' You have access to product, order, and inventory management.'}
               </p>
             </div>

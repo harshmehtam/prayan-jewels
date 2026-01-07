@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MockUserService } from '@/lib/data/mock-users';
+import { UserService } from '@/lib/data/users';
 import { isValidPostalCode } from '@/lib/amplify-client';
 import type { Address } from '@/types';
 
@@ -38,7 +38,7 @@ export default function AddressesPage() {
     const loadAddresses = async () => {
       if (user?.userId) {
         try {
-          const response = await MockUserService.getUserAddresses(user.userId);
+          const response = await UserService.getUserAddresses(user.userId);
           setAddresses(response.addresses);
         } catch (error) {
           console.error('Error loading addresses:', error);
@@ -121,7 +121,7 @@ export default function AddressesPage() {
 
       if (editingAddress) {
         // Update existing address
-        await MockUserService.updateAddress(editingAddress.id, {
+        await UserService.updateUserAddress(editingAddress.id, {
           type: formData.type,
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -136,7 +136,8 @@ export default function AddressesPage() {
         setSuccess('Address updated successfully!');
       } else {
         // Create new address
-        await MockUserService.createAddress(user.userId, {
+        await UserService.createUserAddress({
+          userId: user.userId,
           type: formData.type,
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -152,7 +153,7 @@ export default function AddressesPage() {
       }
 
       // Reload addresses
-      const response = await MockUserService.getUserAddresses(user.userId);
+      const response = await UserService.getUserAddresses(user.userId);
       setAddresses(response.addresses);
       
       resetForm();
@@ -170,7 +171,7 @@ export default function AddressesPage() {
     }
 
     try {
-      await MockUserService.deleteAddress(addressId);
+      await UserService.deleteUserAddress(addressId);
       setAddresses(prev => prev.filter(addr => addr.id !== addressId));
       setSuccess('Address deleted successfully!');
     } catch (error: any) {

@@ -67,8 +67,6 @@ export default function AdminInventoryManager({ className = '' }: AdminInventory
             const cleanProduct: Product = {
               ...product,
               images: product.images?.filter((img): img is string => img !== null) || [],
-              occasion: product.occasion?.filter((occ): occ is string => occ !== null) || null,
-              keywords: product.keywords?.filter((kw): kw is string => kw !== null) || null,
             };
 
             const inventoryItem: InventoryWithProduct = {

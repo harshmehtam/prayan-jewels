@@ -48,9 +48,6 @@ export async function GET(request: NextRequest) {
       totalProducts: products.length,
       activeProducts: products.filter(p => p.isActive).length,
       inactiveProducts: products.filter(p => !p.isActive).length,
-      traditionalProducts: products.filter(p => p.category === 'traditional').length,
-      modernProducts: products.filter(p => p.category === 'modern').length,
-      designerProducts: products.filter(p => p.category === 'designer').length,
     };
     
     // Get inventory statistics (if inventory items exist)

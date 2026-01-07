@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useRouter } from 'next/navigation';
 import { CognitoServerAuthService } from '@/lib/services/cognito-server-auth';
-import { signUp, confirmSignUp, signIn, confirmResetPassword, resetPassword, resendSignUpCode } from 'aws-amplify/auth';
+import { signUp, confirmSignUp, signIn } from 'aws-amplify/auth';
 
 interface PhoneLoginModalProps {
   isOpen: boolean;
@@ -14,7 +14,7 @@ interface PhoneLoginModalProps {
   isAdminLogin?: boolean;
 }
 
-type Step = 'phone' | 'otp' | 'details';
+type Step = 'login' | 'signup' | 'otp';
 
 export default function PhoneLoginModal({ 
   isOpen, 
@@ -22,15 +22,16 @@ export default function PhoneLoginModal({
   redirectTo = '/account',
   isAdminLogin = false 
 }: PhoneLoginModalProps) {
-  const [step, setStep] = useState<Step>('phone');
+  const [step, setStep] = useState<Step>('login');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const [isNewUser, setIsNewUser] = useState(false);
+  const [signUpUsername, setSignUpUsername] = useState(''); // Store username for OTP verification
   
   const { refreshAuthState, updateUserProfile } = useAuth();
   const router = useRouter();
@@ -46,16 +47,17 @@ export default function PhoneLoginModal({
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setStep('phone');
+      setStep('login');
       setPhoneNumber('');
-      setOtp('');
+      setPassword('');
       setFirstName('');
       setLastName('');
+      setOtp('');
       setError('');
       setCountdown(0);
-      setIsNewUser(false);
+      setSignUpUsername('');
       
-      // Prevent body scroll when modal is open - more comprehensive approach
+      // Prevent body scroll when modal is open
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -84,118 +86,21 @@ export default function PhoneLoginModal({
     };
   }, [isOpen]);
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
     try {
-      // Use client-side Amplify to send OTP
       const formattedPhone = CognitoServerAuthService.formatPhoneForCognito(phoneNumber);
       
-      try {
-        // First try to sign up (for new users)
-        await signUp({
-          username: formattedPhone,
-          password: generateTempPassword(formattedPhone),
-          options: {
-            userAttributes: {
-              phone_number: formattedPhone,
-              // Set default attributes for new users
-              'custom:role': 'customer',
-              'custom:newsletter': 'false',
-              'custom:smsUpdates': 'true',
-              'custom:preferredCategories': '[]',
-            },
-          },
-        });
-        
-        setStep('otp');
-        setCountdown(60);
-        setIsNewUser(true);
-      } catch (signUpError: any) {
-        if (signUpError.name === 'UsernameExistsException') {
-          // User exists, try reset password flow
-          try {
-            await resetPassword({ username: formattedPhone });
-            setStep('otp');
-            setCountdown(60);
-            setIsNewUser(false);
-          } catch (resetPasswordError: any) {
-            console.error('Reset password error:', resetPasswordError);
-            setError('Failed to send OTP. Please try again.');
-          }
-        } else {
-          console.error('SignUp error:', signUpError);
-          setError('Failed to send OTP. Please try again.');
-        }
-      }
-    } catch (error) {
-      setError('Network error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Helper function to generate consistent temp password based on phone
-  const generateTempPassword = (phone?: string) => {
-    const basePhone = phone || phoneNumber;
-    const cleanPhone = basePhone.replace(/\D/g, '');
-    return `TempPass${cleanPhone}!2024`;
-  };
-
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const formattedPhone = CognitoServerAuthService.formatPhoneForCognito(phoneNumber);
-
-      if (isNewUser) {
-        // For new users, confirm signup
-        console.log('🆕 Confirming signup for new user:', formattedPhone);
-        await confirmSignUp({
-          username: formattedPhone,
-          confirmationCode: otp,
-        });
-
-        // After confirmation, sign in the user
-        console.log('🔐 Signing in new user after confirmation');
-        const signInResult = await signIn({
-          username: formattedPhone,
-          password: generateTempPassword(formattedPhone),
-        });
-        console.log('✅ New user signed in successfully:', signInResult);
-      } else {
-        // For existing users, confirm reset password
-        console.log('🔄 Confirming password reset for existing user:', formattedPhone);
-        const newPassword = generateTempPassword(formattedPhone);
-        await confirmResetPassword({
-          username: formattedPhone,
-          confirmationCode: otp,
-          newPassword: newPassword,
-        });
-
-        // Sign in with the new password
-        console.log('🔐 Signing in existing user with new password');
-        const signInResult = await signIn({
-          username: formattedPhone,
-          password: newPassword,
-        });
-        console.log('✅ Existing user signed in successfully:', signInResult);
-      }
+      const signInResult = await signIn({
+        username: formattedPhone,
+        password: password,
+      });
 
       // Refresh auth state to update the provider
       await refreshAuthState();
-      
-      // Update user profile with additional data from form (stored in Cognito attributes)
-      if (isNewUser && firstName.trim() && lastName.trim()) {
-        await updateUserProfile({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-        });
-      }
       
       // Close modal and redirect
       onClose();
@@ -206,51 +111,97 @@ export default function PhoneLoginModal({
         router.push(redirectTo);
       }
     } catch (error: any) {
-      console.error('Verify OTP error:', error);
       setError(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Helper function to create user profile
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const formattedPhone = CognitoServerAuthService.formatPhoneForCognito(phoneNumber);
+      
+      const signUpResult = await signUp({
+        username: formattedPhone,
+        password: password,
+        options: {
+          userAttributes: {
+            phone_number: formattedPhone,
+            given_name: firstName.trim(),
+            family_name: lastName.trim(),
+          },
+        },
+      });
+      
+      setSignUpUsername(formattedPhone);
+      setStep('otp');
+      setCountdown(60);
+    } catch (error: any) {
+      setError(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Confirm signup with OTP
+      await confirmSignUp({
+        username: signUpUsername,
+        confirmationCode: otp,
+      });
+
+      // After confirmation, sign in the user
+      const signInResult = await signIn({
+        username: signUpUsername,
+        password: password,
+      });
+
+      // Refresh auth state to update the provider
+      await refreshAuthState();
+      
+      // Close modal and redirect
+      onClose();
+      
+      if (isAdminLogin) {
+        router.push('/admin');
+      } else {
+        router.push(redirectTo);
+      }
+    } catch (error: any) {
+      setError(getErrorMessage(error));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Helper function to get error message
   const getErrorMessage = (error: any): string => {
     switch (error.name) {
+      case 'NotAuthorizedException':
+        return 'Invalid phone number or password.';
+      case 'UserNotFoundException':
+        return 'No account found with this phone number.';
+      case 'UsernameExistsException':
+        return 'An account with this phone number already exists.';
       case 'CodeMismatchException':
         return 'Invalid OTP. Please try again.';
       case 'ExpiredCodeException':
         return 'OTP has expired. Please request a new one.';
       case 'LimitExceededException':
         return 'Too many attempts. Please try again later.';
+      case 'InvalidPasswordException':
+        return 'Password must be at least 8 characters long and contain uppercase, lowercase, number and special character.';
       default:
         return error.message || 'An error occurred. Please try again.';
-    }
-  };
-
-  const handleResendOTP = async () => {
-    if (countdown > 0) return;
-    
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const formattedPhone = CognitoServerAuthService.formatPhoneForCognito(phoneNumber);
-
-      if (isNewUser) {
-        // For new users, resend confirmation code
-        await resendSignUpCode({ username: formattedPhone });
-      } else {
-        // For existing users, initiate reset password again
-        await resetPassword({ username: formattedPhone });
-      }
-
-      setCountdown(60);
-      setError('');
-    } catch (error) {
-      setError('Network error. Please try again.');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -267,15 +218,10 @@ export default function PhoneLoginModal({
   const modalContent = (
     <div className="fixed inset-0 z-[110] overflow-y-auto">
       <div className="flex min-h-screen items-center justify-center p-4">
-        {/* Gradient backdrop - No onClick handler to prevent closing on outside click */}
-        <div 
-          className="fixed inset-0 transition-all duration-300 ease-out"
-        >
-          {/* Yellow to pink gradient like the reference */}
+        {/* Gradient backdrop */}
+        <div className="fixed inset-0 transition-all duration-300 ease-out">
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-200 via-yellow-100 to-pink-200"></div>
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-transparent to-pink-300/40"></div>
-          
-          {/* Subtle overlay for better modal contrast */}
           <div className="absolute inset-0 bg-black/10"></div>
         </div>
         
@@ -285,16 +231,16 @@ export default function PhoneLoginModal({
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                {isAdminLogin ? 'Admin Login' : 'Login / Sign Up'}
+                {isAdminLogin ? 'Admin Login' : 
+                 step === 'login' ? 'Login' : 
+                 step === 'signup' ? 'Sign Up' : 'Verify Phone'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {step === 'phone' && 'Enter your mobile number'}
-                {step === 'otp' && !isNewUser && 'Enter the OTP to login to your account'}
-                {step === 'otp' && isNewUser && 'Enter the OTP and your details to create account'}
-                {step === 'details' && 'Complete your profile'}
+                {step === 'login' && 'Enter your phone number and password'}
+                {step === 'signup' && 'Create your account with all required details'}
+                {step === 'otp' && 'Enter the OTP sent to your phone number'}
               </p>
             </div>
-            {/* Close button - Only way to close the modal */}
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -325,12 +271,12 @@ export default function PhoneLoginModal({
             </div>
           )}
 
-          {/* Phone Number Step */}
-          {step === 'phone' && (
-            <form onSubmit={handleSendOTP} className="space-y-4">
+          {/* Login Step */}
+          {step === 'login' && (
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Mobile Number
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -347,18 +293,152 @@ export default function PhoneLoginModal({
                     maxLength={11}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  We'll send you an OTP to verify your number
-                </p>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your password"
+                />
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading || phoneNumber.length !== 10}
+                disabled={isLoading || phoneNumber.length !== 10 || !password}
                 className="w-full flex justify-center py-3 px-6 border-2 border-black rounded-none text-sm font-semibold uppercase tracking-wider text-black bg-white hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
-                {isLoading ? 'SENDING OTP...' : 'SEND OTP'}
+                {isLoading ? 'LOGGING IN...' : 'LOGIN'}
               </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('signup');
+                    setError(''); // Clear error when switching to signup
+                    // Clear all form inputs when switching to signup
+                    setPhoneNumber('');
+                    setPassword('');
+                    setFirstName('');
+                    setLastName('');
+                  }}
+                  className="text-sm text-black hover:text-gray-600 font-medium"
+                >
+                  Don't have an account? Sign up
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Sign Up Step */}
+          {step === 'signup' && (
+            <form onSubmit={handleSignUp} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="signupPhone" className="block text-sm font-medium text-gray-700 mb-2">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">+91</span>
+                  </div>
+                  <input
+                    id="signupPhone"
+                    type="tel"
+                    required
+                    value={formatPhoneInput(phoneNumber)}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                    className="block w-full pl-12 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter Phone Number"
+                    maxLength={11}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="signupPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="signupPassword"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={'block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500'}
+                  placeholder="Create a strong password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={
+                  isLoading || 
+                  phoneNumber.length !== 10 || 
+                  !firstName.trim() || 
+                  !lastName.trim() || 
+                  !password
+                }
+                className="w-full flex justify-center py-3 px-6 border-2 border-black rounded-none text-sm font-semibold uppercase tracking-wider text-black bg-white hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                {isLoading ? 'CREATING ACCOUNT...' : 'SIGN UP'}
+              </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('login');
+                    setError(''); // Clear error when switching to login
+                    // Clear all form inputs when switching to login
+                    setPhoneNumber('');
+                    setPassword('');
+                    setFirstName('');
+                    setLastName('');
+                  }}
+                  className="text-sm text-black hover:text-gray-600 font-medium"
+                >
+                  Already have an account? Login
+                </button>
+              </div>
             </form>
           )}
 
@@ -367,7 +447,7 @@ export default function PhoneLoginModal({
             <form onSubmit={handleVerifyOTP} className="space-y-4">
               <div>
                 <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
-                  Enter OTP
+                  Enter OTP <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="otp"
@@ -384,101 +464,26 @@ export default function PhoneLoginModal({
                 </p>
               </div>
 
-              {/* Name fields for new users only */}
-              {isNewUser && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="firstName"
-                      type="text"
-                      required={isNewUser}
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className={`block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                        isNewUser && !firstName.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
-                      placeholder="First name"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="lastName"
-                      type="text"
-                      required={isNewUser}
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className={`block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
-                        isNewUser && !lastName.trim() ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
-                      placeholder="Last name"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* User type indicator */}
-              <div className="text-center">
-                <div className={`inline-flex items-center px-3 py-2 rounded-full text-xs font-medium ${
-                  isNewUser 
-                    ? 'bg-green-50 text-green-700 border border-green-200' 
-                    : 'bg-blue-50 text-blue-700 border border-blue-200'
-                }`}>
-                  {isNewUser ? (
-                    <>
-                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      Creating new account - Please provide your details
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-                      </svg>
-                      Logging into existing account
-                    </>
-                  )}
-                </div>
-              </div>
-
               <button
                 type="submit"
-                disabled={
-                  isLoading || 
-                  otp.length !== 6 || 
-                  (isNewUser && (!firstName.trim() || !lastName.trim()))
-                }
+                disabled={isLoading || otp.length !== 6}
                 className="w-full flex justify-center py-3 px-6 border-2 border-black rounded-none text-sm font-semibold uppercase tracking-wider text-black bg-white hover:bg-black hover:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
-                {isLoading ? 'VERIFYING...' : (isNewUser ? 'CREATE ACCOUNT' : 'LOGIN')}
+                {isLoading ? 'VERIFYING...' : 'VERIFY & CREATE ACCOUNT'}
               </button>
 
-              {/* Resend OTP */}
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={handleResendOTP}
-                  disabled={countdown > 0 || isLoading}
-                  className="text-sm text-black hover:text-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed font-medium"
-                >
-                  {countdown > 0 ? `Resend OTP in ${countdown}s` : 'Resend OTP'}
-                </button>
-              </div>
-
-              {/* Back button */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setStep('phone')}
+                  onClick={() => {
+                    setStep('signup');
+                    setError(''); // Clear error when going back to signup
+                    // Clear OTP when going back to signup
+                    setOtp('');
+                  }}
                   className="text-sm text-black hover:text-gray-600 font-medium"
                 >
-                  ← Change phone number
+                  ← Back to sign up
                 </button>
               </div>
             </form>
@@ -488,7 +493,6 @@ export default function PhoneLoginModal({
     </div>
   );
 
-  // Use portal to render modal at document body level
   return typeof document !== 'undefined' 
     ? createPortal(modalContent, document.body)
     : null;

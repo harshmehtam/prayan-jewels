@@ -14,19 +14,6 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
     max: filters.maxPrice?.toString() || ''
   });
 
-  const categories = [
-    { value: 'traditional', label: 'Traditional', count: 0 },
-    { value: 'modern', label: 'Modern', count: 0 },
-    { value: 'designer', label: 'Designer', count: 0 }
-  ] as const;
-
-  const handleCategoryChange = (category: 'traditional' | 'modern' | 'designer' | undefined) => {
-    onFilterChange({
-      ...filters,
-      category
-    });
-  };
-
   const handlePriceRangeChange = (field: 'min' | 'max', value: string) => {
     setPriceRange(prev => ({ ...prev, [field]: value }));
     
@@ -57,7 +44,7 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
     onFilterChange({});
   };
 
-  const hasActiveFilters = filters.category || filters.minPrice || filters.maxPrice || filters.inStock;
+  const hasActiveFilters = filters.minPrice || filters.maxPrice || filters.inStock;
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -74,40 +61,6 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
       </div>
 
       <div className="space-y-6">
-        {/* Category Filter */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Category</h4>
-          <div className="space-y-2">
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="category"
-                checked={!filters.category}
-                onChange={() => handleCategoryChange(undefined)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-              />
-              <span className="ml-2 text-sm text-gray-700">All Categories</span>
-            </label>
-            {categories.map((category) => (
-              <label key={category.value} className="flex items-center">
-                <input
-                  type="radio"
-                  name="category"
-                  checked={filters.category === category.value}
-                  onChange={() => handleCategoryChange(category.value)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span className="ml-2 text-sm text-gray-700">
-                  {category.label}
-                  {category.count > 0 && (
-                    <span className="text-gray-500 ml-1">({category.count})</span>
-                  )}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
         {/* Price Range Filter */}
         <div>
           <h4 className="text-sm font-medium text-gray-900 mb-3">Price Range</h4>
@@ -204,17 +157,6 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
           <div className="pt-4 border-t border-gray-200">
             <h4 className="text-sm font-medium text-gray-900 mb-2">Active Filters</h4>
             <div className="flex flex-wrap gap-2">
-              {filters.category && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {filters.category}
-                  <button
-                    onClick={() => handleCategoryChange(undefined)}
-                    className="ml-1 text-blue-600 hover:text-blue-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
               {(filters.minPrice || filters.maxPrice) && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   ₹{filters.minPrice || 0} - ₹{filters.maxPrice || '∞'}

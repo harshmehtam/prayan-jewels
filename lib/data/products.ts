@@ -13,11 +13,6 @@ export class ProductService {
         isActive: { eq: true }
       };
 
-      // Apply category filter
-      if (filters?.category) {
-        filterConditions.category = { eq: filters.category };
-      }
-
       // Apply price range filters
       if (filters?.minPrice !== undefined && filters?.maxPrice !== undefined) {
         filterConditions.price = { 
@@ -43,9 +38,7 @@ export class ProductService {
         const query = filters.searchQuery.toLowerCase();
         products = products.filter(p => 
           p.name.toLowerCase().includes(query) ||
-          p.description.toLowerCase().includes(query) ||
-          p.style?.toLowerCase().includes(query) ||
-          p.keywords?.some((k: string | null) => k?.toLowerCase().includes(query))
+          p.description.toLowerCase().includes(query)
         );
       }
 
@@ -84,8 +77,6 @@ export class ProductService {
         products: products.map(p => ({
           ...p,
           images: p.images.filter((img): img is string => img !== null),
-          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
           availableQuantity: (p as any).availableQuantity || 10 // Default stock for display
         })),
         totalCount: products.length,
@@ -130,8 +121,6 @@ export class ProductService {
         product: {
           ...response.data,
           images: response.data.images.filter((img): img is string => img !== null),
-          occasion: response.data.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: response.data.keywords?.filter((kw): kw is string => kw !== null) || null,
           availableQuantity,
           inventory
         },
@@ -152,15 +141,6 @@ export class ProductService {
         description: productData.description,
         price: productData.price,
         images: productData.images,
-        category: productData.category,
-        material: productData.material || 'silver',
-        weight: productData.weight,
-        length: productData.length,
-        style: productData.style,
-        occasion: productData.occasion,
-        metaTitle: productData.metaTitle,
-        metaDescription: productData.metaDescription,
-        keywords: productData.keywords,
         isActive: productData.isActive ?? true
       });
 
@@ -235,35 +215,6 @@ export class ProductService {
     }
   }
 
-  // Get products by category
-  static async getProductsByCategory(category: string, limit?: number) {
-    try {
-      const client = await getDynamicClient();
-      
-      const response = await client.models.Product.list({
-        filter: {
-          category: { eq: category },
-          isActive: { eq: true }
-        },
-        limit: limit || 20
-      });
-
-      return {
-        products: response.data?.map(p => ({
-          ...p,
-          images: p.images.filter((img): img is string => img !== null),
-          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
-          availableQuantity: 10 // Default stock for display
-        })) || [],
-        errors: response.errors
-      };
-    } catch (error) {
-      console.error('Error fetching products by category:', error);
-      throw new Error(handleAmplifyError(error));
-    }
-  }
-
   // Search products with enhanced features
   static async searchProducts(query: string, filters?: ProductFilters, limit?: number) {
     return this.getProducts({
@@ -293,8 +244,6 @@ export class ProductService {
         products: products.slice(0, limit).map(p => ({
           ...p,
           images: p.images.filter((img): img is string => img !== null),
-          occasion: p.occasion?.filter((occ): occ is string => occ !== null) || null,
-          keywords: p.keywords?.filter((kw): kw is string => kw !== null) || null,
           availableQuantity: 10 // Default stock for display
         })),
         errors: response.errors

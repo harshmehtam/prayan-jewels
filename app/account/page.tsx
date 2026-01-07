@@ -3,7 +3,7 @@
 import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MockOrderService } from '@/lib/data/mock-orders';
+import { OrderService } from '@/lib/data/orders';
 import type { Order } from '@/types';
 
 // Prevent SSR for this page
@@ -19,8 +19,8 @@ export default function AccountPage() {
     const loadRecentOrders = async () => {
       if (user?.userId) {
         try {
-          const response = await MockOrderService.getRecentOrders(user.userId);
-          setRecentOrders(response.orders);
+          const response = await OrderService.getCustomerOrders(user.userId);
+          setRecentOrders(response.orders.slice(0, 3) as unknown as Order[]); // Get first 3 orders
         } catch (error) {
           console.error('Error loading orders:', error);
         } finally {

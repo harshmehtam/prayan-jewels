@@ -284,6 +284,20 @@ export class OrderService {
   // Get orders by status (admin only)
   static async getOrdersByStatus(status: Order['status']) {
     try {
+      if (status === null) {
+        // Handle null status case - get orders with null status
+        const response = await client.models.Order.list({
+          filter: {
+            status: { attributeExists: false }
+          }
+        });
+        
+        return {
+          orders: response.data || [],
+          errors: response.errors
+        };
+      }
+
       const response = await client.models.Order.list({
         filter: {
           status: { eq: status }

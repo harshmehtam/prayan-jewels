@@ -11,15 +11,11 @@ export async function GET(request: NextRequest) {
     
     // Get search parameters
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
     const isActive = searchParams.get('isActive');
     const limit = parseInt(searchParams.get('limit') || '50');
 
     // Build filter conditions
     const filterConditions: any = {};
-    if (category) {
-      filterConditions.category = { eq: category };
-    }
     if (isActive !== null) {
       filterConditions.isActive = { eq: isActive === 'true' };
     }
@@ -75,15 +71,6 @@ export async function POST(request: NextRequest) {
       description,
       price,
       images,
-      category,
-      material,
-      weight,
-      length,
-      style,
-      occasion,
-      metaTitle,
-      metaDescription,
-      keywords,
       isActive = true,
     } = body;
 
@@ -101,15 +88,6 @@ export async function POST(request: NextRequest) {
       description,
       price,
       images,
-      category,
-      material: material || 'silver',
-      weight,
-      length,
-      style,
-      occasion: occasion || [],
-      metaTitle,
-      metaDescription,
-      keywords: keywords || [],
       isActive,
     });
 

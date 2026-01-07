@@ -4,35 +4,18 @@
 export interface Product {
   id: string;
   name: string;
-  description: string;
+  description: string; // Single comprehensive description with all details
   price: number;
-  images: string[];
-  category: 'traditional' | 'modern' | 'designer' | null;
-  material: string | null;
-  weight?: number | null; // in grams
-  length?: number | null; // in inches
-  style?: string | null;
-  occasion?: string[] | null;
-  metaTitle?: string | null;
-  metaDescription?: string | null;
-  keywords?: string[] | null;
+  images: string[]; // Local image paths
   isActive: boolean | null;
+  viewCount?: number | null; // Number of times viewed
   // New fields for enhanced search
   averageRating?: number | null; // 1-5 star rating
   totalReviews?: number | null; // Total number of reviews
   popularityScore?: number | null; // Calculated popularity score
-  viewCount?: number | null; // Number of times viewed
   purchaseCount?: number | null; // Number of times purchased
   createdAt: string;
   updatedAt: string;
-}
-
-export interface ProductSpecs {
-  material: 'silver';
-  weight: number; // in grams
-  length: number; // in inches
-  style: string;
-  occasion: string[];
 }
 
 export interface InventoryItem {
@@ -99,18 +82,18 @@ export interface Order {
   id: string;
   customerId: string;
   subtotal: number;
-  tax: number;
-  shipping: number;
+  tax: number | null;
+  shipping: number | null;
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  confirmationNumber?: string; // Unique order confirmation number
-  paymentOrderId?: string; // Razorpay order ID
-  trackingNumber?: string;
-  estimatedDelivery?: string;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | null;
+  confirmationNumber?: string | null; // Unique order confirmation number
+  paymentOrderId?: string | null; // Razorpay order ID
+  trackingNumber?: string | null;
+  estimatedDelivery?: string | null;
   shippingFirstName: string;
   shippingLastName: string;
   shippingAddressLine1: string;
-  shippingAddressLine2?: string;
+  shippingAddressLine2?: string | null;
   shippingCity: string;
   shippingState: string;
   shippingPostalCode: string;
@@ -118,7 +101,7 @@ export interface Order {
   billingFirstName: string;
   billingLastName: string;
   billingAddressLine1: string;
-  billingAddressLine2?: string;
+  billingAddressLine2?: string | null;
   billingCity: string;
   billingState: string;
   billingPostalCode: string;
@@ -146,18 +129,9 @@ export interface OrderItem {
 // Utility types for forms and API requests
 export interface CreateProductInput {
   name: string;
-  description: string;
+  description: string; // Single comprehensive description
   price: number;
-  images: string[];
-  category: 'traditional' | 'modern' | 'designer';
-  material?: string;
-  weight?: number;
-  length?: number;
-  style?: string;
-  occasion?: string[];
-  metaTitle?: string;
-  metaDescription?: string;
-  keywords?: string[];
+  images: string[]; // Local image paths
   isActive?: boolean;
   // Additional fields for inventory setup
   initialStock?: number;
@@ -194,7 +168,6 @@ export interface CartOperations {
 
 // Search and filter types
 export interface ProductFilters {
-  category?: 'traditional' | 'modern' | 'designer';
   minPrice?: number;
   maxPrice?: number;
   inStock?: boolean;

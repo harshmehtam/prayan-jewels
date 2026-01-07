@@ -9,7 +9,6 @@ import SearchBar from './SearchBar';
 import Pagination from '@/components/ui/Pagination';
 
 interface ProductCatalogProps {
-  initialCategory?: 'traditional' | 'modern' | 'designer';
   showFilters?: boolean;
   limit?: number;
   userId?: string; // For search history and saved searches
@@ -18,7 +17,6 @@ interface ProductCatalogProps {
 }
 
 export default function ProductCatalog({
-  initialCategory,
   showFilters = false, // Default to false for simplified view
   limit = 24,
   userId,
@@ -36,9 +34,7 @@ export default function ProductCatalog({
       return {}; // No filters for bestsellers - show all products
     }
 
-    const initialFilters: ProductFilters = {
-      category: initialCategory
-    };
+    const initialFilters: ProductFilters = {};
 
     // Get price filters from URL
     const maxPrice = searchParams.get('maxPrice');
@@ -64,16 +60,13 @@ export default function ProductCatalog({
       setLoading(true);
       setError(null);
 
-      let result: ProductSearchResult;
-
-      if (searchQuery.trim()) {
-        // If there's a search query, use search function with sorting
-        result = await MockProductService.searchProducts(searchQuery, { ...filters, sortBy }, limit);
-      } else {
-        // Otherwise use regular filtering with sorting
-        const filtersWithSort = { ...filters, sortBy };
-        result = await MockProductService.getProducts(filtersWithSort, limit);
-      }
+      // Use getProducts for both search and regular filtering
+      const filtersWithSort = { 
+        ...filters, 
+        sortBy,
+        searchQuery: searchQuery.trim() || undefined
+      };
+      const result = await MockProductService.getProducts(filtersWithSort, limit);
 
       setProducts(result.products);
     } catch (err) {

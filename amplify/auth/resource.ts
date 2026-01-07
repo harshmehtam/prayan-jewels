@@ -20,32 +20,15 @@ export const auth = defineAuth({
       mutable: true,
     },
     givenName: {
-      required: false,
+      required: true, // Make first name required
       mutable: true,
     },
     familyName: {
-      required: false,
+      required: true, // Make last name required
       mutable: true,
     },
     birthdate: {
       required: false,
-      mutable: true,
-    },
-    // Custom attributes for our application
-    'custom:role': {
-      dataType: 'String',
-      mutable: true,
-    },
-    'custom:newsletter': {
-      dataType: 'Boolean',
-      mutable: true,
-    },
-    'custom:smsUpdates': {
-      dataType: 'Boolean',
-      mutable: true,
-    },
-    'custom:preferredCategories': {
-      dataType: 'String', // JSON string array
       mutable: true,
     },
   },

@@ -19,7 +19,7 @@ export function useWishlist() {
     try {
       setLoading(true);
       setError(null);
-      const result = await WishlistService.getWishlistItems(user.userId);
+      const result = await WishlistService.getUserWishlist(user.userId);
       
       if (result.errors && result.errors.length > 0) {
         setError(result.errors[0].message);
@@ -67,10 +67,7 @@ export function useWishlist() {
 
     try {
       setError(null);
-      const result = await WishlistService.addToWishlist({
-        customerId: user.userId,
-        productId
-      });
+      const result = await WishlistService.addToWishlist(user.userId, productId);
 
       if (result.errors && result.errors.length > 0) {
         setError(result.errors[0].message);
@@ -90,7 +87,15 @@ export function useWishlist() {
   const removeFromWishlist = async (itemId: string) => {
     try {
       setError(null);
-      const result = await WishlistService.removeFromWishlist(itemId);
+      
+      // Find the item to get the productId
+      const item = wishlistItems.find(item => item.id === itemId);
+      if (!item) {
+        setError('Item not found in wishlist');
+        return false;
+      }
+      
+      const result = await WishlistService.removeFromWishlist(user.userId, item.productId);
 
       if (result.errors && result.errors.length > 0) {
         setError(result.errors[0].message);
