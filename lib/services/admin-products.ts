@@ -8,7 +8,7 @@ const client = generateClient<Schema>();
 
 // Request deduplication cache
 const requestCache = new Map<string, Promise<any>>();
-const CACHE_DURATION = 1000; // 1 second cache to prevent duplicate requests
+const CACHE_DURATION = 5000; // 5 second cache to prevent duplicate requests
 
 // Clear cache periodically to prevent memory leaks
 setInterval(() => {
@@ -16,11 +16,13 @@ setInterval(() => {
     console.log(`🧹 Clearing request cache (${requestCache.size} entries)`);
     requestCache.clear();
   }
-}, 5000); // Clear every 5 seconds
+}, 30000); // Clear every 30 seconds
 
 // Helper function to create cache key
 function createCacheKey(method: string, params: any): string {
-  return `${method}:${JSON.stringify(params)}`;
+  // Create a stable, sorted key to ensure consistent caching
+  const sortedParams = JSON.stringify(params, Object.keys(params || {}).sort());
+  return `${method}:${sortedParams}`;
 }
 
 // Helper function to deduplicate requests
@@ -101,6 +103,11 @@ export class AdminProductService {
       const url = new URL(imageUrl);
       const pathParts = url.pathname.split('/');
       const fileName = pathParts[pathParts.length - 1];
+      
+      if (!fileName) {
+        throw new Error('Invalid image URL: no filename found');
+      }
+      
       const path = `product-images/${fileName}`;
       
       await remove({ path });
@@ -131,14 +138,26 @@ export class AdminProductService {
   }
 
   // Create a new product with inventory
-  static async createProduct(input: CreateProductInput & { stockQuantity?: number }) {
+  static async createProduct(input: CreateProductInput & { 
+    stockQuantity?: number;
+    reorderPoint?: number;
+    supplierName?: string;
+    supplierContact?: string;
+    leadTime?: number;
+  }) {
     try {
-      const { stockQuantity = 0, ...productData } = input;
+      const { 
+        stockQuantity = 0, 
+        reorderPoint = 5,
+        supplierName = 'Silver Craft Industries',
+        supplierContact = '+91-9876543210',
+        leadTime = 7,
+        ...productData 
+      } = input;
 
       // Create the product
       const productResult = await client.models.Product.create({
         ...productData,
-        material: productData.material || 'silver',
         isActive: productData.isActive ?? true,
       });
 
@@ -151,10 +170,10 @@ export class AdminProductService {
         productId: productResult.data.id,
         stockQuantity,
         reservedQuantity: 0,
-        reorderPoint: 5,
-        supplierName: 'Silver Craft Industries',
-        supplierContact: '+91-9876543210',
-        leadTime: 7,
+        reorderPoint,
+        supplierName,
+        supplierContact,
+        leadTime,
         lastRestocked: new Date().toISOString(),
       });
 
@@ -177,6 +196,10 @@ export class AdminProductService {
   static async updateProduct(input: UpdateProductInput) {
     try {
       const { id, ...updateData } = input;
+
+      if (!id) {
+        throw new Error('Product ID is required for update');
+      }
 
       // If images are being updated, handle cleanup of old images
       if (updateData.images) {
@@ -298,19 +321,28 @@ export class AdminProductService {
   static async getProducts(filters?: {
     isActive?: boolean;
     searchQuery?: string;
+    _forceReload?: number; // Internal flag for cache busting
   }, limit?: number) {
-    const cacheKey = createCacheKey('getProducts', { filters, limit });
+    // Create cache key without internal flags
+    const { _forceReload, ...cacheableFilters } = filters || {};
+    const cacheKey = createCacheKey('getProducts', { filters: cacheableFilters, limit });
+    
+    // Skip cache if force reload is requested
+    if (_forceReload) {
+      console.log('🔄 Force reload requested, bypassing cache');
+      requestCache.delete(cacheKey);
+    }
     
     return deduplicateRequest(cacheKey, async () => {
       try {
-        console.log('🚀 AdminProductService.getProducts called with:', { filters, limit });
+        console.log('🚀 AdminProductService.getProducts called with:', { filters: cacheableFilters, limit });
         
         let query = client.models.Product.list();
 
-        // Apply filters
-        if (filters?.isActive !== undefined) {
+        // Apply filters at GraphQL level for better performance
+        if (cacheableFilters?.isActive !== undefined) {
           query = client.models.Product.list({
-            filter: { isActive: { eq: filters.isActive } }
+            filter: { isActive: { eq: cacheableFilters.isActive } }
           });
         }
 
@@ -320,9 +352,9 @@ export class AdminProductService {
 
         let products = result.data || [];
 
-        // Apply search filter (client-side for now)
-        if (filters?.searchQuery) {
-          const searchLower = filters.searchQuery.toLowerCase();
+        // Apply search filter (client-side for now - consider moving to GraphQL for better performance)
+        if (cacheableFilters?.searchQuery) {
+          const searchLower = cacheableFilters.searchQuery.toLowerCase();
           products = products.filter(product =>
             product.name.toLowerCase().includes(searchLower) ||
             product.description.toLowerCase().includes(searchLower)

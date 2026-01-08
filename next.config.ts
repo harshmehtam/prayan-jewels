@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     
-    // Remote patterns for external images
+    // Remote patterns for Amplify Storage and other external images
     remotePatterns: [
       {
         protocol: 'https',
@@ -26,9 +26,10 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Amplify Storage patterns
       {
         protocol: 'https',
-        hostname: 's3.amazonaws.com',
+        hostname: '**.amplifyapp.com',
         port: '',
         pathname: '/**',
       },
@@ -46,25 +47,20 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 's3.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: '**.cloudfront.net',
         port: '',
         pathname: '/**',
       }
     ],
     
-    // Allow local API routes for image proxy
+    // No local domains needed for Amplify Storage
     domains: [],
-    
-    // Allow local patterns with query strings
-    localPatterns: [
-      {
-        pathname: '/api/image',
-        search: '**',
-      },
-      {
-        pathname: '/images/**',
-      },
-    ],
   },
   
   // Performance optimizations

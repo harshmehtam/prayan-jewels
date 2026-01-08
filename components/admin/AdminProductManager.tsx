@@ -4,12 +4,11 @@ import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Product, CreateProductInput, UpdateProductInput } from '@/types';
 import { AdminProductService } from '@/lib/services/admin-products';
-import { ImageService } from '@/lib/services/image-service';
+import { SimpleImageService } from '@/lib/services/simple-image-service';
 import { validateImageFiles } from '@/lib/utils/image-utils';
 import ProductInventoryManager from './ProductInventoryManager';
 import { PermissionGate } from '@/components/auth/AdminRoute';
-import { LoadingSpinner } from '@/components/ui';
-import { ProductThumbnailImage } from '@/components/ui/NextS3Image';
+import { LoadingSpinner, CachedAmplifyImage } from '@/components/ui';
 
 // Dynamically import RichTextEditor to avoid SSR issues
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), {
@@ -105,8 +104,8 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
 
       const filters = {
         searchQuery: searchQuery || undefined,
-        // Add a timestamp to force cache busting when forceReload is true
-        ...(forceReload && { _timestamp: Date.now() }),
+        // Only add timestamp for force reload to prevent unnecessary cache busting
+        ...(forceReload && { _forceReload: Date.now() }),
       };
 
       console.log('🔍 Loading products with filters:', filters);
@@ -143,11 +142,15 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter]); // Remove unnecessary dependencies
 
-  // Single useEffect for all data loading
+  // Single useEffect for all data loading with debouncing
   useEffect(() => {
-    loadProducts();
+    const timeoutId = setTimeout(() => {
+      loadProducts();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [loadProducts]);
 
   // Cleanup on unmount
@@ -200,10 +203,10 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       let uploadedPaths: string[] = [];
       
       if (filesToUpload.length > 0) {
-        console.log(`📤 Uploading ${filesToUpload.length} images to S3...`);
+        console.log(`📤 Uploading ${filesToUpload.length} images to Amplify Storage...`);
         
         try {
-          uploadedPaths = await ImageService.uploadImages(
+          uploadedPaths = await SimpleImageService.uploadImages(
             filesToUpload,
             'product-images',
             (progress) => {
@@ -378,8 +381,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     }
   };
 
-  // Store selected files for S3 upload
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  // Store selected files for S3 upload (simplified)
   const [uploadProgress, setUploadProgress] = useState<{
     uploading: boolean;
     completed: number;
@@ -437,7 +439,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       });
 
       setImageBlobs(newBlobs);
-      setSelectedFiles(prev => [...prev, ...validation.valid]);
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...imageData]
@@ -464,9 +465,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       }
     });
     setImageBlobs(new Map(imageBlobs));
-    
-    // Clear selected files
-    setSelectedFiles([]);
   };
 
   // Reset form and cleanup
@@ -488,9 +486,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
         const newBlobs = new Map(imageBlobs);
         newBlobs.delete(imageId);
         setImageBlobs(newBlobs);
-        
-        // Remove from selected files
-        setSelectedFiles(files => files.filter(f => f !== blobData.file));
       }
       return {
         ...prev,
@@ -558,9 +553,10 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
     
-    // Get the actual blob URL from the imageId
+    // Get the actual image URL - either blob URL for new uploads or Amplify Storage path for existing
     const blobData = imageBlobs.get(imageId);
-    const imageUrl = blobData?.url || imageId; // Fallback to imageId if it's already a URL (for existing products)
+    const isNewUpload = !!blobData;
+    const imageUrl = isNewUpload ? blobData.url : imageId; // For existing images, imageId is the storage path
 
     // Reset error state when image changes
     React.useEffect(() => {
@@ -577,6 +573,91 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       onDragStart(e);
     };
 
+    // Memoized image component to prevent re-renders
+    const MemoizedImage = React.useMemo(() => {
+      if (!isNewUpload) {
+        return (
+          <CachedAmplifyImage
+            path={imageId}
+            alt={`Product image ${index + 1}`}
+            className="w-full h-full object-cover"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+          />
+        );
+      }
+      return null;
+    }, [imageId, index, isNewUpload]);
+
+    // For existing images (Amplify Storage paths), use the cached image component
+    if (!isNewUpload) {
+      return (
+        <div 
+          className={`relative group transition-opacity ${
+            isDragged ? 'opacity-50' : 'opacity-100'
+          } cursor-move`}
+          draggable={true}
+          onDragStart={handleDragStart}
+          onDragOver={onDragOver}
+          onDragEnd={onDragEnd}
+          onDrop={onDrop}
+        >
+          <div className="w-full h-32 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            {MemoizedImage}
+          </div>
+          
+          {/* Remove button */}
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Remove image"
+          >
+            ×
+          </button>
+          
+          {/* Reorder buttons */}
+          {(canMoveUp || canMoveDown) && (
+            <div className="absolute top-1 left-1 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {canMoveUp && (
+                <button
+                  type="button"
+                  onClick={onMoveUp}
+                  className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
+                  title="Move up"
+                >
+                  ↑
+                </button>
+              )}
+              {canMoveDown && (
+                <button
+                  type="button"
+                  onClick={onMoveDown}
+                  className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
+                  title="Move down"
+                >
+                  ↓
+                </button>
+              )}
+            </div>
+          )}
+          
+          {/* Main image indicator */}
+          {index === 0 && (
+            <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded shadow">
+              Main Image
+            </div>
+          )}
+          
+          {/* Image number */}
+          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
+            {index + 1}
+          </div>
+        </div>
+      );
+    }
+
+    // For new uploads (blob URLs), use the existing logic
     return (
       <div 
         className={`relative group transition-opacity ${
@@ -868,8 +949,8 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12">
-                          <ProductThumbnailImage
-                            path={product.images[0] || null}
+                          <CachedAmplifyImage
+                            path={product.images[0] || ''}
                             alt={product.name}
                             className="h-12 w-12 rounded-lg object-cover"
                           />

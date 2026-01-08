@@ -1,30 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUrl } from 'aws-amplify/storage';
 
-// Configure Amplify on the server side
-import { Amplify } from 'aws-amplify';
-import amplifyConfig from '@/amplify_outputs.json';
-
-Amplify.configure(amplifyConfig, { ssr: true });
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const path = searchParams.get('path');
-    
+
     if (!path) {
-      return NextResponse.json({ error: 'Path parameter is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Path parameter is required' },
+        { status: 400 }
+      );
     }
 
-    // Get fresh S3 URL
-    const urlResult = await getUrl({
+    // Get the signed URL from S3
+    const result = await getUrl({
       path,
       options: {
         expiresIn: 3600, // 1 hour
       },
     });
 
-    const imageUrl = urlResult.url.toString();
+    // Fetch the image from S3
+    const imageResponse = await fetch(result.url.toString());
+    
+    if (!imageResponse.okesult.url.toString();
 
     // Fetch the image from S3
     const imageResponse = await fetch(imageUrl);
