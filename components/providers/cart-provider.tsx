@@ -1,10 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { CartService } from '@/lib/data/cart';
+import { generateClient } from 'aws-amplify/data';
 import { generateSessionId } from '@/lib/amplify-client';
 import { useAuth } from './auth-provider';
+import type { Schema } from '@/amplify/data/resource';
 import type { ShoppingCart, CartItem } from '@/types';
+
+// Create Amplify client
+const client = generateClient<Schema>();
 
 interface CartContextType {
   cart: ShoppingCart | null;
@@ -17,7 +21,8 @@ interface CartContextType {
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
-  validateInventory: () => Promise<{ isValid: boolean; unavailableItems: any[] }>;
+  syncPrices: () => Promise<void>;
+  recalculateCartTotals: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -36,16 +41,16 @@ interface CartProviderProps {
 
 export function CartProvider({ children }: CartProviderProps) {
   const { user, isAuthenticated } = useAuth();
-  const [cart, setCart] = useState<ShoppingCart | null>(null);
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<any>(null); // Simplified type
+  const [items, setItems] = useState<any[]>([]); // Simplified type
   const [isLoading, setIsLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string>('');
-  
-  // Initialize session ID after component mounts to prevent SSR mismatch
+
+  // Initialize session ID
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedSessionId = localStorage.getItem('cart_session_id');
-      if (storedSessionId) {
+      if (storedSessionId && storedSessionId.trim() !== '') {
         setSessionId(storedSessionId);
       } else {
         const newSessionId = generateSessionId();
@@ -55,85 +60,84 @@ export function CartProvider({ children }: CartProviderProps) {
     }
   }, []);
 
-  // Load cart data
-  const loadCart = useCallback(async () => {
+  // Get or create cart
+  const getOrCreateCart = useCallback(async (): Promise<any> => {
     try {
-      setIsLoading(true);
-      
-      // TEMPORARY: Use mock cart data for UI development
-      console.log('Using mock cart data for UI development');
-      
-      // Set mock cart data
-      const mockCart: ShoppingCart = {
-        id: 'mock-cart-1',
-        customerId: user?.userId || undefined,
-        sessionId: !user?.userId ? sessionId : undefined,
-        subtotal: 778,
-        estimatedTax: 140.04, // 18% GST
-        estimatedShipping: 0, // No shipping for now
-        estimatedTotal: 918.04,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const mockItems: CartItem[] = [
-        {
-          id: 'item-1',
-          cartId: 'mock-cart-1',
-          productId: 'prod-1',
-          quantity: 2,
-          unitPrice: 240,
-          totalPrice: 480,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'item-2',
-          cartId: 'mock-cart-1',
-          productId: 'prod-2',
-          quantity: 1,
-          unitPrice: 149,
-          totalPrice: 149,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'item-3',
-          cartId: 'mock-cart-1',
-          productId: 'prod-3',
-          quantity: 1,
-          unitPrice: 149,
-          totalPrice: 149,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-
-      setCart(mockCart);
-      setItems(mockItems);
-      
-      /* DISABLED FOR UI DEVELOPMENT
       let cartResponse;
 
       if (isAuthenticated && user?.userId) {
-        // Load user cart
-        cartResponse = await CartService.getUserCart(user.userId);
+        // Get user cart
+        cartResponse = await client.models.ShoppingCart.list({
+          filter: { customerId: { eq: user.userId } }
+        });
       } else if (sessionId) {
-        // Load guest cart
-        cartResponse = await CartService.getGuestCart(sessionId);
+        // Get guest cart
+        cartResponse = await client.models.ShoppingCart.list({
+          filter: { sessionId: { eq: sessionId } }
+        });
       } else {
-        setIsLoading(false);
-        return;
+        return null;
       }
 
-      if (cartResponse.cart) {
-        setCart(cartResponse.cart as unknown as ShoppingCart);
+      let cart = cartResponse.data?.[0] || null;
+
+      // Create cart if it doesn't exist
+      if (!cart) {
+        const createData = isAuthenticated && user?.userId
+          ? {
+              customerId: user.userId,
+              subtotal: 0,
+              estimatedTax: 0,
+              estimatedShipping: 0,
+              estimatedTotal: 0,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            }
+          : {
+              sessionId: sessionId,
+              subtotal: 0,
+              estimatedTax: 0,
+              estimatedShipping: 0,
+              estimatedTotal: 0,
+              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            };
+
+        const createResponse = await client.models.ShoppingCart.create(createData);
+        // @ts-ignore - Amplify generated types are complex
+        cart = createResponse.data || null;
+      }
+
+      return cart;
+    } catch (error) {
+      console.error('Error getting/creating cart:', error);
+      return null;
+    }
+  }, [isAuthenticated, user?.userId, sessionId]);
+
+  // Load cart and items
+  const loadCart = useCallback(async () => {
+    if (!sessionId && !isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const cart = await getOrCreateCart();
+      
+      if (cart) {
+        setCart(cart);
         
         // Load cart items
-        const itemsResponse = await CartService.getCartItems(cartResponse.cart.id);
-        setItems(itemsResponse.items as unknown as CartItem[]);
+        const itemsResponse = await client.models.CartItem.list({
+          filter: { cartId: { eq: cart.id } }
+        });
+
+        const cartItems = itemsResponse.data || [];
+        setItems(cartItems);
+      } else {
+        setCart(null);
+        setItems([]);
       }
-      */
     } catch (error) {
       console.error('Error loading cart:', error);
       setCart(null);
@@ -141,176 +145,418 @@ export function CartProvider({ children }: CartProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, user?.userId, sessionId]);
+  }, [sessionId, isAuthenticated, user?.userId, getOrCreateCart]);
 
-  // Transfer guest cart to user cart on login
+  // Load cart when session ID or auth state changes
   useEffect(() => {
-    const transferGuestCart = async () => {
-      // TEMPORARY: Disable cart transfer for UI development
-      console.log('Mock: Cart transfer disabled for UI development');
-      return;
-      
-      /* DISABLED FOR UI DEVELOPMENT
-      if (isAuthenticated && user?.userId && sessionId) {
-        try {
-          await CartService.transferGuestCartToUser(sessionId, user.userId);
-          // Clear session ID after transfer
-          localStorage.removeItem('cart_session_id');
-          setSessionId('');
-          // Reload cart to get the transferred items
-          await loadCart();
-        } catch (error) {
-          console.error('Error transferring guest cart:', error);
-        }
-      }
-      */
-    };
-
-    transferGuestCart();
-  }, [isAuthenticated, user?.userId, sessionId, loadCart]);
-
-  // Load cart when authentication state or session changes
-  useEffect(() => {
-    if ((isAuthenticated && user?.userId) || (!isAuthenticated && sessionId)) {
+    if (sessionId || isAuthenticated) {
       loadCart();
     }
-  }, [loadCart, isAuthenticated, user?.userId, sessionId]);
+  }, [sessionId, isAuthenticated, loadCart]);
 
   // Add item to cart
   const addItem = async (productId: string, quantity: number, unitPrice: number) => {
-    // TEMPORARY: Disable cart API calls for UI development
-    console.log(`Mock: Adding ${quantity} of product ${productId} to cart (price: ${unitPrice})`);
-    return;
-    
-    /* DISABLED FOR UI DEVELOPMENT - Original code below
-    // Ensure we have a cart - create one if needed
-    let currentCart = cart;
-    
-    if (!currentCart) {
-      try {
-        let cartResponse;
-        
-        if (isAuthenticated && user?.userId) {
-          cartResponse = await CartService.getUserCart(user.userId);
-        } else if (sessionId) {
-          cartResponse = await CartService.getGuestCart(sessionId);
-        } else {
-          throw new Error('No user ID or session ID available');
-        }
-        
-        if (cartResponse.cart) {
-          currentCart = cartResponse.cart as unknown as ShoppingCart;
-          setCart(currentCart);
-        } else {
-          throw new Error('Failed to create or retrieve cart');
-        }
-      } catch (error) {
-        console.error('Error creating cart:', error);
-        throw new Error('Failed to initialize cart');
-      }
-    }
-
     try {
-      await CartService.addItemToCart(currentCart.id, productId, quantity, unitPrice);
-      await loadCart(); // Refresh cart data
+      const currentCart = cart || await getOrCreateCart();
+      
+      if (!currentCart) {
+        throw new Error('Unable to create cart');
+      }
+
+      let newItems = [...items];
+
+      // Check if item already exists in local state
+      const existingItemIndex = items.findIndex(item => item.productId === productId);
+
+      if (existingItemIndex >= 0) {
+        // Update existing item
+        const existingItem = items[existingItemIndex];
+        const newQuantity = existingItem.quantity + quantity;
+        const newTotalPrice = newQuantity * unitPrice;
+        
+        await client.models.CartItem.update({
+          id: existingItem.id,
+          quantity: newQuantity,
+          totalPrice: newTotalPrice
+        });
+
+        // Update local items array
+        newItems[existingItemIndex] = { ...existingItem, quantity: newQuantity, totalPrice: newTotalPrice };
+        setItems(newItems);
+      } else {
+        // Create new item
+        const newItem = await client.models.CartItem.create({
+          cartId: currentCart.id,
+          productId,
+          quantity,
+          unitPrice,
+          totalPrice: quantity * unitPrice
+        });
+
+        // Add to local items array
+        if (newItem.data) {
+          newItems = [...items, newItem.data];
+          setItems(newItems);
+        }
+      }
+
+      // Calculate totals from the updated items array (not the state which might be stale)
+      const subtotal = newItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      const estimatedTax = subtotal * 0.18; // 18% GST
+      const estimatedShipping = subtotal > 2000 ? 0 : 100;
+      const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+      // Update cart in database
+      await client.models.ShoppingCart.update({
+        id: currentCart.id,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      });
+
+      // Update local cart state
+      setCart(prevCart => prevCart ? {
+        ...prevCart,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      } : null);
+
+      console.log('✅ Item added to cart successfully, new subtotal:', subtotal);
     } catch (error) {
       console.error('Error adding item to cart:', error);
       throw error;
     }
-    */
   };
+
+  // Update cart totals helper - calculates from local state and updates both DB and local state
+  const updateCartTotalsLocally = useCallback(async (cartId: string) => {
+    try {
+      // Calculate totals from current local items state
+      const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const estimatedTax = subtotal * 0.18; // 18% GST
+      const estimatedShipping = subtotal > 2000 ? 0 : 100;
+      const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+      // Update database
+      await client.models.ShoppingCart.update({
+        id: cartId,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      });
+
+      // Update local cart state
+      setCart((prevCart: any) => prevCart ? {
+        ...prevCart,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      } : null);
+    } catch (error) {
+      console.error('Error updating cart totals:', error);
+    }
+  }, [items]);
 
   // Remove item from cart
   const removeItem = async (itemId: string) => {
-    // TEMPORARY: Disable cart API calls for UI development
-    console.log(`Mock: Removing item ${itemId} from cart`);
-    return;
+    console.log('🗑️ Attempting to remove item:', itemId);
     
-    /* DISABLED FOR UI DEVELOPMENT
     try {
-      await CartService.removeItemFromCart(itemId);
-      await loadCart(); // Refresh cart data
+      // Find item in local state
+      const itemToRemove = items.find(item => item.id === itemId);
+      
+      if (!itemToRemove) {
+        console.error('❌ Item not found in local state:', itemId);
+        return;
+      }
+
+      console.log('🗑️ Found item to remove:', itemToRemove);
+      
+      // Remove from database
+      console.log('🗑️ Deleting from database...');
+      const deleteResult = await client.models.CartItem.delete({ id: itemId });
+      console.log('🗑️ Delete result:', deleteResult);
+      
+      if (deleteResult.errors && deleteResult.errors.length > 0) {
+        console.error('❌ Database delete errors:', deleteResult.errors);
+        throw new Error(`Failed to delete item: ${deleteResult.errors[0].message}`);
+      }
+      
+      // Update local state
+      console.log('🗑️ Updating local state...');
+      const newItems = items.filter(item => item.id !== itemId);
+      console.log('🗑️ Items before:', items.length, 'Items after:', newItems.length);
+      setItems(newItems);
+      
+      // Calculate totals from the updated items array
+      const subtotal = newItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      const estimatedTax = subtotal * 0.18; // 18% GST
+      const estimatedShipping = subtotal > 2000 ? 0 : 100;
+      const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+      console.log('🗑️ New totals:', { subtotal, estimatedTax, estimatedShipping, estimatedTotal });
+
+      // Update cart in database
+      if (cart) {
+        console.log('🗑️ Updating cart totals in database...');
+        const cartUpdateResult = await client.models.ShoppingCart.update({
+          id: cart.id,
+          subtotal,
+          estimatedTax,
+          estimatedShipping,
+          estimatedTotal
+        });
+        
+        if (cartUpdateResult.errors && cartUpdateResult.errors.length > 0) {
+          console.error('❌ Cart update errors:', cartUpdateResult.errors);
+        }
+
+        // Update local cart state
+        setCart(prevCart => prevCart ? {
+          ...prevCart,
+          subtotal,
+          estimatedTax,
+          estimatedShipping,
+          estimatedTotal
+        } : null);
+        
+        console.log('✅ Item removed successfully');
+      }
     } catch (error) {
-      console.error('Error removing item from cart:', error);
+      console.error('❌ Error removing item from cart:', error);
       throw error;
     }
-    */
   };
 
   // Update item quantity
   const updateQuantity = async (itemId: string, quantity: number) => {
-    // TEMPORARY: Disable cart API calls for UI development
-    console.log(`Mock: Updating item ${itemId} quantity to ${quantity}`);
-    return;
-    
-    /* DISABLED FOR UI DEVELOPMENT
     if (quantity <= 0) {
       await removeItem(itemId);
       return;
     }
 
     try {
-      await CartService.updateItemQuantity(itemId, quantity);
-      await loadCart(); // Refresh cart data
+      // Find item in local state
+      const itemIndex = items.findIndex(item => item.id === itemId);
+      
+      if (itemIndex >= 0) {
+        const item = items[itemIndex];
+        
+        // Get current product price to ensure we're using the latest price
+        let currentUnitPrice = item.unitPrice;
+        try {
+          const { ProductService } = await import('@/lib/services/product-service');
+          const currentProduct = await ProductService.getProductById(item.productId);
+          if (currentProduct && Math.abs(currentProduct.price - item.unitPrice) > 0.01) {
+            console.log(`💰 Price sync: Item ${itemId} price updated from ₹${item.unitPrice} to ₹${currentProduct.price}`);
+            currentUnitPrice = currentProduct.price;
+          }
+        } catch (error) {
+          console.warn('Could not fetch current product price, using stored price:', error);
+        }
+        
+        const newTotalPrice = quantity * currentUnitPrice;
+        
+        // Update database with current price
+        await client.models.CartItem.update({
+          id: itemId,
+          quantity,
+          unitPrice: currentUnitPrice,
+          totalPrice: newTotalPrice
+        });
+        
+        // Update local state
+        const newItems = [...items];
+        newItems[itemIndex] = { ...item, quantity, unitPrice: currentUnitPrice, totalPrice: newTotalPrice };
+        setItems(newItems);
+        
+        // Calculate totals from the updated items array (not the state which might be stale)
+        const subtotal = newItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        const estimatedTax = subtotal * 0.18; // 18% GST
+        const estimatedShipping = subtotal > 2000 ? 0 : 100;
+        const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+        // Update cart in database
+        if (cart) {
+          await client.models.ShoppingCart.update({
+            id: cart.id,
+            subtotal,
+            estimatedTax,
+            estimatedShipping,
+            estimatedTotal
+          });
+
+          // Update local cart state
+          setCart(prevCart => prevCart ? {
+            ...prevCart,
+            subtotal,
+            estimatedTax,
+            estimatedShipping,
+            estimatedTotal
+          } : null);
+        }
+      }
     } catch (error) {
       console.error('Error updating item quantity:', error);
       throw error;
     }
-    */
   };
 
-  // Clear entire cart
+  // Clear cart
   const clearCart = async () => {
-    // TEMPORARY: Disable cart API calls for UI development
-    console.log('Mock: Clearing cart');
-    return;
-    
-    /* DISABLED FOR UI DEVELOPMENT
     if (!cart) return;
 
     try {
-      await CartService.clearCart(cart.id);
-      await loadCart(); // Refresh cart data
+      // Delete all items from database
+      const deletePromises = items.map(item =>
+        client.models.CartItem.delete({ id: item.id })
+      );
+      
+      await Promise.all(deletePromises);
+      
+      // Update local state
+      setItems([]);
+      
+      // Update cart totals locally
+      await updateCartTotalsLocally(cart.id);
     } catch (error) {
       console.error('Error clearing cart:', error);
       throw error;
     }
-    */
   };
 
-  // Refresh cart data
+  // Refresh cart
   const refreshCart = async () => {
-    // TEMPORARY: Disable cart API calls for UI development
-    console.log('Mock: Refreshing cart');
-    return;
-    
-    /* DISABLED FOR UI DEVELOPMENT
     await loadCart();
-    */
   };
 
-  // Validate cart inventory
-  const validateInventory = async () => {
-    // TEMPORARY: Return mock validation for UI development
-    console.log('Mock: Validating cart inventory');
-    return { isValid: true, unavailableItems: [] };
-    
-    /* DISABLED FOR UI DEVELOPMENT
-    if (!cart) {
-      return { isValid: true, unavailableItems: [] };
-    }
+  // Sync cart item prices with current product prices
+  const syncPrices = async () => {
+    if (!items.length) return;
 
     try {
-      const validation = await CartService.validateCartInventory(cart.id);
-      return {
-        isValid: validation.isValid,
-        unavailableItems: validation.unavailableItems
-      };
+      // Import ProductService dynamically to avoid circular dependency
+      const { ProductService } = await import('@/lib/services/product-service');
+      
+      // Get unique product IDs from cart items
+      const productIds = [...new Set(items.map(item => item.productId))];
+      
+      // Fetch current product prices
+      const products = await ProductService.getProductsByIds(productIds);
+      const productPriceMap = new Map(products.map(p => [p.id, p.price]));
+
+      // Update items with price mismatches
+      let hasUpdates = false;
+      const updatedItems = [];
+      
+      for (const item of items) {
+        const currentPrice = productPriceMap.get(item.productId);
+        
+        if (currentPrice && currentPrice !== item.unitPrice) {
+          const newTotalPrice = item.quantity * currentPrice;
+          
+          // Update in database
+          await client.models.CartItem.update({
+            id: item.id,
+            unitPrice: currentPrice,
+            totalPrice: newTotalPrice
+          });
+          
+          // Update local state immediately
+          updatedItems.push({
+            ...item,
+            unitPrice: currentPrice,
+            totalPrice: newTotalPrice
+          });
+          
+          hasUpdates = true;
+          console.log(`Updated cart item ${item.id}: ₹${item.unitPrice} → ₹${currentPrice}`);
+        } else {
+          updatedItems.push(item);
+        }
+      }
+
+      // Update local items state immediately if there were changes
+      if (hasUpdates) {
+        setItems(updatedItems);
+        
+        // Recalculate cart totals with updated items
+        const subtotal = updatedItems.reduce((sum, item) => sum + item.totalPrice, 0);
+        const estimatedTax = subtotal * 0.18;
+        const estimatedShipping = subtotal > 2000 ? 0 : 100;
+        const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+        // Update cart in database
+        if (cart) {
+          await client.models.ShoppingCart.update({
+            id: cart.id,
+            subtotal,
+            estimatedTax,
+            estimatedShipping,
+            estimatedTotal
+          });
+
+          // Update local cart state
+          setCart(prevCart => prevCart ? {
+            ...prevCart,
+            subtotal,
+            estimatedTax,
+            estimatedShipping,
+            estimatedTotal
+          } : null);
+        }
+      }
     } catch (error) {
-      console.error('Error validating cart inventory:', error);
-      return { isValid: false, unavailableItems: [] };
+      console.error('Error syncing cart prices:', error);
     }
-    */
+  };
+
+  // Recalculate cart totals based on current cart items
+  const recalculateCartTotals = async () => {
+    if (!cart || !items.length) return;
+
+    try {
+      // Calculate totals from current items
+      const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+      const estimatedTax = subtotal * 0.18; // 18% GST
+      const estimatedShipping = subtotal > 2000 ? 0 : 100;
+      const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
+
+      console.log('Recalculating cart totals:', {
+        oldSubtotal: cart.subtotal,
+        newSubtotal: subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      });
+
+      // Update cart in database
+      await client.models.ShoppingCart.update({
+        id: cart.id,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      });
+
+      // Update local cart state
+      setCart(prevCart => prevCart ? {
+        ...prevCart,
+        subtotal,
+        estimatedTax,
+        estimatedShipping,
+        estimatedTotal
+      } : null);
+
+      console.log('Cart totals recalculated successfully');
+    } catch (error) {
+      console.error('Error recalculating cart totals:', error);
+    }
   };
 
   // Calculate derived values
@@ -328,7 +574,8 @@ export function CartProvider({ children }: CartProviderProps) {
     updateQuantity,
     clearCart,
     refreshCart,
-    validateInventory,
+    syncPrices,
+    recalculateCartTotals,
   };
 
   return (

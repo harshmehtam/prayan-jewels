@@ -95,7 +95,7 @@ export default function PriceRangeCards() {
                 {/* Call to Action */}
                 <div className="flex items-center">
                   <Link
-                    href="/products"
+                    href={`/products?maxPrice=${range.maxPrice}`}
                     className={`
                       bg-white px-6 py-3 rounded-full shadow-sm border border-gray-200
                       hover:bg-gray-900 hover:border-gray-900 transition-all duration-300
@@ -115,24 +115,6 @@ export default function PriceRangeCards() {
             </div>
           ))}
         </div>
-
-        {/* Bottom CTA */}
-        {/* <div className="text-center mt-8 sm:mt-12">
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-2 bg-gray-900 text-white px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold uppercase tracking-wider rounded-lg hover:bg-gray-800 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 shadow-lg group"
-          >
-            View All Products
-            <svg 
-              className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-        </div> */}
       </div>
     </section>
   );

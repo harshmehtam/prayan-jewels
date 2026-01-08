@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import { MockProductService } from '@/lib/data/mockProducts';
+import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
+import { ProductService } from '@/lib/services/product-service';
 import { AddToCartButton } from '@/components/cart';
 import { DELIVERY_CONFIG } from '@/lib/config/delivery';
 import type { Product } from '@/types';
@@ -45,7 +45,7 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
         setLoading(true);
         setError(null);
         
-        const product = await MockProductService.getProductById(productId);
+        const product = await ProductService.getProductById(productId);
         
         if (product) {
           setProduct(product);
@@ -68,8 +68,8 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(price);
   };
 
@@ -226,16 +226,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                   {product.images.map((image, index) => (
                     <div key={index} className="w-full h-full flex-shrink-0 relative">
                       {!imageError[index] ? (
-                        <Image
-                          src={image}
-                          alt={`${product.name} - Image ${index + 1}`}
-                          fill
-                          className="object-cover cursor-pointer"
-                          onError={() => handleImageError(index)}
+                        <div 
+                          className="w-full h-full cursor-pointer"
                           onClick={() => openFullscreen(index)}
-                          sizes="100vw"
-                          priority={index === 0}
-                        />
+                        >
+                          <CachedAmplifyImage
+                            path={image}
+                            alt={`${product.name} - Image ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={() => handleImageError(index)}
+                          />
+                        </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
                           <svg
@@ -316,15 +317,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                         className="relative overflow-hidden border-r border-gray-200 last:border-r-0 cursor-pointer group h-full"
                       >
                         {!imageError[index] ? (
-                          <Image
-                            src={image}
-                            alt={`${product.name} - Image ${index + 1}`}
-                            fill
-                            className="object-cover"
-                            onError={() => handleImageError(index)}
-                            sizes="50vw"
-                            priority={index === 0}
-                          />
+                          <div 
+                            className="w-full h-full cursor-pointer group"
+                            onClick={() => openFullscreen(index)}
+                          >
+                            <CachedAmplifyImage
+                              path={image}
+                              alt={`${product.name} - Image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={() => handleImageError(index)}
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gray-100">
                             <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,15 +360,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                           className="relative overflow-hidden border-r border-gray-200 last:border-r-0 border-b border-gray-200 cursor-pointer group h-full"
                         >
                           {!imageError[index] ? (
-                            <Image
-                              src={image}
-                              alt={`${product.name} - Image ${index + 1}`}
-                              fill
-                              className="object-cover"
-                              onError={() => handleImageError(index)}
-                              sizes="25vw"
-                              priority={index === 0}
-                            />
+                            <div 
+                              className="w-full h-full cursor-pointer group"
+                              onClick={() => openFullscreen(index)}
+                            >
+                              <CachedAmplifyImage
+                                path={image}
+                                alt={`${product.name} - Image ${index + 1}`}
+                                className="w-full h-full object-cover"
+                                onError={() => handleImageError(index)}
+                              />
+                            </div>
                           ) : (
                             <div className="w-full h-full flex items-center justify-center bg-gray-100">
                               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -390,14 +395,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                       className="relative overflow-hidden cursor-pointer group h-full"
                     >
                       {!imageError[2] ? (
-                        <Image
-                          src={product.images[2]}
-                          alt={`${product.name} - Image 3`}
-                          fill
-                          className="object-cover"
-                          onError={() => handleImageError(2)}
-                          sizes="50vw"
-                        />
+                        <div 
+                          className="w-full h-full cursor-pointer group"
+                          onClick={() => openFullscreen(2)}
+                        >
+                          <CachedAmplifyImage
+                            path={product.images[2]}
+                            alt={`${product.name} - Image 3`}
+                            className="w-full h-full object-cover"
+                            onError={() => handleImageError(2)}
+                          />
+                        </div>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
                           <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,15 +427,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                         className="relative overflow-hidden border-r border-gray-200 last:border-r-0 border-b border-gray-200 cursor-pointer group h-full"
                       >
                         {!imageError[index] ? (
-                          <Image
-                            src={image}
-                            alt={`${product.name} - Image ${index + 1}`}
-                            fill
-                            className="object-cover"
-                            onError={() => handleImageError(index)}
-                            sizes="25vw"
-                            priority={index === 0}
-                          />
+                          <div 
+                            className="w-full h-full cursor-pointer group"
+                            onClick={() => openFullscreen(index)}
+                          >
+                            <CachedAmplifyImage
+                              path={image}
+                              alt={`${product.name} - Image ${index + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={() => handleImageError(index)}
+                            />
+                          </div>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gray-100">
                             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -465,15 +475,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                     className="relative overflow-hidden cursor-pointer group h-full w-full"
                   >
                     {!imageError[0] ? (
-                      <Image
-                        src={product.images[0]}
-                        alt={`${product.name} - Image 1`}
-                        fill
-                        className="object-cover"
-                        onError={() => handleImageError(0)}
-                        sizes="50vw"
-                        priority
-                      />
+                      <div 
+                        className="w-full h-full cursor-pointer group"
+                        onClick={() => openFullscreen(0)}
+                      >
+                        <CachedAmplifyImage
+                          path={product.images[0]}
+                          alt={`${product.name} - Image 1`}
+                          className="w-full h-full object-cover"
+                          onError={() => handleImageError(0)}
+                        />
+                      </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-gray-100">
                         <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -763,17 +775,16 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                 cursor: zoomLevel > 1 ? 'move' : 'default'
               }}
             >
-              <Image
-                src={product.images[fullscreenImageIndex]}
-                alt={`${product.name} - Fullscreen Image ${fullscreenImageIndex + 1}`}
-                fill
-                className="object-contain transition-transform duration-200"
-                style={{
-                  transform: `scale(${zoomLevel}) translate(${zoomPosition.x}px, ${zoomPosition.y}px)`,
-                }}
-                sizes="90vw"
-                priority
-              />
+              <div className="relative w-full h-full">
+                <CachedAmplifyImage
+                  path={product.images[fullscreenImageIndex]}
+                  alt={`${product.name} - Fullscreen Image ${fullscreenImageIndex + 1}`}
+                  className="w-full h-full object-contain transition-transform duration-200"
+                  style={{
+                    transform: `scale(${zoomLevel}) translate(${zoomPosition.x}px, ${zoomPosition.y}px)`,
+                  }}
+                />
+              </div>
             </div>
 
             {/* Image Counter */}

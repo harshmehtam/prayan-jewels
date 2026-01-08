@@ -1,8 +1,8 @@
 // Wishlist toggle button component
 'use client';
 
-import { useState } from 'react';
-import { useWishlist } from '@/lib/hooks/useWishlist';
+import { useState, useEffect } from 'react';
+import { useWishlist } from '@/components/providers/wishlist-provider';
 
 interface WishlistButtonProps {
   productId: string;
@@ -19,18 +19,24 @@ export default function WishlistButton({
   className = '',
   showText = false
 }: WishlistButtonProps) {
-  const { isInWishlist, toggleWishlist, loading } = useWishlist();
+  const { wishlistStatus, toggleWishlist, loading } = useWishlist();
   const [isToggling, setIsToggling] = useState(false);
   
-  const inWishlist = isInWishlist(productId);
+  // Use cached status from the hook
+  const inWishlist = wishlistStatus[productId] || false;
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
     setIsToggling(true);
-    await toggleWishlist(productId);
-    setIsToggling(false);
+    try {
+      await toggleWishlist(productId);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   const sizeClasses = {

@@ -36,11 +36,23 @@ const getAuthMode = async (): Promise<'userPool' | 'iam'> => {
 };
 
 /**
- * Get the appropriate client based on authentication status
+ * Get the appropriate client based on authentication status with proper error handling
  */
 export const getDynamicClient = async () => {
-  const authMode = await getAuthMode();
-  return authMode === 'userPool' ? userClient : guestClient;
+  // Ensure Amplify is configured before proceeding
+  try {
+    if (!Amplify.getConfig().Auth?.Cognito) {
+      console.log('Amplify not configured, configuring now...');
+      Amplify.configure(outputs, { ssr: true });
+    }
+    
+    const authMode = await getAuthMode();
+    return authMode === 'userPool' ? userClient : guestClient;
+  } catch (error) {
+    console.error('Error getting dynamic client:', error);
+    // Fallback to guest client if there's an auth error
+    return guestClient;
+  }
 };
 
 // Type exports for use throughout the application

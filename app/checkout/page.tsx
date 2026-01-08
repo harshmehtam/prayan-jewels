@@ -55,10 +55,30 @@ export default function CheckoutPage() {
   const handleShippingSubmit = (address: Partial<Address>) => {
     setShippingAddress(address);
     if (sameAsShipping) {
-      setBillingAddress(address);
+      // Copy shipping address to billing address
+      setBillingAddress({
+        ...address,
+        type: 'billing'
+      });
       setCurrentStep('review');
     } else {
+      // Clear billing address and go to billing step
+      setBillingAddress(null);
       setCurrentStep('billing');
+    }
+  };
+
+  const handleSameAsShippingChange = (same: boolean) => {
+    setSameAsShipping(same);
+    if (same && shippingAddress) {
+      // Copy shipping address to billing address
+      setBillingAddress({
+        ...shippingAddress,
+        type: 'billing'
+      });
+    } else {
+      // Clear billing address when unchecked
+      setBillingAddress(null);
     }
   };
 
@@ -115,7 +135,7 @@ export default function CheckoutPage() {
                 <ShippingForm
                   onSubmit={handleShippingSubmit}
                   sameAsShipping={sameAsShipping}
-                  onSameAsShippingChange={setSameAsShipping}
+                  onSameAsShippingChange={handleSameAsShippingChange}
                   initialData={shippingAddress}
                 />
               )}

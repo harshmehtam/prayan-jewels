@@ -1,21 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useWishlist } from '@/lib/hooks/useWishlist';
+import { useWishlist } from '@/components/providers/wishlist-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import { useAuth } from '@/components/providers/auth-provider';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LoginButton } from '@/components/auth';
 import Image from 'next/image';
 import WishlistButton from '@/components/ui/WishlistButton';
 import { LoadingSpinner } from '@/components/ui';
 
 export default function WishlistPage() {
-  const { user } = useAuth();
-  const { wishlistItems, loading, error, removeFromWishlist } = useWishlist();
+  const { isAuthenticated } = useAuth();
+  const { wishlistItems, loading, removeFromWishlist, loadFullWishlistDetails } = useWishlist();
   const { addItem } = useCart();
   const [movingToCart, setMovingToCart] = useState<string | null>(null);
   const [sharingWishlist, setSharingWishlist] = useState(false);
+
+  // Load full wishlist details when the page loads
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFullWishlistDetails();
+    }
+  }, [isAuthenticated, loadFullWishlistDetails]);
 
   // Handle move to cart
   const handleMoveToCart = async (productId: string, price: number) => {
@@ -23,10 +30,7 @@ export default function WishlistPage() {
     try {
       await addItem(productId, 1, price);
       // Remove from wishlist after successfully adding to cart
-      const wishlistItem = wishlistItems.find(item => item.productId === productId);
-      if (wishlistItem) {
-        await removeFromWishlist(wishlistItem.id);
-      }
+      await removeFromWishlist(productId);
     } catch (error) {
       console.error('Error moving item to cart:', error);
     } finally {
@@ -40,7 +44,7 @@ export default function WishlistPage() {
     
     // Create shareable content
     const wishlistText = `Check out my wishlist from Prayan Jewels!\n\n${wishlistItems.map(item => 
-      `• ${item.product?.name || 'Product'} - ₹${item.product?.price || 0}`
+      `• ${item.productName} - ₹${item.productPrice}`
     ).join('\n')}\n\nShop at: ${window.location.origin}`;
 
     // Copy to clipboard
@@ -78,7 +82,7 @@ export default function WishlistPage() {
     window.open(shareUrl, '_blank', 'width=600,height=400');
   };
 
-  if (!user) {
+  if (!isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto text-center">
@@ -107,21 +111,6 @@ export default function WishlistPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Wishlist</h1>
         <div className="flex items-center justify-center py-12">
           <LoadingSpinner />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">My Wishlist</h1>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <svg className="w-12 h-12 text-red-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Wishlist</h3>
-          <p className="text-gray-600">{error}</p>
         </div>
       </div>
     );
@@ -233,8 +222,8 @@ export default function WishlistPage() {
                 <div className="relative aspect-square">
                   <Link href={`/products/${item.productId}`}>
                     <Image
-                      src={item.product?.images?.[0] || '/placeholder-product.jpg'}
-                      alt={item.product?.name || 'Product'}
+                      src={item.productImage || '/placeholder-product.jpg'}
+                      alt={item.productName || 'Product'}
                       fill
                       className="object-cover rounded-t-lg"
                     />
@@ -250,18 +239,18 @@ export default function WishlistPage() {
                 <div className="p-4">
                   <Link href={`/products/${item.productId}`}>
                     <h3 className="font-medium text-gray-900 hover:text-blue-600 transition-colors line-clamp-2">
-                      {item.product?.name || 'Product Name'}
+                      {item.productName || 'Product Name'}
                     </h3>
                   </Link>
                   
                   <p className="text-lg font-semibold text-gray-900 mt-2">
-                    ₹{item.product?.price?.toFixed(2) || '0.00'}
+                    ₹{item.productPrice?.toFixed(2) || '0.00'}
                   </p>
 
                   {/* Action Buttons */}
                   <div className="flex items-center space-x-2 mt-4">
                     <button
-                      onClick={() => handleMoveToCart(item.productId, item.product?.price || 0)}
+                      onClick={() => handleMoveToCart(item.productId, item.productPrice || 0)}
                       disabled={movingToCart === item.productId}
                       className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -285,7 +274,7 @@ export default function WishlistPage() {
 
                   {/* Added Date */}
                   <p className="text-xs text-gray-500 mt-3">
-                    Added {new Date(item.createdAt).toLocaleDateString()}
+                    Added {new Date(item.addedAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>

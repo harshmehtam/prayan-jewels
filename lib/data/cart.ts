@@ -3,16 +3,17 @@
 import { getDynamicClient, handleAmplifyError, generateSessionId } from '@/lib/amplify-client';
 
 export class CartService {
-  // Get user cart by customer ID
-  static async getUserCart(customerId: string): Promise<any> {
+  // Get user cart with items in a single optimized call
+  static async getUserCartWithItems(customerId: string): Promise<any> {
     try {
       const client = await getDynamicClient();
       
-      const response = await client.models.ShoppingCart.list({
+      // First get the cart
+      const cartResponse = await client.models.ShoppingCart.list({
         filter: { customerId: { eq: customerId } }
       });
 
-      let cart = response.data?.[0] || null;
+      let cart = cartResponse.data?.[0] || null;
 
       // Create cart if it doesn't exist
       if (!cart) {
@@ -27,30 +28,49 @@ export class CartService {
         cart = createResponse.data || null;
       }
 
+      // Get cart items if cart exists
+      let items = [];
+      if (cart) {
+        const itemsResponse = await client.models.CartItem.list({
+          filter: { cartId: { eq: cart.id } }
+        });
+        items = itemsResponse.data || [];
+      }
+
       return {
-        // @ts-ignore - Type compatibility between Amplify generated types and custom types
         cart,
-        errors: response.errors
+        items,
+        errors: cartResponse.errors
       };
     } catch (error) {
-      console.error('Error getting user cart:', error);
+      console.error('Error getting user cart with items:', error);
       throw new Error(handleAmplifyError(error));
     }
   }
 
-  // Get guest cart by session ID
-  static async getGuestCart(sessionId: string): Promise<any> {
+  // Get guest cart with items in a single optimized call
+  static async getGuestCartWithItems(sessionId: string): Promise<any> {
+    console.log('🔍 CartService.getGuestCartWithItems called', { sessionId, sessionIdLength: sessionId.length });
+    
     try {
       const client = await getDynamicClient();
       
-      const response = await client.models.ShoppingCart.list({
+      // First get the cart
+      const cartResponse = await client.models.ShoppingCart.list({
         filter: { sessionId: { eq: sessionId } }
       });
 
-      let cart = response.data?.[0] || null;
+      console.log('🔍 Guest cart query result', { 
+        sessionId, 
+        foundCarts: cartResponse.data?.length || 0,
+        cartIds: cartResponse.data?.map(c => c.id) || []
+      });
+
+      let cart = cartResponse.data?.[0] || null;
 
       // Create cart if it doesn't exist
       if (!cart) {
+        console.log('🔍 No guest cart found, creating new cart for session:', sessionId);
         const createResponse = await client.models.ShoppingCart.create({
           sessionId,
           subtotal: 0,
@@ -60,19 +80,38 @@ export class CartService {
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
         });
         cart = createResponse.data || null;
+        console.log('🔍 New guest cart created', { cartId: cart?.id, sessionId });
+      } else {
+        console.log('🔍 Existing guest cart found', { cartId: cart.id, sessionId });
+      }
+
+      // Get cart items if cart exists
+      let items = [];
+      if (cart) {
+        const itemsResponse = await client.models.CartItem.list({
+          filter: { cartId: { eq: cart.id } }
+        });
+        items = itemsResponse.data || [];
+        console.log('🔍 Guest cart items loaded', { cartId: cart.id, itemCount: items.length });
       }
 
       return {
-        // @ts-ignore - Type compatibility between Amplify generated types and custom types
         cart,
-        errors: response.errors
+        items,
+        errors: cartResponse.errors
       };
     } catch (error) {
-      console.error('Error getting guest cart:', error);
+      console.error('🔍 Error getting guest cart with items:', error);
+      
+      // Check if it's an Amplify configuration error
+      if (error instanceof Error && error.message.includes('Amplify')) {
+        console.error('🔍 Amplify configuration error in cart service');
+        throw new Error('Amplify not configured. Please wait and try again.');
+      }
+      
       throw new Error(handleAmplifyError(error));
     }
   }
-
   // Get cart items by cart ID
   static async getCartItems(cartId: string): Promise<any> {
     try {
@@ -92,7 +131,7 @@ export class CartService {
     }
   }
 
-  // Add item to cart
+  // Add item to cart - OPTIMIZED VERSION
   static async addItemToCart(cartId: string, productId: string, quantity: number, unitPrice: number): Promise<any> {
     try {
       const client = await getDynamicClient();
@@ -106,51 +145,64 @@ export class CartService {
       });
 
       const existingItem = existingItemsResponse.data?.[0];
+      let itemResponse;
+      let totalPriceChange = 0;
 
       if (existingItem) {
         // Update existing item quantity
         const newQuantity = existingItem.quantity + quantity;
-        const response = await client.models.CartItem.update({
+        const newTotalPrice = newQuantity * unitPrice;
+        totalPriceChange = newTotalPrice - existingItem.totalPrice;
+        
+        itemResponse = await client.models.CartItem.update({
           id: existingItem.id,
           quantity: newQuantity,
-          totalPrice: newQuantity * unitPrice
+          totalPrice: newTotalPrice
         });
-        
-        await this.updateCartTotals(cartId);
-        return { item: response.data, errors: response.errors };
       } else {
         // Create new cart item
-        const response = await client.models.CartItem.create({
+        const newTotalPrice = quantity * unitPrice;
+        totalPriceChange = newTotalPrice;
+        
+        itemResponse = await client.models.CartItem.create({
           cartId,
           productId,
           quantity,
           unitPrice,
-          totalPrice: quantity * unitPrice
+          totalPrice: newTotalPrice
         });
-        
-        await this.updateCartTotals(cartId);
-        return { item: response.data, errors: response.errors };
       }
+      
+      // Update cart totals efficiently without fetching all items
+      await this.updateCartTotalsOptimized(cartId, totalPriceChange);
+      
+      return { item: itemResponse.data, errors: itemResponse.errors };
     } catch (error) {
       console.error('Error adding item to cart:', error);
       throw new Error(handleAmplifyError(error));
     }
   }
 
-  // Remove item from cart
+  // Remove item from cart - OPTIMIZED VERSION
   static async removeItemFromCart(itemId: string): Promise<any> {
     try {
       const client = await getDynamicClient();
       
-      // Get the item to find the cart ID
+      // Get the item to find the cart ID and calculate price change
       const itemResponse = await client.models.CartItem.get({ id: itemId });
-      const cartId = itemResponse.data?.cartId;
+      const item = itemResponse.data;
+      
+      if (!item) {
+        throw new Error('Cart item not found');
+      }
+      
+      const cartId = item.cartId;
+      const totalPriceChange = -item.totalPrice; // Negative because we're removing
 
       const response = await client.models.CartItem.delete({ id: itemId });
       
-      if (cartId) {
-        await this.updateCartTotals(cartId);
-      }
+      // Update cart totals efficiently
+      await this.updateCartTotalsOptimized(cartId, totalPriceChange);
       
       return {
         success: !!response.data,
@@ -162,12 +214,12 @@ export class CartService {
     }
   }
 
-  // Update item quantity
+  // Update item quantity - OPTIMIZED VERSION
   static async updateItemQuantity(itemId: string, quantity: number): Promise<any> {
     try {
       const client = await getDynamicClient();
       
-      // Get the item to calculate new total
+      // Get the item to calculate price change
       const itemResponse = await client.models.CartItem.get({ id: itemId });
       const item = itemResponse.data;
       
@@ -175,13 +227,18 @@ export class CartService {
         throw new Error('Cart item not found');
       }
 
+      const oldTotalPrice = item.totalPrice;
+      const newTotalPrice = quantity * item.unitPrice;
+      const totalPriceChange = newTotalPrice - oldTotalPrice;
+
       const response = await client.models.CartItem.update({
         id: itemId,
         quantity,
-        totalPrice: quantity * item.unitPrice
+        totalPrice: newTotalPrice
       });
       
-      await this.updateCartTotals(item.cartId);
+      // Update cart totals efficiently
+      await this.updateCartTotalsOptimized(item.cartId, totalPriceChange);
       
       return {
         item: response.data,
@@ -347,7 +404,42 @@ export class CartService {
     }
   }
 
-  // Helper method to update cart totals
+  // Helper method to update cart totals efficiently (without fetching all items)
+  private static async updateCartTotalsOptimized(cartId: string, subtotalChange: number): Promise<void> {
+    try {
+      const client = await getDynamicClient();
+      
+      // Get current cart to update totals incrementally
+      const cartResponse = await client.models.ShoppingCart.get({ id: cartId });
+      const currentCart = cartResponse.data;
+      
+      if (!currentCart) {
+        console.error('Cart not found for totals update');
+        return;
+      }
+      
+      // Calculate new totals based on the change
+      const newSubtotal = (currentCart.subtotal || 0) + subtotalChange;
+      const estimatedTax = newSubtotal * 0.18; // 18% GST for India
+      const estimatedShipping = newSubtotal > 2000 ? 0 : 100; // Free shipping above ₹2000
+      const estimatedTotal = newSubtotal + estimatedTax + estimatedShipping;
+
+      // Update cart with new totals
+      await client.models.ShoppingCart.update({
+        id: cartId,
+        subtotal: Math.max(0, newSubtotal),
+        estimatedTax: Math.max(0, estimatedTax),
+        estimatedShipping: estimatedShipping,
+        estimatedTotal: Math.max(0, estimatedTotal)
+      });
+    } catch (error) {
+      console.error('Error updating cart totals optimized:', error);
+      // Fallback to full recalculation if optimized update fails
+      await this.updateCartTotals(cartId);
+    }
+  }
+
+  // Helper method to update cart totals (full recalculation - use sparingly)
   private static async updateCartTotals(cartId: string): Promise<void> {
     try {
       const client = await getDynamicClient();

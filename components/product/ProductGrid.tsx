@@ -4,8 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-// import { ProductService } from '@/lib/data/products';
-import { MockProductService } from '@/lib/data/mockProducts';
+import { ProductService } from '@/lib/services/product-service';
 import ProductGridCard from './ProductGridCard';
 
 interface Product {
@@ -41,10 +40,10 @@ export default function ProductGrid({
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        // const result = await ProductService.getProducts({}, limit);
-        const result = await MockProductService.getProducts({}, limit);
-        // console.log(`Requested ${limit} products, got ${result.products.length} products`); // DEBUG
+        const result = await ProductService.getProducts({}, limit);
         setProducts(result.products);
+        
+        // No need to batch check wishlist - the context handles this automatically
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load products');
       } finally {
@@ -115,11 +114,10 @@ export default function ProductGrid({
 
         {/* Products Grid - Using ProductGridCard design */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-7xl mx-auto">
-          {products.map((product, index) => (
+          {products.map((product) => (
             <ProductGridCard 
               key={product.id} 
-              product={product} 
-              index={index}
+              product={product}
             />
           ))}
         </div>

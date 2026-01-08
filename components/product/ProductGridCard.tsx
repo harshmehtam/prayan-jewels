@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { useCart } from '@/components/providers/cart-provider';
+import { useWishlist } from '@/components/providers/wishlist-provider';
+import { useAuth } from '@/components/providers/auth-provider';
 
 interface Product {
   id: string;
@@ -19,21 +21,30 @@ interface Product {
 
 interface ProductGridCardProps {
   product: Product;
-  index: number;
 }
 
-export default function ProductGridCard({ product, index }: ProductGridCardProps) {
+export default function ProductGridCard({ product }: ProductGridCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [addToCartSuccess, setAddToCartSuccess] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const { addItem } = useCart();
+  const { toggleWishlist, wishlistStatus } = useWishlist();
+  const { isAuthenticated } = useAuth();
+
+  // Use cached wishlist status from the hook
+  useEffect(() => {
+    setIsInWishlist(wishlistStatus[product.id] || false);
+  }, [product.id, wishlistStatus]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(price);
   };
 
@@ -78,17 +89,7 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
     return stars;
   };
 
-  const getBadgeText = (product: Product, index: number) => {
-    // Add badges similar to the jewelry image
-    if (index === 1) return "Bestseller";
-    if (index === 3) return "Reserve Now";
-    if (product.averageRating && product.averageRating >= 4.5) return "Top Rated";
-    if (product.availableQuantity && product.availableQuantity < 5) return "Limited";
-    return null;
-  };
-
-  const badge = getBadgeText(product, index);
-  const isOutOfStock = product.availableQuantity !== undefined && product.availableQuantity <= 0;
+  // Removed badge and out-of-stock functionality
 
   // Handle image scroll for mobile
   const handleImageScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -122,16 +123,48 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
     e.preventDefault();
     e.stopPropagation();
     setIsAddingToCart(true);
+    setAddToCartSuccess(false);
     
     try {
       await addItem(product.id, 1, product.price);
-      // You could add a toast notification here
+      setAddToCartSuccess(true);
       console.log('Added to cart:', product.name);
+      
+      // Reset success state after 2 seconds
+      setTimeout(() => {
+        setAddToCartSuccess(false);
+      }, 2000);
     } catch (error) {
       console.error('Failed to add to cart:', error);
-      // You could add error handling/toast here
     } finally {
       setIsAddingToCart(false);
+    }
+  };
+
+  // Wishlist functionality
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsTogglingWishlist(true);
+    
+    try {
+      // Pass product details to avoid unnecessary API calls
+      const productDetails = {
+        name: product.name,
+        price: product.price,
+        image: product.images[0] || ''
+      };
+      
+      const result = await toggleWishlist(product.id, productDetails);
+      setIsInWishlist(result.isInWishlist);
+      
+      // You could add a toast notification here
+      console.log(result.message);
+    } catch (error) {
+      console.error('Failed to toggle wishlist:', error);
+      // You could add error handling/toast here
+    } finally {
+      setIsTogglingWishlist(false);
     }
   };
 
@@ -149,13 +182,10 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             <>
               {/* Desktop: Single image with hover effect */}
               <div className="hidden md:block absolute inset-0">
-                <Image
-                  src={product.images[isHovered && product.images.length > 1 ? 1 : 0]}
+                <CachedAmplifyImage
+                  path={product.images[isHovered && product.images.length > 1 ? 1 : 0]}
                   alt={product.name}
-                  fill
-                  className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  loading="lazy"
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
 
@@ -168,13 +198,10 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
                 >
                   {product.images.map((image, imgIndex) => (
                     <div key={imgIndex} className="w-full h-full flex-shrink-0 snap-center relative">
-                      <Image
-                        src={image}
+                      <CachedAmplifyImage
+                        path={image}
                         alt={`${product.name} - Image ${imgIndex + 1}`}
-                        fill
-                        className="object-cover"
-                        loading="lazy"
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   ))}
@@ -214,60 +241,65 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
             </div>
           )}
 
-          {/* Badge */}
-          {badge && (
-            <div className="absolute top-2 left-2 bg-black text-white text-xs font-medium px-2 py-1 rounded-sm z-10">
-              {badge}
-            </div>
-          )}
-
-          {/* Out of Stock Badge */}
-          {isOutOfStock && (
-            <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-medium px-2 py-1 rounded-sm z-10">
-              Sold Out
-            </div>
-          )}
-
           {/* Wishlist Heart Icon - Luxury jewelry style */}
           <button
-            onClick={async (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // For now, just console log - you can implement proper wishlist logic
-              console.log('Toggle wishlist for product:', product.id);
-            }}
-            className={`absolute top-3 right-3 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300 group ${
-              isOutOfStock ? 'top-14' : ''
-            }`}
-            aria-label="Add to wishlist"
+            onClick={handleWishlistToggle}
+            disabled={isTogglingWishlist}
+            className="absolute top-3 right-3 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300 group disabled:opacity-50"
+            aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
           >
-            <svg 
-              className="w-4 h-4 text-gray-600 hover:text-rose-500 transition-all duration-300 group-hover:scale-110" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-              />
-            </svg>
+            {isTogglingWishlist ? (
+              <svg className="w-4 h-4 animate-spin text-gray-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              <svg 
+                className={`w-4 h-4 transition-all duration-300 group-hover:scale-110 ${
+                  isInWishlist 
+                    ? 'text-red-500 fill-red-500' 
+                    : 'text-gray-600 hover:text-rose-500'
+                }`}
+                fill={isInWishlist ? "currentColor" : "none"}
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                />
+              </svg>
+            )}
           </button>
 
-          {/* Add to Cart Icon - Always visible with better icon */}
-          {!isOutOfStock && (
-            <button
-              onClick={handleAddToCart}
-              disabled={isAddingToCart}
-              className="absolute bottom-2 right-2 p-2 bg-black text-white rounded-full transition-all duration-300 z-20 shadow-lg hover:bg-gray-800 hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100 group"
-              aria-label="Add to cart"
-            >
+          {/* Guest User Wishlist Prompt - Show only for non-authenticated users */}
+          {!isAuthenticated && isInWishlist && (
+            <div className="absolute top-16 right-3 z-30 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
+              Sign in to save across devices
+            </div>
+          )}
+
+          {/* Add to Cart Icon - Always visible */}
+          <button
+            onClick={handleAddToCart}
+            disabled={isAddingToCart}
+            className={`absolute bottom-2 right-2 p-2 rounded-full transition-all duration-300 z-20 shadow-lg hover:scale-110 hover:shadow-xl disabled:opacity-50 disabled:hover:scale-100 group ${
+              addToCartSuccess 
+                ? 'bg-green-600 text-white' 
+                : 'bg-black text-white hover:bg-gray-800'
+            }`}
+            aria-label="Add to cart"
+          >
               {isAddingToCart ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : addToCartSuccess ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
                 <svg className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -275,7 +307,6 @@ export default function ProductGridCard({ product, index }: ProductGridCardProps
                 </svg>
               )}
             </button>
-          )}
 
           {/* Hover overlay for desktop - subtle luxury effect */}
           <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-t-lg" />

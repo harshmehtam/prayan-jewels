@@ -7,6 +7,7 @@ interface CachedAmplifyImageProps {
   path: string;
   alt: string;
   className?: string;
+  style?: React.CSSProperties;
   fallbackSrc?: string;
   onLoad?: () => void;
   onError?: () => void;
@@ -19,6 +20,7 @@ export default function CachedAmplifyImage({
   path,
   alt,
   className = '',
+  style,
   fallbackSrc = '/placeholder-product.svg',
   onLoad,
   onError,
@@ -113,6 +115,7 @@ export default function CachedAmplifyImage({
       src={imageUrl || fallbackSrc}
       alt={alt}
       className={className}
+      style={style}
       onLoad={handleImageLoad}
       onError={handleImageError}
     />

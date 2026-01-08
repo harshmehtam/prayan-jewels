@@ -178,14 +178,16 @@ export class AdminCustomerService {
       console.log('Customer role update requested:', { customerId, newRole });
       
       // Log the action for audit purposes
-      await AdminAuditService.logAction({
-        ...adminContext,
-        action: 'role_changed',
-        resource: 'user',
-        resourceId: customerId,
-        description: `Attempted to change user role to ${newRole} (not implemented - users managed through Cognito)`,
-        severity: 'medium',
-      });
+      await AdminAuditService.logUserAction(
+        adminContext,
+        'role_changed',
+        customerId,
+        undefined, // targetUserEmail
+        `Attempted to change user role to ${newRole} (not implemented - users managed through Cognito)`,
+        { newRole },
+        false, // success = false since not implemented
+        'Role changes not implemented - users managed through Cognito'
+      );
 
       return {
         success: false,
@@ -209,14 +211,16 @@ export class AdminCustomerService {
       console.log('Customer deactivation requested:', customerId);
       
       // Log the action for audit purposes
-      await AdminAuditService.logAction({
-        ...adminContext,
-        action: 'user_updated',
-        resource: 'user',
-        resourceId: customerId,
-        description: `Attempted to deactivate user account (not implemented - users managed through Cognito)`,
-        severity: 'high',
-      });
+      await AdminAuditService.logUserAction(
+        adminContext,
+        'user_updated',
+        customerId,
+        undefined, // targetUserEmail
+        `Attempted to deactivate user account (not implemented - users managed through Cognito)`,
+        { action: 'deactivate' },
+        false, // success = false since not implemented
+        'User deactivation not implemented - users managed through Cognito'
+      );
 
       return {
         success: false,
@@ -243,14 +247,16 @@ export class AdminCustomerService {
       console.log('Customer update requested:', customerData);
       
       // Log the action for audit purposes
-      await AdminAuditService.logAction({
-        ...adminContext,
-        action: 'user_updated',
-        resource: 'user',
-        resourceId: customerData.userId || 'unknown',
-        description: `Attempted to update customer details (not implemented - users managed through Cognito)`,
-        severity: 'medium',
-      });
+      await AdminAuditService.logUserAction(
+        adminContext,
+        'user_updated',
+        customerData.userId || 'unknown',
+        customerData.email,
+        `Attempted to update customer details (not implemented - users managed through Cognito)`,
+        { updateData: customerData },
+        false, // success = false since not implemented
+        'Customer updates not implemented - users managed through Cognito'
+      );
 
       return {
         success: false,
@@ -279,14 +285,16 @@ export class AdminCustomerService {
       console.log('Customer password reset requested:', resetData);
       
       // Log the action for audit purposes
-      await AdminAuditService.logAction({
-        ...adminContext,
-        action: 'password_reset',
-        resource: 'user',
-        resourceId: resetData.userId || resetData.customerId || 'unknown',
-        description: `Attempted to reset customer password (not implemented - users managed through Cognito)`,
-        severity: 'high',
-      });
+      await AdminAuditService.logUserAction(
+        adminContext,
+        'password_reset',
+        resetData.userId || resetData.customerId || 'unknown',
+        resetData.email,
+        `Attempted to reset customer password (not implemented - users managed through Cognito)`,
+        { resetData },
+        false, // success = false since not implemented
+        'Password reset not implemented - users managed through Cognito'
+      );
 
       return {
         success: false,

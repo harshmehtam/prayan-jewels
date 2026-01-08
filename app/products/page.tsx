@@ -6,7 +6,6 @@ export default function ProductsPage() {
   return (
     <div className="pt-50 sm:pt-44 lg:pt-28 pb-4 sm:pb-8">
       <ProductCatalog 
-        showFilters={true}
         limit={24}
       />
     </div>

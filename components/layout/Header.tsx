@@ -1,20 +1,28 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { LoginButton } from '@/components/auth';
 import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
+import { ProductService } from '@/lib/services/product-service';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const { itemCount } = useCart();
   const pathname = usePathname();
+  const router = useRouter();
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   
   // Check if we're on the home page
   const isHomePage = pathname === '/';
@@ -64,6 +72,125 @@ export default function Header() {
       }
     };
   }, []);
+
+  // Fetch search suggestions with debouncing
+  useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    if (searchQuery.trim().length >= 2) {
+      debounceRef.current = setTimeout(async () => {
+        try {
+          // Get products and extract unique names that match the search
+          const result = await ProductService.getProducts({ searchQuery: searchQuery.trim() }, 10);
+          const productNames = result.products.map(product => product.name);
+          
+          // Get top 5 unique suggestions
+          const uniqueSuggestions = [...new Set(productNames)].slice(0, 5);
+          setSuggestions(uniqueSuggestions);
+          setShowSuggestions(uniqueSuggestions.length > 0);
+        } catch (error) {
+          console.error('Failed to fetch suggestions:', error);
+          setSuggestions([]);
+          setShowSuggestions(false);
+        }
+      }, 300); // 300ms debounce
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Clear search when navigating to products page
+  useEffect(() => {
+    if (pathname === '/products') {
+      setSearchQuery('');
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [pathname]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search functionality
+  const handleSearch = (query: string = searchQuery) => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery) {
+      // Navigate to products page with search query
+      router.push(`/products?search=${encodeURIComponent(trimmedQuery)}`);
+    } else {
+      // Navigate to products page without search
+      router.push('/products');
+    }
+    // Close suggestions and mobile menu
+    setShowSuggestions(false);
+    setSelectedSuggestionIndex(-1);
+    setIsMenuOpen(false);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        handleSearch();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedSuggestionIndex >= 0) {
+          const selectedSuggestion = suggestions[selectedSuggestionIndex];
+          setSearchQuery(selectedSuggestion);
+          handleSearch(selectedSuggestion);
+        } else {
+          handleSearch();
+        }
+        break;
+      case 'Escape':
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+        break;
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setSearchQuery(suggestion);
+    handleSearch(suggestion);
+  };
 
   // Prevent body scroll when mobile menu is open and add blur effect
   useEffect(() => {
@@ -140,8 +267,6 @@ export default function Header() {
     }
   };
 
-
-
   return (
     <>
       {/* Top Promotional Banner - Better mobile text wrapping */}
@@ -196,9 +321,17 @@ export default function Header() {
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
               {/* Desktop Search - Hidden on mobile */}
               <div className="hidden lg:flex items-center">
-                <div className="relative">
+                <div ref={searchRef} className="relative">
                   <input
                     type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyDown}
+                    onFocus={() => {
+                      if (suggestions.length > 0) {
+                        setShowSuggestions(true);
+                      }
+                    }}
                     placeholder="Search for a product or finish"
                     className={`w-72 pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
                       isScrolled || !isHomePage
@@ -206,13 +339,39 @@ export default function Header() {
                         : 'bg-white bg-opacity-20 border border-gray-400 border-opacity-30 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                     }`}
                   />
-                  <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                    isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-                  }`} style={{ outline: 'none', boxShadow: 'none' }}>
+                  <button 
+                    onClick={() => handleSearch()}
+                    className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                      isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
+                    }`} 
+                    style={{ outline: 'none', boxShadow: 'none' }}
+                  >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                   </button>
+
+                  {/* Desktop Suggestions Dropdown */}
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {suggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors ${
+                            index === selectedSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <svg className="h-4 w-4 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span className="truncate">{suggestion}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -338,9 +497,17 @@ export default function Header() {
 
           {/* Mobile Search Bar - Below main header on mobile/tablet with better spacing */}
           <div className="lg:hidden px-3 sm:px-4 pb-4 pt-1">
-            <div className="relative">
+            <div ref={searchRef} className="relative">
               <input
                 type="text"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                onKeyDown={handleSearchKeyDown}
+                onFocus={() => {
+                  if (suggestions.length > 0) {
+                    setShowSuggestions(true);
+                  }
+                }}
                 placeholder="Search for a product or finish"
                 className={`w-full pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
                   isScrolled || !isHomePage
@@ -348,19 +515,43 @@ export default function Header() {
                     : 'bg-white bg-opacity-90 border border-gray-300 border-opacity-50 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
                 }`}
               />
-              <button className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-              }`} style={{ outline: 'none', boxShadow: 'none' }}>
+              <button 
+                onClick={() => handleSearch()}
+                className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                  isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
+                }`} 
+                style={{ outline: 'none', boxShadow: 'none' }}
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
+
+              {/* Mobile Suggestions Dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors ${
+                        index === selectedSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <svg className="h-4 w-4 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <span className="truncate">{suggestion}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
-
-
 
       {/* Mobile Navigation - Moved completely outside header to avoid blur inheritance */}
       {isMenuOpen && (

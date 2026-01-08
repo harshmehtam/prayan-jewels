@@ -1,25 +1,20 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MockProductService } from '@/lib/data/mockProducts'; // Using mock data
-import { ProductFilters, ProductSearchResult } from '@/types';
+import { ProductService } from '@/lib/services/product-service';
+import { ProductFilters } from '@/types';
 import ProductGridCard from './ProductGridCard';
-import SearchBar from './SearchBar';
 import Pagination from '@/components/ui/Pagination';
 
 interface ProductCatalogProps {
-  showFilters?: boolean;
   limit?: number;
-  userId?: string; // For search history and saved searches
   showBestsellers?: boolean; // New prop to show all products as bestsellers
   itemsPerPage?: number; // Items per page for pagination
 }
 
 export default function ProductCatalog({
-  showFilters = false, // Default to false for simplified view
   limit = 24,
-  userId,
   showBestsellers = false,
   itemsPerPage = 12
 }: ProductCatalogProps) {
@@ -28,7 +23,7 @@ export default function ProductCatalog({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Simplified filters - no category filtering for bestsellers view
+  // Simplified filters - get price filters and search from URL
   const [filters, setFilters] = useState<ProductFilters>(() => {
     if (showBestsellers) {
       return {}; // No filters for bestsellers - show all products
@@ -50,12 +45,15 @@ export default function ProductCatalog({
     return initialFilters;
   });
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    // Get search query from URL
+    return searchParams.get('search') || '';
+  });
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'rating' | 'newest' | 'most-relevant'>('most-relevant');
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch products based on current filters and search
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -66,7 +64,7 @@ export default function ProductCatalog({
         sortBy,
         searchQuery: searchQuery.trim() || undefined
       };
-      const result = await MockProductService.getProducts(filtersWithSort, limit);
+      const result = await ProductService.getProducts(filtersWithSort, limit);
 
       setProducts(result.products);
     } catch (err) {
@@ -75,12 +73,12 @@ export default function ProductCatalog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, searchQuery, sortBy, limit]);
 
   // Effect to fetch products when filters, search, or sort changes
   useEffect(() => {
     fetchProducts();
-  }, [filters, searchQuery, sortBy, limit]);
+  }, [fetchProducts]);
 
   // Sort products based on selected sort option (now handled in service)
   const sortedProducts = useMemo(() => {
@@ -95,11 +93,6 @@ export default function ProductCatalog({
     const endIndex = startIndex + itemsPerPage;
     return sortedProducts.slice(startIndex, endIndex);
   }, [sortedProducts, currentPage, itemsPerPage]);
-
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    setCurrentPage(1); // Reset to first page on search
-  };
 
   const handleSortChange = (newSort: typeof sortBy) => {
     setSortBy(newSort);
@@ -153,12 +146,42 @@ export default function ProductCatalog({
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-12 pb-12 sm:pb-8 lg:pb-10">
       <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 mb-2 tracking-wide">
-          Our Collection
-        </h1>
-        <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
-          Our most popular and trending jewelry pieces
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light text-gray-900 mb-2 tracking-wide">
+              {filters.maxPrice ? `Products Under ₹${filters.maxPrice.toLocaleString()}` : 'Our Collection'}
+            </h1>
+            <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
+              {filters.maxPrice 
+                ? `Discover beautiful jewelry pieces within your budget of ₹${filters.maxPrice.toLocaleString()}`
+                : 'Our most popular and trending jewelry pieces'
+              }
+            </p>
+          </div>
+          
+          {/* Clear Filters Button */}
+          {(filters.maxPrice || filters.minPrice) && (
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => {
+                  setFilters({});
+                  setCurrentPage(1);
+                  // Update URL to remove price filters
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('maxPrice');
+                  url.searchParams.delete('minPrice');
+                  window.history.pushState({}, '', url.toString());
+                }}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Clear Filters
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Content - No sidebar for simplified view */}
@@ -202,8 +225,8 @@ export default function ProductCatalog({
         {paginatedProducts.length > 0 ? (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8">
-              {paginatedProducts.map((product, index) => (
-                <ProductGridCard key={product.id} product={product} index={index} />
+              {paginatedProducts.map((product) => (
+                <ProductGridCard key={product.id} product={product} />
               ))}
             </div>
 
