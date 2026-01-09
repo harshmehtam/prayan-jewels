@@ -8,9 +8,7 @@ export default function CheckoutHeader() {
   const pathname = usePathname();
 
   const handleBackToShopping = () => {
-    if (window.confirm('Are you sure you want to leave checkout? Your progress will be lost.')) {
-      router.push('/');
-    }
+    router.push('/');
   };
 
   // Don't show confirmation on order confirmation page
@@ -33,16 +31,16 @@ export default function CheckoutHeader() {
 
           {/* Centered Brand Logo */}
           {isOrderConfirmation ? (
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-normal text-black hover:text-gray-700 transition-colors tracking-[0.15em] outline-none focus:outline-none"
               style={{ outline: 'none', boxShadow: 'none' }}
             >
               PRAYAN JEWELS
             </Link>
           ) : (
-            <Link 
-              href="/" 
+            <Link
+              href="/"
               className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-normal text-black hover:text-gray-700 transition-colors tracking-[0.15em] outline-none focus:outline-none"
               style={{ outline: 'none', boxShadow: 'none' }}
               onClick={(e) => {

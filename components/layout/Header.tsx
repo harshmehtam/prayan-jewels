@@ -300,7 +300,7 @@ export default function Header() {
             </Link>
 
             {/* Desktop Navigation - Hidden on mobile */}
-            <nav className="hidden lg:flex items-center space-x-8">
+            {/* <nav className="hidden lg:flex items-center space-x-8">
               <Link 
                 href="/products" 
                 className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
@@ -315,7 +315,7 @@ export default function Header() {
                   isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
                 }`}></span>
               </Link>
-            </nav>
+            </nav> */}
 
             {/* Right Side Actions - Optimized for very small screens */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
@@ -436,7 +436,14 @@ export default function Header() {
                     
                     {/* Customer menu items */}
                     <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>
-                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Order History</Link>
+                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Order History
+                      </div>
+                    </Link>
                     <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Wishlist</Link>
                     <hr className="my-1" />
                     <button onClick={handleSignOut} className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Sign Out</button>
@@ -591,7 +598,7 @@ export default function Header() {
               <div className="px-6 py-8 overflow-y-auto flex-1">
                 <nav>
                   <div className="space-y-2">
-                    <Link
+                    {/* <Link
                       href="/products"
                       className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
                       onClick={() => setIsMenuOpen(false)}
@@ -600,7 +607,7 @@ export default function Header() {
                       <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                    </Link>
+                    </Link> */}
 
                     {/* Mobile-only links for hidden icons */}
                     <div className="sm:hidden">
@@ -659,6 +666,24 @@ export default function Header() {
                             onClick={() => setIsMenuOpen(false)}
                           >
                             <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">My Account</span>
+                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+
+                          {/* Order History - Prominent placement */}
+                          <Link
+                            href="/account/orders"
+                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                            style={{ outline: 'none', boxShadow: 'none' }}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <div className="flex items-center">
+                              <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Order History</span>
+                            </div>
                             <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>

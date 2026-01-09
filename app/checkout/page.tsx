@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import { CheckoutSteps } from '@/components/checkout/CheckoutSteps';
 import { ShippingForm } from '@/components/checkout/ShippingForm';
@@ -10,7 +9,10 @@ import { BillingForm } from '@/components/checkout/BillingForm';
 import { OrderReview } from '@/components/checkout/OrderReview';
 import CheckoutHeader from '@/components/layout/CheckoutHeader';
 import PageLoading from '@/components/ui/PageLoading';
-import type { Address } from '@/types';
+import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
+import { ProductService } from '@/lib/services/product-service';
+import type { Address, Product } from '@/types';
+import type { SavedAddress } from '@/lib/services/address-service';
 
 export type CheckoutStep = 'shipping' | 'billing' | 'review';
 
@@ -22,7 +24,45 @@ export default function CheckoutPage() {
   const [shippingAddress, setShippingAddress] = useState<Partial<Address> | null>(null);
   const [billingAddress, setBillingAddress] = useState<Partial<Address> | null>(null);
   const [sameAsShipping, setSameAsShipping] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [editingShippingAddress, setEditingShippingAddress] = useState<SavedAddress | null>(null);
+  const [editingBillingAddress, setEditingBillingAddress] = useState<SavedAddress | null>(null);
+  const [products, setProducts] = useState<Map<string, Product>>(new Map());
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [orderResult, setOrderResult] = useState<{
+    success: boolean;
+    orderId?: string;
+    confirmationNumber?: string;
+    error?: string;
+    paymentMethod?: string;
+  } | null>(null);
+
+  // Load product details for cart items
+  useEffect(() => {
+    const loadProducts = async () => {
+      if (!items.length) {
+        setIsLoadingProducts(false);
+        return;
+      }
+
+      try {
+        const productIds = [...new Set(items.map(item => item.productId))];
+        const productList = await ProductService.getProductsByIds(productIds);
+        
+        const productMap = new Map<string, Product>();
+        productList.forEach(product => {
+          productMap.set(product.id, product);
+        });
+        
+        setProducts(productMap);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, [items]);
 
   // Prevent accidental navigation away from checkout
   useEffect(() => {
@@ -37,23 +77,270 @@ export default function CheckoutPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentStep, shippingAddress]);
 
-  // Redirect if cart is empty
-  useEffect(() => {
-    if (!cartLoading && (!cart || itemCount === 0)) {
-      router.push('/');
-    }
-  }, [cart, itemCount, cartLoading, router]);
+  // Don't redirect if cart is empty - let user stay on checkout page
+  // This prevents redirect issues after order completion
 
   if (cartLoading) {
     return <PageLoading />;
   }
 
+  // Show order result when cart is empty (after order attempt)
+  if ((!cart || itemCount === 0) && orderResult) {
+    if (orderResult.success) {
+      // Success Screen
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <CheckoutHeader />
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+                <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Order Placed Successfully! 🎉
+              </h1>
+              
+              <p className="text-lg text-gray-600 mb-8">
+                Thank you for your order! We've received your order and will process it shortly.
+              </p>
+
+              {/* Order Details */}
+              <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Order Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {orderResult.orderId && (
+                    <div>
+                      <p className="text-sm text-gray-600">Order ID</p>
+                      <p className="font-semibold text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded border">
+                        {orderResult.orderId}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {orderResult.confirmationNumber && (
+                    <div>
+                      <p className="text-sm text-gray-600">Confirmation Number</p>
+                      <p className="font-semibold text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded border">
+                        {orderResult.confirmationNumber}
+                      </p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">Payment Method</p>
+                    <p className="font-semibold text-gray-900">
+                      {orderResult.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-gray-600">Order Date</p>
+                    <p className="font-semibold text-gray-900">
+                      {new Date().toLocaleDateString('en-IN', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* What's Next */}
+              <div className="bg-blue-50 rounded-lg p-6 mb-8 text-left">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">What happens next?</h3>
+                <div className="space-y-3 text-sm text-gray-700">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-xs">1</span>
+                    </div>
+                    <p>You'll receive an order confirmation email shortly</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-xs">2</span>
+                    </div>
+                    <p>Your order will be processed within 1-2 business days</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-xs">3</span>
+                    </div>
+                    <p>You'll receive tracking information once your order ships</p>
+                  </div>
+                  {/* {orderResult.paymentMethod === 'cash_on_delivery' && (
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold text-xs">4</span>
+                      </div>
+                      <p>Please keep the exact amount ready for cash on delivery</p>
+                    </div>
+                  )} */}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <a 
+                  href="/products" 
+                  className="w-full bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors inline-block"
+                >
+                  Continue Shopping
+                </a>
+                <a 
+                  href="/" 
+                  className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
+                >
+                  Back to Homepage
+                </a>
+              </div>
+
+              {/* Support Information */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">Need help with your order?</p>
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    <strong>Email:</strong>{' '}
+                    <a href="mailto:support@prayanjewels.com" className="text-black hover:text-gray-700 underline">
+                      support@prayanjewels.com
+                    </a>
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Please include your Order ID ({orderResult.orderId}) in your email for faster assistance
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      // Failure Screen
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <CheckoutHeader />
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                Order Failed
+              </h1>
+              
+              <p className="text-lg text-gray-600 mb-6">
+                We're sorry, but there was an issue processing your order.
+              </p>
+
+              {/* Error Details */}
+              <div className="bg-red-50 rounded-lg p-6 mb-8 text-left">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 text-center">Error Details</h3>
+                <p className="text-sm text-red-700 bg-white px-4 py-3 rounded border border-red-200">
+                  {orderResult.error || 'An unexpected error occurred while processing your order.'}
+                </p>
+              </div>
+
+              {/* What to do next */}
+              <div className="bg-yellow-50 rounded-lg p-6 mb-8 text-left">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">What can you do?</h3>
+                <div className="space-y-3 text-sm text-gray-700">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-600 font-semibold text-xs">1</span>
+                    </div>
+                    <p>Try placing your order again - the issue might be temporary</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-600 font-semibold text-xs">2</span>
+                    </div>
+                    <p>Check your internet connection and try again</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center">
+                      <span className="text-yellow-600 font-semibold text-xs">3</span>
+                    </div>
+                    <p>Contact our support team if the problem persists</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <button 
+                  onClick={() => {
+                    setOrderResult(null);
+                    window.location.reload();
+                  }}
+                  className="w-full bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                >
+                  Try Again
+                </button>
+                <a 
+                  href="/products" 
+                  className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
+                >
+                  Continue Shopping
+                </a>
+                <a 
+                  href="/" 
+                  className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors inline-block"
+                >
+                  Back to Homepage
+                </a>
+              </div>
+
+              {/* Support Information */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <p className="text-sm text-gray-600 mb-2">Need immediate assistance?</p>
+                <div className="space-y-1">
+                  <p className="text-sm">
+                    <strong>Email:</strong>{' '}
+                    <a href="mailto:support@prayanjewels.com" className="text-black hover:text-gray-700 underline">
+                      support@prayanjewels.com
+                    </a>
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Please describe the error and what you were trying to do when it occurred
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Show empty cart message if no order result
   if (!cart || itemCount === 0) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CheckoutHeader />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h1>
+            <p className="text-gray-600 mb-6">Add some items to your cart to continue with checkout.</p>
+            <a href="/products" className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">
+              Continue Shopping
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleShippingSubmit = (address: Partial<Address>) => {
     setShippingAddress(address);
+    setEditingShippingAddress(null); // Clear editing state
     if (sameAsShipping) {
       // Copy shipping address to billing address
       setBillingAddress({
@@ -84,6 +371,7 @@ export default function CheckoutPage() {
 
   const handleBillingSubmit = (address: Partial<Address>) => {
     setBillingAddress(address);
+    setEditingBillingAddress(null); // Clear editing state
     setCurrentStep('review');
   };
 
@@ -97,9 +385,28 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     // This is now handled by the PaymentButton component
-    // The actual order creation and payment processing happens in the Razorpay flow
     console.log('Order placement handled by PaymentButton component');
   };
+
+  const handleOrderSuccess = (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => {
+    setOrderResult({
+      success: true,
+      orderId,
+      confirmationNumber,
+      paymentMethod: paymentMethod || (paymentId.startsWith('COD_') ? 'cash_on_delivery' : 'razorpay')
+    });
+  };
+
+  const handleOrderError = (error: string) => {
+    setOrderResult({
+      success: false,
+      error
+    });
+  };
+
+  if (cartLoading || isLoadingProducts) {
+    return <PageLoading />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,6 +437,21 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2">
             <CheckoutSteps currentStep={currentStep} />
             
+            {/* Back button for review step */}
+            {currentStep === 'review' && (
+              <div className="mb-6">
+                <button
+                  onClick={sameAsShipping ? handleBackToShipping : handleBackToBilling}
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black transition-colors"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  {sameAsShipping ? 'Back to Shipping' : 'Back to Billing'}
+                </button>
+              </div>
+            )}
+            
             <div className="mt-8">
               {currentStep === 'shipping' && (
                 <ShippingForm
@@ -137,6 +459,7 @@ export default function CheckoutPage() {
                   sameAsShipping={sameAsShipping}
                   onSameAsShippingChange={handleSameAsShippingChange}
                   initialData={shippingAddress}
+                  editingAddress={editingShippingAddress}
                 />
               )}
               
@@ -145,6 +468,7 @@ export default function CheckoutPage() {
                   onSubmit={handleBillingSubmit}
                   onBack={handleBackToShipping}
                   initialData={billingAddress}
+                  editingAddress={editingBillingAddress}
                 />
               )}
               
@@ -154,9 +478,10 @@ export default function CheckoutPage() {
                   items={items}
                   shippingAddress={shippingAddress!}
                   billingAddress={billingAddress!}
-                  onBack={sameAsShipping ? handleBackToShipping : handleBackToBilling}
                   onPlaceOrder={handlePlaceOrder}
-                  isProcessing={isProcessing}
+                  isProcessing={false}
+                  onSuccess={handleOrderSuccess}
+                  onError={handleOrderError}
                 />
               )}
             </div>
@@ -170,20 +495,29 @@ export default function CheckoutPage() {
               </h2>
               
               <div className="space-y-4">
-                {items.map((item, index) => {
-                  // Mock product names for UI development
-                  const productNames = [
-                    'Fine Chain Necklace 22"',
-                    'December Birthstone Locket',
-                    'Silver Chain Bracelet'
-                  ];
+                {items.map((item) => {
+                  const product = products.get(item.productId);
                   
                   return (
                     <div key={item.id} className="flex items-center space-x-3">
-                      <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md"></div>
+                      <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
+                        {product?.images?.[0] ? (
+                          <CachedAmplifyImage
+                            path={product.images[0]}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {productNames[index] || `Product ${item.productId}`}
+                          {product?.name || `Product ${item.productId}`}
                         </p>
                         <p className="text-sm text-gray-500">
                           Qty: {item.quantity} × ₹{item.unitPrice.toLocaleString()}

@@ -1,4 +1,4 @@
-'use client';
+  'use client';
 
 import Link from 'next/link';
 import { useWishlist } from '@/components/providers/wishlist-provider';
@@ -6,9 +6,9 @@ import { useCart } from '@/components/providers/cart-provider';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useState, useEffect } from 'react';
 import { LoginButton } from '@/components/auth';
-import Image from 'next/image';
 import WishlistButton from '@/components/ui/WishlistButton';
 import { LoadingSpinner } from '@/components/ui';
+import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 
 export default function WishlistPage() {
   const { isAuthenticated } = useAuth();
@@ -221,11 +221,10 @@ export default function WishlistPage() {
                 {/* Product Image */}
                 <div className="relative aspect-square">
                   <Link href={`/products/${item.productId}`}>
-                    <Image
-                      src={item.productImage || '/placeholder-product.jpg'}
+                    <CachedAmplifyImage
+                      path={item.productImage || 'placeholder-product.jpg'}
                       alt={item.productName || 'Product'}
-                      fill
-                      className="object-cover rounded-t-lg"
+                      className="object-cover rounded-t-lg w-full h-full"
                     />
                   </Link>
                   
@@ -283,7 +282,7 @@ export default function WishlistPage() {
         )}
 
         {/* Wishlist Notifications Info */}
-        {wishlistItems.length > 0 && (
+        {/* {wishlistItems.length > 0 && (
           <div className="mt-12 bg-blue-50 border border-blue-200 rounded-lg p-6">
             <div className="flex items-start">
               <svg className="w-6 h-6 text-blue-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,7 +301,7 @@ export default function WishlistPage() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

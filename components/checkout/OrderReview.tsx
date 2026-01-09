@@ -1,18 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { PaymentButton } from './PaymentButton';
-import type { ShoppingCart, CartItem, Address } from '@/types';
+import { ProductService } from '@/lib/services/product-service';
+import type { ShoppingCart, CartItem, Address, Product } from '@/types';
 
 interface OrderReviewProps {
   cart: ShoppingCart;
   items: CartItem[];
   shippingAddress: Partial<Address>;
   billingAddress: Partial<Address>;
-  onBack: () => void;
   onPlaceOrder: () => Promise<void>;
   isProcessing: boolean;
+  onSuccess?: (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => void;
+  onError?: (error: string) => void;
 }
 
 export function OrderReview({
@@ -20,35 +22,42 @@ export function OrderReview({
   items,
   shippingAddress,
   billingAddress,
-  onBack,
   onPlaceOrder,
-  isProcessing
+  onSuccess,
+  onError,
 }: OrderReviewProps) {
-  const { validateInventory } = useCart();
-  const [inventoryValidation, setInventoryValidation] = useState<{
-    isValid: boolean;
-    unavailableItems: any[];
-  } | null>(null);
-  const [isValidating, setIsValidating] = useState(true);
+  const [products, setProducts] = useState<Map<string, Product>>(new Map());
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'razorpay' | 'cash_on_delivery'>('razorpay');
 
-  // Validate inventory when component mounts
+  // Load product details for cart items
   useEffect(() => {
-    const checkInventory = async () => {
+    const loadProducts = async () => {
+      if (!items.length) {
+        setIsLoadingProducts(false);
+        return;
+      }
+
       try {
-        const validation = await validateInventory();
-        setInventoryValidation(validation);
+        const productIds = [...new Set(items.map(item => item.productId))];
+        const productList = await ProductService.getProductsByIds(productIds);
+        
+        const productMap = new Map<string, Product>();
+        productList.forEach(product => {
+          productMap.set(product.id, product);
+        });
+        
+        setProducts(productMap);
       } catch (error) {
-        console.error('Error validating inventory:', error);
-        setInventoryValidation({ isValid: false, unavailableItems: [] });
+        console.error('Error loading products:', error);
       } finally {
-        setIsValidating(false);
+        setIsLoadingProducts(false);
       }
     };
 
-    checkInventory();
-  }, [validateInventory]);
+    loadProducts();
+  }, [items]);
 
   const formatAddress = (address: Partial<Address>) => {
     const parts = [
@@ -63,33 +72,25 @@ export function OrderReview({
   };
 
   const handlePlaceOrder = async () => {
-    // Final inventory check before placing order
-    const finalValidation = await validateInventory();
-    if (!finalValidation.isValid) {
-      setInventoryValidation(finalValidation);
-      return;
-    }
-
     await onPlaceOrder();
   };
 
-  const handlePaymentSuccess = (orderId: string, paymentId: string) => {
-    console.log('Payment successful:', { orderId, paymentId });
-    setPaymentError(null);
-    // The PaymentButton component handles navigation to order confirmation
+  const handlePaymentSuccess = (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => {
+    console.log('Payment successful:', { orderId, paymentId, confirmationNumber, paymentMethod });
+    onSuccess?.(orderId, paymentId, confirmationNumber, paymentMethod);
   };
 
   const handlePaymentError = (error: string) => {
     console.error('Payment error:', error);
-    setPaymentError(error);
+    onError?.(error);
   };
 
-  if (isValidating) {
+  if (isLoadingProducts) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Validating order...</span>
+          <span className="ml-3 text-gray-600">Loading order details...</span>
         </div>
       </div>
     );
@@ -97,98 +98,6 @@ export function OrderReview({
 
   return (
     <div className="space-y-6">
-      {/* Inventory validation errors */}
-      {inventoryValidation && !inventoryValidation.isValid && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Some items are no longer available
-              </h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>Please remove the unavailable items from your cart and try again.</p>
-                {inventoryValidation.unavailableItems.length > 0 && (
-                  <ul className="mt-2 list-disc list-inside">
-                    {inventoryValidation.unavailableItems.map((item, index) => (
-                      <li key={index}>Product {item.productId}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Order Items */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Items</h2>
-        
-        <div className="space-y-4">
-          {items.map((item, index) => {
-            // Mock product names for UI development
-            const productNames = [
-              'Fine Chain Necklace 22"',
-              'December Birthstone Locket',
-              'Silver Chain Bracelet'
-            ];
-            
-            return (
-              <div key={item.id} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
-                <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md"></div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-gray-900">
-                    {productNames[index] || `Product ${item.productId}`}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    Quantity: {item.quantity}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Unit Price: ₹{item.unitPrice.toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-sm font-medium text-gray-900">
-                  ₹{item.totalPrice.toLocaleString()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Order totals */}
-        <div className="border-t border-gray-200 mt-6 pt-6 space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="text-gray-900">₹{cart.subtotal.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Tax (GST 18%)</span>
-            <span className="text-gray-900">₹{cart.estimatedTax.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Shipping</span>
-            <span className="text-gray-900">
-              {cart.estimatedShipping === 0 ? (
-                <span className="text-green-600">Free</span>
-              ) : (
-                `₹${cart.estimatedShipping.toLocaleString()}`
-              )}
-            </span>
-          </div>
-          <div className="border-t border-gray-200 pt-3">
-            <div className="flex justify-between text-lg font-semibold">
-              <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">₹{cart.estimatedTotal.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Shipping Address */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping Address</h2>
@@ -205,25 +114,63 @@ export function OrderReview({
         </div>
       </div>
 
-      {/* Payment Information */}
+      {/* Payment Method */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Method</h2>
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-12 h-8 bg-black rounded flex items-center justify-center">
-              <span className="text-white text-xs font-bold">RAZORPAY</span>
+        
+        <div className="space-y-3">
+          {/* Razorpay Option */}
+          <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="razorpay"
+              checked={selectedPaymentMethod === 'razorpay'}
+              onChange={(e) => setSelectedPaymentMethod(e.target.value as 'razorpay')}
+              className="h-4 w-4 text-black focus:ring-black border-gray-300"
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Pay Online</p>
+                  <p className="text-xs text-gray-500">Credit Card, Debit Card, Net Banking, UPI, Wallets</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-5 bg-black rounded flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">RP</span>
+                  </div>
+                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              </div>
             </div>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-900">Razorpay Secure Payment</p>
-            <p className="text-xs text-gray-500">
-              Credit Card, Debit Card, Net Banking, UPI, Wallets
-            </p>
-          </div>
-        </div>
-        <div className="mt-4 text-xs text-gray-500">
-          <p>Your payment information will be processed securely by Razorpay.</p>
-          <p>We do not store your payment details on our servers.</p>
+          </label>
+
+          {/* Cash on Delivery Option */}
+          <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cash_on_delivery"
+              checked={selectedPaymentMethod === 'cash_on_delivery'}
+              onChange={(e) => setSelectedPaymentMethod(e.target.value as 'cash_on_delivery')}
+              className="h-4 w-4 text-black focus:ring-black border-gray-300"
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Cash on Delivery</p>
+                  <p className="text-xs text-gray-500">Pay when your order is delivered</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </label>
         </div>
       </div>
 
@@ -250,26 +197,16 @@ export function OrderReview({
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-col sm:flex-row gap-4 pt-6">
-        {/* <button
-          type="button"
-          onClick={onBack}
-          disabled={isProcessing || paymentProcessing}
-          className="w-full sm:w-48 bg-white border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-lg font-medium text-lg hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          ← Back
-        </button> */}
-        
-        <div className="flex-1 sm:max-w-md">
-          <PaymentButton
-            shippingAddress={shippingAddress}
-            billingAddress={billingAddress}
-            isProcessing={paymentProcessing}
-            onProcessingChange={setPaymentProcessing}
-            onSuccess={handlePaymentSuccess}
-            onError={handlePaymentError}
-          />
-        </div>
+      <div className="pt-6">
+        <PaymentButton
+          shippingAddress={shippingAddress}
+          billingAddress={billingAddress}
+          isProcessing={paymentProcessing}
+          onProcessingChange={setPaymentProcessing}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+          selectedPaymentMethod={selectedPaymentMethod}
+        />
       </div>
     </div>
   );

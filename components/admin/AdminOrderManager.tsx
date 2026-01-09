@@ -285,16 +285,14 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
 
 export default function AdminOrderManager({ className = '' }: AdminOrderManagerProps) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [analytics, setAnalytics] = useState<OrderAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<'processing' | 'shipped' | 'delivered' | 'cancelled' | ''>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Filters
   const [filters, setFilters] = useState<OrderFilters>({});
@@ -333,41 +331,17 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
       setTotalCount(result.totalCount);
       setFilters(currentFilters);
     } catch (err) {
-      console.error('Error loading orders:', err);
+      console.error('❌ Error loading orders:', err);
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
       setLoading(false);
     }
   };
 
-  // Load analytics
-  const loadAnalytics = async () => {
-    try {
-      setAnalyticsLoading(true);
-      const result = await AdminOrderService.getOrderAnalytics(
-        dateFrom || undefined,
-        dateTo || undefined
-      );
-      
-      if (result.errors) {
-        throw new Error(result.errors[0].message);
-      }
-      
-      setAnalytics(result.analytics);
-    } catch (err) {
-      console.error('Error loading analytics:', err);
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
+  // Load orders on mount and when dependencies change
   useEffect(() => {
     loadOrders();
-  }, [currentPage]);
-
-  useEffect(() => {
-    loadAnalytics();
-  }, [dateFrom, dateTo]);
+  }, [currentPage, searchQuery, statusFilter, dateFrom, dateTo, minAmount, maxAmount]);
 
   // Handle order update
   const handleOrderUpdate = async (orderId: string, updateData: OrderUpdateData) => {
@@ -381,7 +355,6 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
       
       // Refresh orders list
       await loadOrders();
-      await loadAnalytics();
     } catch (err) {
       console.error('Error updating order:', err);
       setError(err instanceof Error ? err.message : 'Failed to update order');
@@ -406,7 +379,6 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
       setSelectedOrders(new Set());
       setBulkAction('');
       await loadOrders();
-      await loadAnalytics();
     } catch (err) {
       console.error('Error performing bulk action:', err);
       setError(err instanceof Error ? err.message : 'Failed to perform bulk action');
@@ -448,7 +420,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
     setMinAmount('');
     setMaxAmount('');
     setCurrentPage(1);
-    setTimeout(loadOrders, 100);
+    // Will trigger useEffect to reload
   };
 
   const getStatusColor = (status: Order['status']) => {
@@ -474,22 +446,18 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span>{showAnalytics ? 'Hide Analytics' : 'Show Analytics'}</span>
-          </button>
-          <button
-            onClick={loadOrders}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
+            onClick={async () => {
+              setIsRefreshing(true);
+              await loadOrders();
+              setIsRefreshing(false);
+            }}
+            disabled={loading || isRefreshing}
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            <span>Refresh</span>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
@@ -509,110 +477,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
       )}
 
       {/* Analytics Dashboard */}
-      {showAnalytics && (
-        <PermissionGate resource="admin/orders" action="read">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Analytics</h2>
-            
-            {analyticsLoading ? (
-              <div className="flex justify-center items-center py-8">
-                <LoadingSpinner />
-              </div>
-            ) : analytics ? (
-              <div className="space-y-6">
-                {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 p-2 bg-blue-100 rounded-lg">
-                        <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-blue-600">Total Orders</p>
-                        <p className="text-2xl font-semibold text-blue-900">{analytics.totalOrders}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 p-2 bg-green-100 rounded-lg">
-                        <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-green-600">Total Revenue</p>
-                        <p className="text-2xl font-semibold text-green-900">₹{analytics.totalRevenue.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 p-2 bg-purple-100 rounded-lg">
-                        <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-purple-600">Avg Order Value</p>
-                        <p className="text-2xl font-semibold text-purple-900">₹{Math.round(analytics.averageOrderValue).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 p-2 bg-yellow-100 rounded-lg">
-                        <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-yellow-600">Pending Orders</p>
-                        <p className="text-2xl font-semibold text-yellow-900">{analytics.ordersByStatus.pending}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Orders by Status */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-md font-medium text-gray-900 mb-3">Orders by Status</h3>
-                    <div className="space-y-2">
-                      {Object.entries(analytics.ordersByStatus).map(([status, count]) => (
-                        <div key={status} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
-                          <span className="text-sm font-medium text-gray-700 capitalize">{status}</span>
-                          <span className="text-sm font-semibold text-gray-900">{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-md font-medium text-gray-900 mb-3">Top Products</h3>
-                    <div className="space-y-2">
-                      {analytics.topProducts.slice(0, 5).map((product) => (
-                        <div key={product.productId} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{product.productName}</p>
-                            <p className="text-xs text-gray-600">{product.totalQuantity} sold</p>
-                          </div>
-                          <span className="text-sm font-semibold text-gray-900">₹{product.totalRevenue.toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </PermissionGate>
-      )}
+      {/* Analytics removed as requested */}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -774,6 +639,9 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Items
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -815,10 +683,37 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
                         </div>
                         <div className="text-sm text-gray-500">{order.customerId}</div>
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {order.items && order.items.length > 0 ? (
+                            <div>
+                              <div className="font-medium">
+                                {order.items.length} item{order.items.length > 1 ? 's' : ''}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {order.items.slice(0, 2).map((item, index) => (
+                                  <div key={item.id}>
+                                    {item.productName} (×{item.quantity})
+                                  </div>
+                                ))}
+                                {order.items.length > 2 && (
+                                  <div className="text-blue-600">
+                                    +{order.items.length - 2} more...
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">No items</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                          {order.status}
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                            {order.status}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         ₹{order.totalAmount.toLocaleString()}

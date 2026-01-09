@@ -87,8 +87,6 @@ export class AdminCustomerService {
     nextToken?: string
   ) {
     try {
-      console.log('Customer search requested:', { filters, limit, nextToken });
-      
       // Return empty results since we don't store user profiles
       return {
         customers: [],

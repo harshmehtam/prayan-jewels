@@ -1,6 +1,8 @@
 // Admin order management service
 import { Order, OrderItem } from '@/types';
-import { OrderService } from '@/lib/data/orders';
+import { OrderService } from '@/lib/services/order-service';
+import { EmailService } from '@/lib/services/email';
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 
 export interface OrderFilters {
   status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -45,6 +47,90 @@ export interface OrderUpdateData {
 }
 
 export class AdminOrderService {
+  // Initialize SNS client for SMS
+  private static getSNSClient() {
+    return new SNSClient({
+      region: process.env.AWS_REGION || 'ap-south-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      },
+    });
+  }
+
+  // Send SMS using AWS SNS
+  private static async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
+    try {
+      // Format phone number for international format
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      const formattedPhone = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
+
+      const snsClient = this.getSNSClient();
+      const command = new PublishCommand({
+        PhoneNumber: formattedPhone,
+        Message: message,
+      });
+
+      const result = await snsClient.send(command);
+      console.log('✅ SMS sent successfully:', result.MessageId);
+      return true;
+    } catch (error) {
+      console.error('❌ Error sending SMS:', error);
+      return false;
+    }
+  }
+
+  // Send notifications when order is shipped
+  private static async sendShippedNotifications(
+    order: Order, 
+    trackingNumber?: string, 
+    estimatedDelivery?: string
+  ): Promise<void> {
+    try {
+      // Send email notification if customer has email
+      if (order.customerEmail) {
+        try {
+          const estimatedDeliveryDate = estimatedDelivery ? new Date(estimatedDelivery) : undefined;
+          await EmailService.sendOrderShippingEmail(
+            order.customerEmail,
+            order.id,
+            order.confirmationNumber || order.id,
+            trackingNumber,
+            estimatedDeliveryDate
+          );
+          console.log('✅ Shipped notification email sent to:', order.customerEmail);
+        } catch (emailError) {
+          console.error('❌ Failed to send shipped notification email:', emailError);
+        }
+      }
+
+      // Send SMS notification if customer has phone number
+      if (order.customerPhone) {
+        try {
+          let smsMessage = `Order Shipped! 📦 Your order #${order.confirmationNumber || order.id} is on its way.`;
+          
+          if (trackingNumber) {
+            smsMessage += ` Tracking: ${trackingNumber}.`;
+          }
+          
+          if (estimatedDelivery) {
+            const deliveryDate = new Date(estimatedDelivery);
+            smsMessage += ` Expected delivery: ${deliveryDate.toLocaleDateString('en-IN')}.`;
+          }
+          
+          smsMessage += ' Thank you for shopping with us!';
+          
+          await this.sendSMS(order.customerPhone, smsMessage);
+          console.log('✅ Shipped notification SMS sent to:', order.customerPhone);
+        } catch (smsError) {
+          console.error('❌ Failed to send shipped notification SMS:', smsError);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error sending shipped notifications:', error);
+      // Don't throw error for notification failures
+    }
+  }
   // Get all orders with filtering and pagination
   static async getOrders(
     filters: OrderFilters = {},
@@ -133,7 +219,7 @@ export class AdminOrderService {
   static async getOrderById(orderId: string): Promise<{ order: Order | null; errors?: any }> {
     try {
       const result = await OrderService.getOrder(orderId);
-      return result;
+      return result as { order: Order | null; errors?: any };
     } catch (error) {
       console.error('Error getting order:', error);
       return {
@@ -152,17 +238,24 @@ export class AdminOrderService {
       if (updateData.status) {
         const result = await OrderService.updateOrderStatus(orderId, updateData.status);
         
+        // If updating to shipped status, send notifications
+        if (updateData.status === 'shipped' && result.order) {
+          // Cast the order to our Order type for notification purposes
+          const orderForNotification = result.order as any as Order;
+          await this.sendShippedNotifications(orderForNotification, updateData.trackingNumber, updateData.estimatedDelivery);
+        }
+        
         // If updating to shipped status and tracking number provided
         if (updateData.status === 'shipped' && updateData.trackingNumber) {
           await OrderService.addTrackingInfo(orderId, updateData.trackingNumber, updateData.estimatedDelivery);
         }
         
-        return result;
+        return result as { order: Order | null; errors?: any };
       }
 
       // For other updates, get the current order
       const result = await OrderService.getOrder(orderId);
-      return result;
+      return result as { order: Order | null; errors?: any };
     } catch (error) {
       console.error('Error updating order:', error);
       return {

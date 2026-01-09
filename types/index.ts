@@ -40,6 +40,8 @@ export interface Address {
   type: 'shipping' | 'billing' | null;
   firstName: string;
   lastName: string;
+  email?: string; // Optional email for order confirmations
+  phone?: string; // Optional phone for SMS notifications
   addressLine1: string;
   addressLine2?: string | null;
   city: string;
@@ -81,13 +83,18 @@ export interface CartItem {
 export interface Order {
   id: string;
   customerId: string;
+  customerEmail: string;
+  customerPhone: string;
   subtotal: number;
   tax: number | null;
   shipping: number | null;
   totalAmount: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | null;
+  paymentMethod: 'razorpay' | 'cash_on_delivery' | null;
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | null;
   confirmationNumber?: string | null; // Unique order confirmation number
   paymentOrderId?: string | null; // Razorpay order ID
+  paymentId?: string | null; // Razorpay payment ID
   trackingNumber?: string | null;
   estimatedDelivery?: string | null;
   shippingFirstName: string;

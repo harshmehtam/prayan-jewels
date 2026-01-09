@@ -1,15 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { addressService, type SavedAddress } from '@/lib/services/address-service';
+import { addressService, type SavedAddress, type AddressInput } from '@/lib/services/address-service';
 import { useRouter } from 'next/navigation';
+import { AddressForm } from '@/components/checkout/AddressForm';
+import type { Address } from '@/types';
 
 export default function AddressesPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingAddress, setEditingAddress] = useState<SavedAddress | null>(null);
+  const [addingAddressType, setAddingAddressType] = useState<'shipping' | 'billing' | null>(null);
+  const [isFormLoading, setIsFormLoading] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -64,6 +69,77 @@ export default function AddressesPage() {
     }
   };
 
+  const handleEditAddress = (address: SavedAddress) => {
+    setEditingAddress(address);
+  };
+
+  const handleUpdateAddress = async (addressData: Partial<Address>) => {
+    if (!editingAddress) return;
+
+    setIsFormLoading(true);
+    try {
+      // Convert Address to AddressInput format
+      const updateData: Partial<AddressInput> = {
+        type: addressData.type as 'shipping' | 'billing',
+        firstName: addressData.firstName,
+        lastName: addressData.lastName,
+        addressLine1: addressData.addressLine1,
+        addressLine2: addressData.addressLine2 || undefined,
+        city: addressData.city,
+        state: addressData.state,
+        postalCode: addressData.postalCode,
+        country: addressData.country,
+        isDefault: addressData.isDefault || undefined,
+      };
+
+      const success = await addressService.updateAddress(editingAddress.id, updateData);
+      if (success) {
+        await loadAddresses();
+        setEditingAddress(null);
+      }
+    } catch (error) {
+      console.error('Error updating address:', error);
+    } finally {
+      setIsFormLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAddress(null);
+    setAddingAddressType(null);
+  };
+
+  const handleSaveNewAddress = async (addressData: Partial<Address>) => {
+    if (!user?.userId) return;
+
+    setIsFormLoading(true);
+    try {
+      // Convert Address to AddressInput format
+      const addressInput: AddressInput = {
+        type: addressData.type as 'shipping' | 'billing',
+        firstName: addressData.firstName!,
+        lastName: addressData.lastName!,
+        addressLine1: addressData.addressLine1!,
+        addressLine2: addressData.addressLine2 || undefined,
+        city: addressData.city!,
+        state: addressData.state!,
+        postalCode: addressData.postalCode!,
+        country: addressData.country!,
+        isDefault: addressData.isDefault || false,
+      };
+
+      const success = await addressService.saveAddress(user.userId, addressInput);
+      if (success) {
+        await loadAddresses();
+        setAddingAddressType(null);
+      }
+    } catch (error) {
+      console.error('Error saving new address:', error);
+    } finally {
+      setIsFormLoading(false);
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -92,9 +168,17 @@ export default function AddressesPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Shipping Addresses */}
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Shipping Addresses ({shippingAddresses.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Shipping Addresses ({shippingAddresses.length})
+              </h2>
+              <button
+                onClick={() => setAddingAddressType('shipping')}
+                className="px-3 py-1.5 bg-black text-white text-sm rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+              >
+                Add New
+              </button>
+            </div>
             
             <div className="space-y-4">
               {shippingAddresses.length > 0 ? (
@@ -126,6 +210,12 @@ export default function AddressesPage() {
                       </div>
 
                       <div className="flex flex-col space-y-2">
+                        <button
+                          onClick={() => handleEditAddress(address)}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Edit
+                        </button>
                         {!address.isDefault && (
                           <button
                             onClick={() => handleSetDefault(address.id, 'shipping')}
@@ -157,9 +247,17 @@ export default function AddressesPage() {
 
           {/* Billing Addresses */}
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Billing Addresses ({billingAddresses.length})
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Billing Addresses ({billingAddresses.length})
+              </h2>
+              <button
+                onClick={() => setAddingAddressType('billing')}
+                className="px-3 py-1.5 bg-black text-white text-sm rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
+              >
+                Add New
+              </button>
+            </div>
             
             <div className="space-y-4">
               {billingAddresses.length > 0 ? (
@@ -191,6 +289,12 @@ export default function AddressesPage() {
                       </div>
 
                       <div className="flex flex-col space-y-2">
+                        <button
+                          onClick={() => handleEditAddress(address)}
+                          className="text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          Edit
+                        </button>
                         {!address.isDefault && (
                           <button
                             onClick={() => handleSetDefault(address.id, 'billing')}
@@ -222,7 +326,7 @@ export default function AddressesPage() {
         </div>
 
         {/* Summary */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        {/* <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <svg className="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -238,7 +342,50 @@ export default function AddressesPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div> */}
+
+        {/* Address Form Modal */}
+        {(editingAddress || addingAddressType) && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {editingAddress ? 'Edit' : 'Add'} {editingAddress?.type || addingAddressType} Address
+                  </h2>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="text-gray-400 hover:text-gray-600"
+                    disabled={isFormLoading}
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="max-h-[70vh] overflow-y-auto">
+                  <AddressForm
+                    type={editingAddress?.type || addingAddressType!}
+                    onSubmit={editingAddress ? handleUpdateAddress : handleSaveNewAddress}
+                    editingAddress={editingAddress}
+                    initialData={editingAddress ? {
+                      firstName: editingAddress.firstName,
+                      lastName: editingAddress.lastName,
+                      addressLine1: editingAddress.addressLine1,
+                      addressLine2: editingAddress.addressLine2 || undefined,
+                      city: editingAddress.city,
+                      state: editingAddress.state,
+                      postalCode: editingAddress.postalCode,
+                      country: editingAddress.country,
+                      isDefault: editingAddress.isDefault || undefined,
+                    } : undefined}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

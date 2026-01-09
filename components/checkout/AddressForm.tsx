@@ -14,12 +14,14 @@ interface AddressFormProps {
   sameAsShipping?: boolean;
   onSameAsShippingChange?: (same: boolean) => void;
   initialData?: Partial<Address> | null;
+  editingAddress?: SavedAddress | null;
 }
 
 interface FormData {
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -36,6 +38,7 @@ const initialFormData: FormData = {
   firstName: '',
   lastName: '',
   email: '',
+  phone: '',
   addressLine1: '',
   addressLine2: '',
   city: '',
@@ -54,19 +57,24 @@ const indianStates = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];
 
-export function AddressForm({ 
+export function   AddressForm({ 
   type,
   onSubmit, 
   onBack,
   sameAsShipping, 
   onSameAsShippingChange, 
-  initialData 
+  initialData,
+  editingAddress
 }: AddressFormProps) {
   const { user } = useAuth();
   const [showAddressSelector, setShowAddressSelector] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
+  const [previouslySelectedAddress, setPreviouslySelectedAddress] = useState<SavedAddress | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saveAddress, setSaveAddress] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [hasMatchingBillingAddress, setHasMatchingBillingAddress] = useState(false);
   
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -78,7 +86,25 @@ export function AddressForm({
 
   // Initialize form based on user authentication status
   useEffect(() => {
-    if (!user) {
+    if (editingAddress) {
+      // If editing an address, show form directly with the address data
+      setShowAddressSelector(false);
+      setShowForm(true);
+      setIsEditing(true);
+      const editFormData = {
+        firstName: editingAddress.firstName || '',
+        lastName: editingAddress.lastName || '',
+        email: editingAddress.email || '', // Load email from saved address
+        phone: (editingAddress as any).phone || '', // Load phone from saved address
+        addressLine1: editingAddress.addressLine1 || '',
+        addressLine2: editingAddress.addressLine2 || '',
+        city: editingAddress.city || '',
+        state: editingAddress.state || '',
+        postalCode: editingAddress.postalCode || '',
+        country: editingAddress.country || 'India',
+      };
+      setFormData(editFormData);
+    } else if (!user) {
       // Guest user - show form directly
       setShowAddressSelector(false);
       setShowForm(true);
@@ -87,7 +113,7 @@ export function AddressForm({
       setShowAddressSelector(true);
       setShowForm(false);
     }
-  }, [user]);
+  }, [user?.userId, editingAddress?.id]); // More specific dependencies
 
   // Load initial data
   useEffect(() => {
@@ -96,6 +122,7 @@ export function AddressForm({
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
         email: (initialData as any).email || '',
+        phone: (initialData as any).phone || '',
         addressLine1: initialData.addressLine1 || '',
         addressLine2: initialData.addressLine2 || '',
         city: initialData.city || '',
@@ -170,9 +197,63 @@ export function AddressForm({
   const handleNewAddress = () => {
     setSelectedAddress(null);
     setShowForm(true);
+    setIsEditing(false);
     setFormData(initialFormData);
     setTouchedFields(new Set()); // Reset touched fields
     setErrors({}); // Reset errors
+  };
+
+  const handleEditAddress = (address: SavedAddress) => {
+    setPreviouslySelectedAddress(selectedAddress); // Remember the currently selected address
+    setSelectedAddress(null);
+    setShowForm(true);
+    setIsEditing(true);
+    setEditingAddressId(address.id);
+    
+    // Check if this address already exists as a billing address
+    checkForMatchingBillingAddress(address);
+    
+    const editFormData = {
+      firstName: address.firstName || '',
+      lastName: address.lastName || '',
+      email: address.email || '', // Load email from saved address
+      phone: (address as any).phone || '', // Load phone from saved address
+      addressLine1: address.addressLine1 || '',
+      addressLine2: address.addressLine2 || '',
+      city: address.city || '',
+      state: address.state || '',
+      postalCode: address.postalCode || '',
+      country: address.country || 'India',
+    };
+    setFormData(editFormData);
+    setTouchedFields(new Set()); // Reset touched fields
+    setErrors({}); // Reset errors
+  };
+
+  const checkForMatchingBillingAddress = async (shippingAddress: SavedAddress) => {
+    if (!user?.userId) {
+      setHasMatchingBillingAddress(false);
+      return;
+    }
+
+    try {
+      const billingAddresses = await addressService.getUserAddressesByType(user.userId, 'billing');
+      
+      // Check if any billing address matches this shipping address
+      const hasMatch = billingAddresses.some(billingAddr => 
+        billingAddr.addressLine1 === shippingAddress.addressLine1 &&
+        billingAddr.city === shippingAddress.city &&
+        billingAddr.state === shippingAddress.state &&
+        billingAddr.postalCode === shippingAddress.postalCode &&
+        billingAddr.firstName === shippingAddress.firstName &&
+        billingAddr.lastName === shippingAddress.lastName
+      );
+      
+      setHasMatchingBillingAddress(hasMatch);
+    } catch (error) {
+      console.error('Error checking for matching billing address:', error);
+      setHasMatchingBillingAddress(false);
+    }
   };
 
   const handleUseSelectedAddress = () => {
@@ -200,6 +281,10 @@ export function AddressForm({
     if (name === 'postalCode') {
       // Only allow digits and limit to 6 characters
       const numericValue = value.replace(/\D/g, '').slice(0, 6);
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else if (name === 'phone') {
+      // Only allow digits and limit to 10 characters
+      const numericValue = value.replace(/\D/g, '').slice(0, 10);
       setFormData(prev => ({ ...prev, [name]: numericValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -259,6 +344,18 @@ export function AddressForm({
             newErrors.email = 'Please enter a valid email address';
           } else {
             delete newErrors.email;
+          }
+        }
+        break;
+
+      case 'phone':
+        if (type === 'shipping') { // Only validate phone for shipping form
+          if (!value.trim()) {
+            newErrors.phone = 'Phone number is required';
+          } else if (!/^[6-9]\d{9}$/.test(value.replace(/\D/g, ''))) {
+            newErrors.phone = 'Please enter a valid 10-digit Indian mobile number';
+          } else {
+            delete newErrors.phone;
           }
         }
         break;
@@ -346,6 +443,15 @@ export function AddressForm({
       }
     }
 
+    // Phone validation (only for shipping)
+    if (type === 'shipping') {
+      if (!formData.phone.trim()) {
+        newErrors.phone = 'Phone number is required';
+      } else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\D/g, ''))) {
+        newErrors.phone = 'Please enter a valid 10-digit Indian mobile number';
+      }
+    }
+
     // Address validation
     if (!formData.addressLine1.trim()) {
       newErrors.addressLine1 = 'Address is required';
@@ -417,8 +523,9 @@ export function AddressForm({
         postalCode: formData.postalCode.trim(),
         country: formData.country.trim(),
         isDefault: false,
-        // Add email for guest checkout (shipping only)
+        // Add email and phone for shipping addresses (needed for order confirmation and SMS)
         ...(type === 'shipping' && formData.email && { email: formData.email.trim() }),
+        ...(type === 'shipping' && formData.phone && { phone: formData.phone.trim() }),
       };
 
       // Save address for logged-in users if requested
@@ -427,6 +534,8 @@ export function AddressForm({
           type: type,
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
+          email: type === 'shipping' ? formData.email.trim() : undefined, // Only save email for shipping addresses
+          phone: type === 'shipping' ? formData.phone.trim() : undefined, // Only save phone for shipping addresses
           addressLine1: formData.addressLine1.trim(),
           addressLine2: formData.addressLine2.trim() || undefined,
           city: formData.city.trim(),
@@ -464,28 +573,61 @@ export function AddressForm({
             type={type}
             onAddressSelect={handleAddressSelect}
             onNewAddress={handleNewAddress}
+            onEditAddress={handleEditAddress}
             selectedAddressId={selectedAddress?.id}
           />
           
+          {/* Continue button - show when address is selected */}
           {selectedAddress && (
-            <div className="mt-4 flex justify-between">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                >
-                  Back to {type === 'billing' ? 'Shipping' : 'Cart'}
-                </button>
+            <div className="mt-4">
+              {/* Same as shipping checkbox for shipping addresses */}
+              {type === 'shipping' && onSameAsShippingChange && (
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-start">
+                    <input
+                      id="sameAsShipping"
+                      type="checkbox"
+                      checked={sameAsShipping || false}
+                      onChange={(e) => onSameAsShippingChange(e.target.checked)}
+                      className="h-4 w-4 text-black focus:ring-black border-gray-300 rounded mt-1"
+                    />
+                    <div className="ml-3">
+                      <label htmlFor="sameAsShipping" className="block text-sm font-medium text-gray-700">
+                        Use this address for billing
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {sameAsShipping 
+                          ? "Your billing address will be the same as your shipping address" 
+                          : "You'll be asked to enter a separate billing address on the next step"
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
-              <button
-                onClick={handleUseSelectedAddress}
-                className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
-              >
-                {type === 'shipping' 
-                  ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
-                  : 'Review Order'
-                }
-              </button>
+              
+              <div className="flex justify-end">
+                <div className="flex space-x-4">
+                  {onBack && (
+                    <button
+                      onClick={onBack}
+                      className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                    >
+                      Back to {type === 'billing' ? 'Shipping' : 'Cart'}
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={handleUseSelectedAddress}
+                    className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 transition-colors"
+                  >
+                    {type === 'shipping' 
+                      ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
+                      : 'Review Order'
+                    }
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -496,9 +638,11 @@ export function AddressForm({
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
-              {user && selectedAddress === null 
-                ? `Add New ${type === 'shipping' ? 'Shipping' : 'Billing'} Address` 
-                : `${type === 'shipping' ? 'Shipping' : 'Billing'} Address`
+              {isEditing 
+                ? `Edit ${type === 'shipping' ? 'Shipping' : 'Billing'} Address`
+                : user && selectedAddress === null 
+                  ? `Add New ${type === 'shipping' ? 'Shipping' : 'Billing'} Address` 
+                  : `${type === 'shipping' ? 'Shipping' : 'Billing'} Address`
               }
             </h2>
             {user && showAddressSelector && (
@@ -506,6 +650,14 @@ export function AddressForm({
                 onClick={() => {
                   setShowForm(false);
                   setShowAddressSelector(true);
+                  setIsEditing(false);
+                  setEditingAddressId(null);
+                  setHasMatchingBillingAddress(false);
+                  // Restore the previously selected address if we were editing
+                  if (isEditing && previouslySelectedAddress) {
+                    setSelectedAddress(previouslySelectedAddress);
+                    setPreviouslySelectedAddress(null);
+                  }
                 }}
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
@@ -560,7 +712,7 @@ export function AddressForm({
               </div>
             </div>
 
-            {/* Email field for shipping form only */}
+            {/* Email field for shipping form only - required for order confirmation */}
             {type === 'shipping' && (
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
@@ -582,7 +734,35 @@ export function AddressForm({
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  We'll send your order confirmation to this email address
+                  We'll send your order confirmation and updates to this email address
+                </p>
+              </div>
+            )}
+
+            {/* Phone field for shipping form only - required for SMS notifications */}
+            {type === 'shipping' && (
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  onBlur={() => handleFieldBlur('phone')}
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
+                    touchedFields.has('phone') && errors.phone ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your 10-digit mobile number"
+                  maxLength={10}
+                />
+                {touchedFields.has('phone') && errors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  We'll send you SMS updates about your order status and delivery
                 </p>
               </div>
             )}
@@ -751,8 +931,8 @@ export function AddressForm({
               )}
             </div>
 
-            {/* Save address option for logged-in users */}
-            {user && (
+            {/* Save address option for logged-in users - only show when not editing */}
+            {user && !isEditing && (
               <div className="border-t border-gray-200 pt-6">
                 <div className="flex items-start">
                   <input
@@ -790,10 +970,13 @@ export function AddressForm({
                       Use this address for billing
                     </label>
                     <p className="text-xs text-gray-500 mt-1">
-                      {sameAsShipping 
-                        ? "Your billing address will be the same as your shipping address" 
-                        : "You'll be asked to enter a separate billing address on the next step"
-                      }
+                      {isEditing && hasMatchingBillingAddress ? (
+                        "You already have this address saved as a billing address"
+                      ) : sameAsShipping ? (
+                        "Your billing address will be the same as your shipping address" 
+                      ) : (
+                        "You'll be asked to enter a separate billing address on the next step"
+                      )}
                     </p>
                   </div>
                 </div>
@@ -801,29 +984,31 @@ export function AddressForm({
             )}
 
             {/* Submit button */}
-            <div className="flex justify-between pt-6">
-              {onBack && (
+            <div className="flex justify-end pt-6">
+              <div className="flex space-x-4">
+                {onBack && (
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Back to {type === 'billing' ? 'Shipping' : 'Cart'}
+                  </button>
+                )}
+                
                 <button
-                  type="button"
-                  onClick={onBack}
-                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  type="submit"
+                  disabled={isSubmitting || isPincodeValidating || !isFormValid}
+                  className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Back to {type === 'billing' ? 'Shipping' : 'Cart'}
+                  {isSubmitting ? 'Processing...' : 
+                   isPincodeValidating ? 'Validating...' :
+                   type === 'shipping' 
+                     ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
+                     : 'Review Order'
+                  }
                 </button>
-              )}
-              
-              <button
-                type="submit"
-                disabled={isSubmitting || isPincodeValidating || !isFormValid}
-                className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isSubmitting ? 'Processing...' : 
-                 isPincodeValidating ? 'Validating...' :
-                 type === 'shipping' 
-                   ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
-                   : 'Review Order'
-                }
-              </button>
+              </div>
             </div>
           </form>
         </div>

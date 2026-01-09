@@ -7,6 +7,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 // Define user profile type based on Cognito attributes
 interface AuthUserProfile {
   userId: string;
+  email?: string;
   phone?: string;
   firstName?: string; // givenName
   lastName?: string;  // familyName
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     return {
       userId: user.userId,
+      email: attributes.email,
       phone: attributes.phone_number || user.username,
       firstName: attributes.given_name,
       lastName: attributes.family_name,

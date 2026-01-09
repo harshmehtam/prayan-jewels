@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { addressService, type SavedAddress } from '@/lib/services/address-service';
 import { useAuth } from '@/components/providers/auth-provider';
 
@@ -8,6 +8,7 @@ interface AddressSelectorProps {
   type: 'shipping' | 'billing';
   onAddressSelect: (address: SavedAddress | null) => void;
   onNewAddress: () => void;
+  onEditAddress?: (address: SavedAddress) => void;
   selectedAddressId?: string | null;
 }
 
@@ -15,6 +16,7 @@ export function AddressSelector({
   type, 
   onAddressSelect, 
   onNewAddress, 
+  onEditAddress,
   selectedAddressId 
 }: AddressSelectorProps) {
   const { user } = useAuth();
@@ -22,34 +24,38 @@ export function AddressSelector({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(selectedAddressId || null);
 
-  useEffect(() => {
-    if (user?.userId) {
-      loadAddresses();
-    }
-  }, [user?.userId, type]);
-
   const loadAddresses = async () => {
-    if (!user?.userId) return;
+    if (!user?.userId) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
+    
     try {
       const userAddresses = await addressService.getUserAddressesByType(user.userId, type);
       setAddresses(userAddresses);
 
       // Auto-select default address if no address is currently selected
-      if (!selectedId) {
-        const defaultAddress = userAddresses.find(addr => addr.isDefault);
-        if (defaultAddress) {
-          setSelectedId(defaultAddress.id);
-          onAddressSelect(defaultAddress);
-        }
+      if (!selectedId && userAddresses.length > 0) {
+        const defaultAddress = userAddresses.find(addr => addr.isDefault) || userAddresses[0];
+        setSelectedId(defaultAddress.id);
+        onAddressSelect(defaultAddress);
       }
     } catch (error) {
-      console.error('Error loading addresses:', error);
+      console.error(`Error loading ${type} addresses:`, error);
+      setAddresses([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Load addresses when component mounts or type changes
+  useEffect(() => {
+    setAddresses([]);
+    setSelectedId(null);
+    loadAddresses();
+  }, [type, user?.userId]);
 
   const handleAddressSelect = (address: SavedAddress) => {
     setSelectedId(address.id);
@@ -72,10 +78,8 @@ export function AddressSelector({
     try {
       const success = await addressService.deleteAddress(addressId);
       if (success) {
-        // Reload addresses
         await loadAddresses();
         
-        // If the deleted address was selected, clear selection
         if (selectedId === addressId) {
           setSelectedId(null);
           onAddressSelect(null);
@@ -179,6 +183,18 @@ export function AddressSelector({
                         Set Default
                       </button>
                     )}
+                    {onEditAddress && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditAddress(address);
+                        }}
+                        className="text-xs text-gray-600 hover:text-gray-800"
+                        title="Edit address"
+                      >
+                        Edit
+                      </button>
+                    )}
                     <button
                       onClick={(e) => handleDeleteAddress(address.id, e)}
                       className="text-xs text-red-600 hover:text-red-800"
@@ -223,7 +239,7 @@ export function AddressSelector({
 
         {addresses.length === 0 && (
           <p className="text-sm text-gray-500 text-center py-4">
-            No saved addresses found. Add your first {type} address below.
+            No saved {type} addresses found. Add your first {type} address below.
           </p>
         )}
       </div>

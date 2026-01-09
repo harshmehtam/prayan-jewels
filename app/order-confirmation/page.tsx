@@ -4,11 +4,25 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutHeader from '@/components/layout/CheckoutHeader';
+import { OrderService } from '@/lib/services/order-service';
+
+interface OrderDetails {
+  id: string;
+  confirmationNumber: string;
+  totalAmount: number;
+  status: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  customerEmail: string;
+  estimatedDelivery?: string;
+}
 
 export default function OrderConfirmationPage() {
   const searchParams = useSearchParams();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const orderIdParam = searchParams.get('orderId');
@@ -16,7 +30,55 @@ export default function OrderConfirmationPage() {
     
     setOrderId(orderIdParam);
     setPaymentStatus(paymentParam);
+
+    // Load order details
+    if (orderIdParam) {
+      loadOrderDetails(orderIdParam);
+    } else {
+      setLoading(false);
+    }
   }, [searchParams]);
+
+  const loadOrderDetails = async (orderIdParam: string) => {
+    try {
+      const order = await OrderService.getOrderById(orderIdParam);
+      if (order) {
+        setOrderDetails({
+          id: order.id,
+          confirmationNumber: order.confirmationNumber || order.id,
+          totalAmount: order.totalAmount,
+          status: order.status || 'pending',
+          paymentMethod: order.paymentMethod || 'unknown',
+          paymentStatus: order.paymentStatus || 'pending',
+          customerEmail: order.customerEmail || '',
+          estimatedDelivery: order.estimatedDelivery || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading order details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CheckoutHeader />
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <div className="animate-pulse">
+              <div className="h-16 w-16 bg-gray-200 rounded-full mx-auto mb-6"></div>
+              <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const isSuccess = paymentStatus === 'success' || paymentStatus === 'cod';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -26,7 +88,7 @@ export default function OrderConfirmationPage() {
       {/* Main Content */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-          {paymentStatus === 'success' ? (
+          {isSuccess ? (
             <>
               {/* Success Icon */}
               <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
@@ -43,7 +105,57 @@ export default function OrderConfirmationPage() {
                 Thank you for your purchase. Your order has been successfully placed.
               </p>
 
-              {orderId && (
+              {/* Order Details */}
+              {orderDetails && (
+                <div className="bg-gray-50 rounded-lg p-6 mb-6 text-left">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Order Details</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Order Number</p>
+                      <p className="font-semibold text-gray-900">{orderDetails.confirmationNumber}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600">Total Amount</p>
+                      <p className="font-semibold text-gray-900">₹{orderDetails.totalAmount.toLocaleString()}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600">Payment Method</p>
+                      <p className="font-semibold text-gray-900">
+                        {orderDetails.paymentMethod === 'cash_on_delivery' ? 'Cash on Delivery' : 'Online Payment'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-gray-600">Payment Status</p>
+                      <p className="font-semibold text-gray-900 capitalize">
+                        {orderDetails.paymentStatus === 'pending' && orderDetails.paymentMethod === 'cash_on_delivery' 
+                          ? 'COD - Pay on Delivery' 
+                          : orderDetails.paymentStatus
+                        }
+                      </p>
+                    </div>
+                    
+                    {orderDetails.estimatedDelivery && (
+                      <div className="md:col-span-2">
+                        <p className="text-sm text-gray-600">Estimated Delivery</p>
+                        <p className="font-semibold text-gray-900">
+                          {new Date(orderDetails.estimatedDelivery).toLocaleDateString('en-IN', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {orderId && !orderDetails && (
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <p className="text-sm text-gray-600 mb-1">Order ID</p>
                   <p className="text-lg font-semibold text-gray-900">{orderId}</p>
@@ -54,6 +166,9 @@ export default function OrderConfirmationPage() {
                 <p>• You will receive an order confirmation email shortly</p>
                 <p>• Your order will be processed within 1-2 business days</p>
                 <p>• You'll receive tracking information once your order ships</p>
+                {paymentStatus === 'cod' && (
+                  <p>• Please keep the exact amount ready for cash on delivery</p>
+                )}
               </div>
 
               <div className="space-y-3">
@@ -88,6 +203,13 @@ export default function OrderConfirmationPage() {
               <p className="text-lg text-gray-600 mb-6">
                 We couldn't verify your order status. Please contact support if you need assistance.
               </p>
+
+              {orderId && (
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-gray-600 mb-1">Order ID</p>
+                  <p className="text-lg font-semibold text-gray-900">{orderId}</p>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <Link

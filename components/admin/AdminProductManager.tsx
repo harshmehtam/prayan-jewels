@@ -77,7 +77,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     originalName: string; 
   }>>(new Map());
 
-  // Ref to prevent duplicate calls during React Strict Mode
   const loadingRef = React.useRef(false);
   const abortControllerRef = React.useRef<AbortController | null>(null);
 

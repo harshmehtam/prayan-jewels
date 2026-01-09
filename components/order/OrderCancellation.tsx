@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { OrderService } from '@/lib/services/order-service';
 import type { Order } from '@/types';
 import type { OrderStatus } from '@/lib/services/order-status';
 
@@ -20,46 +21,39 @@ export default function OrderCancellation({ order, onCancellationSuccess }: Orde
     return eligibleStatuses.includes(order.status as OrderStatus);
   };
 
-  // Calculate time remaining for cancellation (24 hours from order creation)
-  const getCancellationTimeRemaining = () => {
-    const orderDate = new Date(order.createdAt);
-    const cancellationDeadline = new Date(orderDate.getTime() + (24 * 60 * 60 * 1000)); // 24 hours
-    const now = new Date();
-    
-    if (now > cancellationDeadline) {
-      return null; // Past deadline
-    }
-    
-    const timeRemaining = cancellationDeadline.getTime() - now.getTime();
-    const hoursRemaining = Math.floor(timeRemaining / (1000 * 60 * 60));
-    const minutesRemaining = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return { hours: hoursRemaining, minutes: minutesRemaining };
-  };
-
   const handleCancelOrder = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/orders/${order.id}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to cancel order');
+      // Check if order is eligible for cancellation
+      const eligibleStatuses = ['pending', 'processing'];
+      if (!order.status || !eligibleStatuses.includes(order.status)) {
+        let errorMessage = 'Order cannot be cancelled at this stage';
+        
+        if (order.status === 'shipped') {
+          errorMessage = 'Order has already been shipped and cannot be cancelled. Please contact customer support for returns.';
+        } else if (order.status === 'delivered') {
+          errorMessage = 'Order has been delivered and cannot be cancelled. Please contact customer support for returns.';
+        } else if (order.status === 'cancelled') {
+          errorMessage = 'Order has already been cancelled.';
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      if (data.success) {
+      // Use OrderService to update order status to cancelled
+      const updateResult = await OrderService.updateOrderStatus(order.id, 'cancelled');
+
+      if (updateResult.errors && updateResult.errors.length > 0) {
+        throw new Error(`Failed to cancel order: ${updateResult.errors.map(e => e.message).join(', ')}`);
+      }
+
+      if (updateResult.order) {
         onCancellationSuccess();
         setShowConfirmation(false);
       } else {
-        throw new Error(data.error || 'Failed to cancel order');
+        throw new Error('Failed to cancel order');
       }
 
     } catch (err) {
@@ -70,15 +64,14 @@ export default function OrderCancellation({ order, onCancellationSuccess }: Orde
     }
   };
 
-  const timeRemaining = getCancellationTimeRemaining();
   const isEligible = isEligibleForCancellation();
 
-  if (!isEligible || !timeRemaining) {
+  if (!isEligible) {
     return null; // Don't show cancellation option if not eligible
   }
 
   return (
-    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
       <div className="flex items-start">
         <div className="flex-shrink-0">
           <svg className="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,12 +84,10 @@ export default function OrderCancellation({ order, onCancellationSuccess }: Orde
           </h3>
           <div className="mt-2 text-sm text-yellow-700">
             <p>
-              You can cancel this order within 24 hours of placing it.
+              You can cancel this order since it hasn't been shipped yet.
             </p>
             <p className="mt-1">
-              Time remaining: <span className="font-medium">
-                {timeRemaining.hours}h {timeRemaining.minutes}m
-              </span>
+              Status: <span className="font-medium capitalize">{order.status}</span>
             </p>
           </div>
           <div className="mt-4">
@@ -127,7 +118,7 @@ export default function OrderCancellation({ order, onCancellationSuccess }: Orde
               <div className="mt-2 px-7 py-3">
                 <p className="text-sm text-gray-500">
                   Are you sure you want to cancel this order? This action cannot be undone.
-                  Your payment will be refunded within 5-7 business days.
+                  If you paid online, your refund will be processed within 5-7 business days.
                 </p>
               </div>
               {error && (

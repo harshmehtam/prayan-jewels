@@ -8,6 +8,8 @@ export interface AddressInput {
   type: 'shipping' | 'billing';
   firstName: string;
   lastName: string;
+  email?: string; // Optional email for order confirmations
+  phone?: string; // Optional phone for SMS notifications
   addressLine1: string;
   addressLine2?: string;
   city: string;
@@ -45,6 +47,8 @@ class AddressService {
         type: addr.type as 'shipping' | 'billing',
         firstName: addr.firstName,
         lastName: addr.lastName,
+        email: addr.email || undefined,
+        phone: addr.phone || undefined,
         addressLine1: addr.addressLine1,
         addressLine2: addr.addressLine2 || undefined,
         city: addr.city,
@@ -84,6 +88,8 @@ class AddressService {
         type: addr.type as 'shipping' | 'billing',
         firstName: addr.firstName,
         lastName: addr.lastName,
+        email: addr.email || undefined,
+        phone: addr.phone || undefined,
         addressLine1: addr.addressLine1,
         addressLine2: addr.addressLine2 || undefined,
         city: addr.city,
@@ -133,7 +139,6 @@ class AddressService {
       // Check for duplicates first
       const duplicate = await this.findDuplicateAddress(userId, address);
       if (duplicate) {
-        console.log('Duplicate address found, returning existing address');
         return duplicate;
       }
 
@@ -147,6 +152,8 @@ class AddressService {
         type: address.type,
         firstName: address.firstName,
         lastName: address.lastName,
+        email: address.email,
+        phone: address.phone,
         addressLine1: address.addressLine1,
         addressLine2: address.addressLine2,
         city: address.city,
@@ -167,6 +174,8 @@ class AddressService {
         type: newAddress.type as 'shipping' | 'billing',
         firstName: newAddress.firstName,
         lastName: newAddress.lastName,
+        email: newAddress.email || undefined,
+        phone: newAddress.phone || undefined,
         addressLine1: newAddress.addressLine1,
         addressLine2: newAddress.addressLine2 || undefined,
         city: newAddress.city,
@@ -204,6 +213,8 @@ class AddressService {
         type: updatedAddress.type as 'shipping' | 'billing',
         firstName: updatedAddress.firstName,
         lastName: updatedAddress.lastName,
+        email: updatedAddress.email || undefined,
+        phone: updatedAddress.phone || undefined,
         addressLine1: updatedAddress.addressLine1,
         addressLine2: updatedAddress.addressLine2 || undefined,
         city: updatedAddress.city,
@@ -320,6 +331,8 @@ class AddressService {
       type: address.type,
       firstName: address.firstName,
       lastName: address.lastName,
+      email: address.email,
+      phone: address.phone,
       addressLine1: address.addressLine1,
       addressLine2: address.addressLine2,
       city: address.city,

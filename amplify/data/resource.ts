@@ -47,6 +47,8 @@ const schema = a.schema({
       type: a.enum(['shipping', 'billing']),
       firstName: a.string().required(),
       lastName: a.string().required(),
+      email: a.string(), // Optional email for order confirmations (especially for shipping addresses)
+      phone: a.string(), // Optional phone for SMS notifications (especially for shipping addresses)
       addressLine1: a.string().required(),
       addressLine2: a.string(),
       city: a.string().required(),
@@ -98,13 +100,18 @@ const schema = a.schema({
   Order: a
     .model({
       customerId: a.id().required(),
+      customerEmail: a.string().required(),
+      customerPhone: a.string().required(),
       subtotal: a.float().required(),
       tax: a.float().default(0),
       shipping: a.float().default(0),
       totalAmount: a.float().required(),
       status: a.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']),
+      paymentMethod: a.enum(['razorpay', 'cash_on_delivery']),
+      paymentStatus: a.enum(['pending', 'paid', 'failed', 'refunded']),
       confirmationNumber: a.string(), // Unique order confirmation number
       paymentOrderId: a.string(), // Razorpay order ID
+      paymentId: a.string(), // Razorpay payment ID
       trackingNumber: a.string(),
       estimatedDelivery: a.date(),
       shippingFirstName: a.string().required(),

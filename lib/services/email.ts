@@ -32,9 +32,9 @@ interface OrderConfirmationEmailData {
 }
 
 export class EmailService {
-  private static readonly FROM_EMAIL = process.env.SES_FROM_EMAIL || 'noreply@silvermangalsutra.com';
-  private static readonly COMPANY_NAME = 'Silver Mangalsutra Store';
-  private static readonly AWS_REGION = process.env.AWS_REGION || 'ap-south-1';
+  private static readonly FROM_EMAIL = process.env.SES_FROM_EMAIL;
+  private static readonly COMPANY_NAME = 'Prayan Jewels';
+  private static readonly AWS_REGION = process.env.AWS_REGION;
 
   // Initialize SES client
   private static getSESClient() {
@@ -61,11 +61,7 @@ export class EmailService {
     textBody?: string
   ): Promise<void> {
     if (USE_MOCK_EMAIL) {
-      console.log('📧 MOCK EMAIL');
-      console.log('To:', toEmail);
-      console.log('Subject:', subject);
-      console.log('Body:', textBody || htmlBody.replace(/<[^>]*>/g, ''));
-      console.log('✅ Mock email sent successfully');
+      console.log('📧 MOCK EMAIL: Order confirmation sent to', toEmail);
       return;
     }
 
@@ -346,8 +342,124 @@ export class EmailService {
   }
 
   /**
-   * Send order cancellation confirmation email to customer
+   * Send order shipping notification email to customer
    */
+  static async sendOrderShippingEmail(
+    customerEmail: string,
+    orderId: string,
+    confirmationNumber: string,
+    trackingNumber?: string,
+    estimatedDelivery?: Date
+  ): Promise<void> {
+    try {
+      const subject = `Order Shipped - ${confirmationNumber} - Your Order is On Its Way!`;
+      
+      const htmlBody = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Order Shipped</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px; }
+            .shipping-info { background: #e8f5e8; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #28a745; }
+            .tracking { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; text-align: center; }
+            .tracking-number { font-size: 18px; font-weight: bold; color: #007bff; }
+            .delivery-info { background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ffc107; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>📦 Order Shipped!</h1>
+              <h2>${this.COMPANY_NAME}</h2>
+              <p><strong>Order Number:</strong> ${confirmationNumber}</p>
+            </div>
+            
+            <div class="shipping-info">
+              <h3>🚚 Your Order is On Its Way!</h3>
+              <p>Great news! Your order has been shipped and is now on its way to you. We've carefully packaged your beautiful mangalsutra and it's ready to make someone special very happy!</p>
+              
+              ${trackingNumber ? `
+                <div class="tracking">
+                  <p><strong>Track Your Package:</strong></p>
+                  <div class="tracking-number">${trackingNumber}</div>
+                  <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                    Use this tracking number on your courier's website to get real-time updates
+                  </p>
+                </div>
+              ` : ''}
+              
+              ${estimatedDelivery ? `
+                <div class="delivery-info">
+                  <p><strong>📅 Estimated Delivery:</strong></p>
+                  <p style="font-size: 16px; font-weight: bold;">
+                    ${estimatedDelivery.toLocaleDateString('en-IN', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+              ` : ''}
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3>📋 What to Expect:</h3>
+              <ul style="padding-left: 20px;">
+                <li>You'll receive SMS updates as your package moves</li>
+                <li>Our delivery partner will call before delivery</li>
+                <li>Please keep your phone handy for delivery coordination</li>
+                <li>Ensure someone is available to receive the package</li>
+              </ul>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <p style="font-size: 18px; color: #28a745;">
+                <strong>Thank you for choosing ${this.COMPANY_NAME}!</strong>
+              </p>
+              <p>We hope you love your new mangalsutra. If you have any questions about your order or delivery, please don't hesitate to contact our support team.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const textBody = `
+        Order Shipped - ${confirmationNumber}
+        
+        Great news! Your order from ${this.COMPANY_NAME} has been shipped!
+        
+        ${trackingNumber ? `Tracking Number: ${trackingNumber}` : ''}
+        ${estimatedDelivery ? `Estimated Delivery: ${estimatedDelivery.toLocaleDateString('en-IN')}` : ''}
+        
+        What to Expect:
+        - You'll receive SMS updates as your package moves
+        - Our delivery partner will call before delivery
+        - Please keep your phone handy for delivery coordination
+        - Ensure someone is available to receive the package
+        
+        Thank you for choosing ${this.COMPANY_NAME}!
+      `;
+
+      await this.sendEmail(customerEmail, subject, htmlBody, textBody);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error sending order shipping email:', errorMessage);
+      
+      // Don't throw error for mock implementation
+      if (USE_MOCK_EMAIL) {
+        console.log('📧 MOCK EMAIL - Fallback shipping notification logged');
+        return;
+      }
+      
+      throw new Error(`Failed to send order shipping email: ${errorMessage}`);
+    }
+  }
   static async sendOrderCancellationEmail(
     customerEmail: string,
     orderId: string,
@@ -355,13 +467,7 @@ export class EmailService {
   ): Promise<void> {
     try {
       if (USE_MOCK_EMAIL) {
-        // Mock email implementation for development
-        console.log('📧 MOCK EMAIL - Order Cancellation Confirmation');
-        console.log('To:', customerEmail);
-        console.log('Subject:', `Order Cancelled - ${confirmationNumber}`);
-        console.log('Order ID:', orderId);
-        console.log('Message: Your order has been successfully cancelled. Refund will be processed within 5-7 business days.');
-        console.log('✅ Mock cancellation email sent successfully');
+        console.log('📧 MOCK EMAIL: Order cancellation sent to', customerEmail);
         return;
       }
 
@@ -404,27 +510,7 @@ export class EmailService {
   ): Promise<void> {
     try {
       if (USE_MOCK_EMAIL) {
-        // Mock email implementation for development
-        console.log('📧 MOCK EMAIL - Order Modification Request (Admin)');
-        console.log('To:', adminEmail);
-        console.log('Subject:', `Order Modification Request - ${confirmationNumber}`);
-        console.log('Order ID:', orderId);
-        console.log('Modification Type:', modificationType);
-        console.log('Details:', details);
-        
-        if (newShippingAddress) {
-          console.log('New Shipping Address:');
-          console.log(`  ${newShippingAddress.firstName} ${newShippingAddress.lastName}`);
-          console.log(`  ${newShippingAddress.addressLine1}`);
-          if (newShippingAddress.addressLine2) {
-            console.log(`  ${newShippingAddress.addressLine2}`);
-          }
-          console.log(`  ${newShippingAddress.city}, ${newShippingAddress.state} ${newShippingAddress.postalCode}`);
-          console.log(`  ${newShippingAddress.country}`);
-        }
-        
-        console.log('Action Required: Review and approve/reject modification request');
-        console.log('✅ Mock modification request email sent successfully');
+        console.log('📧 MOCK EMAIL: Order modification request sent to admin');
         return;
       }
 
