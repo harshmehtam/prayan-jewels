@@ -1,9 +1,8 @@
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '@/amplify/data/resource';
+import { getClient, getServerClient } from '@/lib/amplify-client';
 import type { CartItem, Address } from '@/types';
 import { EmailService } from './email';
-
-const client = generateClient<Schema>();
+import { CouponService } from './coupon-service';
+import { AdminCouponService } from './admin-coupons';
 
 export interface CreateOrderData {
   customerId: string;
@@ -16,6 +15,9 @@ export interface CreateOrderData {
   subtotal: number;
   tax: number;
   shipping: number;
+  couponId?: string;
+  couponCode?: string;
+  couponDiscount?: number;
   totalAmount: number;
   paymentOrderId?: string;
 }
@@ -30,15 +32,16 @@ export interface OrderResult {
 // AWS SNS SMS Service
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 
-const snsClient = new SNSClient({
-  region: process.env.AWS_REGION || 'ap-south-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-});
-
 export class OrderService {
+  // Generate unique guest customer ID based on email and phone
+  static generateGuestCustomerId(email: string, phone: string): string {
+    // Create a consistent hash-based ID for guest users
+    // This allows the same guest to be identified across orders
+    const identifier = `${email.toLowerCase()}_${phone.replace(/\D/g, '')}`;
+    const hash = btoa(identifier).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+    return `guest_${hash}`;
+  }
+
   // Generate unique confirmation number
   static generateConfirmationNumber(): string {
     const timestamp = Date.now().toString(36);
@@ -46,9 +49,31 @@ export class OrderService {
     return `ORD-${timestamp}-${random}`.toUpperCase();
   }
 
+  // Get SNS client with proper credentials
+  private static getSNSClient(): SNSClient | null {
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      console.warn('⚠️ AWS credentials not configured for SMS service');
+      return null;
+    }
+
+    return new SNSClient({
+      region: process.env.AWS_REGION || 'ap-south-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+  }
+
   // Send SMS using AWS SNS
   private static async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
     try {
+      const snsClient = this.getSNSClient();
+      if (!snsClient) {
+        console.log('📱 SMS service not configured - skipping SMS notification');
+        return false;
+      }
+
       // Format phone number for international format
       const cleanPhone = phoneNumber.replace(/\D/g, '');
       const formattedPhone = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
@@ -70,6 +95,9 @@ export class OrderService {
   // Create a new order
   static async createOrder(orderData: CreateOrderData): Promise<OrderResult> {
     try {
+      console.log('🏪 OrderService: Creating order...');
+      
+      const client = getServerClient(); // Use server client for API routes
       const confirmationNumber = this.generateConfirmationNumber();
       
       // Create the order
@@ -80,6 +108,9 @@ export class OrderService {
         subtotal: orderData.subtotal,
         tax: orderData.tax,
         shipping: orderData.shipping,
+        couponId: orderData.couponId,
+        couponCode: orderData.couponCode,
+        couponDiscount: orderData.couponDiscount || 0,
         totalAmount: orderData.totalAmount,
         status: 'pending',
         paymentMethod: orderData.paymentMethod,
@@ -110,16 +141,35 @@ export class OrderService {
       });
 
       if (!orderResult.data) {
+        console.error('🏪 OrderService: Order creation failed - no data returned');
+        if (orderResult.errors) {
+          console.error('🏪 OrderService: Errors:', orderResult.errors);
+        }
         throw new Error('Failed to create order');
       }
 
       const orderId = orderResult.data.id;
 
-      // Create order items
+      // Batch fetch all products first to avoid multiple API calls
+      const productIds = [...new Set(orderData.items.map(item => item.productId))];
+      const productsResult = await client.models.Product.list({
+        filter: {
+          or: productIds.map(id => ({ id: { eq: id } }))
+        }
+      });
+
+      // Create a map for quick product lookup
+      const productMap = new Map();
+      if (productsResult.data) {
+        productsResult.data.forEach(product => {
+          productMap.set(product.id, product);
+        });
+      }
+
+      // Create order items with batched product data
       const orderItemPromises = orderData.items.map(async (item) => {
-        // Get product name for the order item
-        const productResult = await client.models.Product.get({ id: item.productId });
-        const productName = productResult.data?.name || `Product ${item.productId}`;
+        const product = productMap.get(item.productId);
+        const productName = product?.name || `Product ${item.productId}`;
 
         return client.models.OrderItem.create({
           orderId,
@@ -133,10 +183,26 @@ export class OrderService {
 
       await Promise.all(orderItemPromises);
 
-      // Send notifications
-      await this.sendOrderNotifications(orderData, confirmationNumber);
+      // Handle coupon usage tracking
+      if (orderData.couponId && orderData.customerId && !orderData.customerId.startsWith('guest_')) {
+        try {
+          // Record user coupon usage
+          await CouponService.recordCouponUsage(orderData.customerId, orderData.couponId);
+          
+          // Increment global coupon usage count
+          await AdminCouponService.incrementCouponUsage(orderData.couponId);
+          
+          console.log('✅ Coupon usage recorded:', { couponId: orderData.couponId, userId: orderData.customerId });
+        } catch (couponError) {
+          console.error('❌ Error recording coupon usage:', couponError);
+          // Don't fail the order for coupon tracking errors
+        }
+      }
 
-      console.log('✅ Order created successfully:', { orderId, confirmationNumber });
+      // Send notifications
+      await this.sendOrderNotifications(orderData, confirmationNumber, orderId, orderItemPromises);
+
+      console.log('✅ OrderService: Order created successfully:', { orderId, confirmationNumber });
 
       return {
         success: true,
@@ -144,7 +210,15 @@ export class OrderService {
         confirmationNumber,
       };
     } catch (error) {
-      console.error('❌ Error creating order:', error);
+      console.error('❌ OrderService: Error creating order:', error);
+      
+      // Log more details about the error
+      if (error instanceof Error) {
+        console.error('❌ OrderService: Error name:', error.name);
+        console.error('❌ OrderService: Error message:', error.message);
+        console.error('❌ OrderService: Error stack:', error.stack);
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -153,29 +227,26 @@ export class OrderService {
   }
 
   // Send order notifications (email and SMS using AWS services)
-  private static async sendOrderNotifications(orderData: CreateOrderData, confirmationNumber: string): Promise<void> {
+  private static async sendOrderNotifications(orderData: CreateOrderData, confirmationNumber: string, orderId: string, orderItemPromises: Promise<any>[]): Promise<void> {
+    // Don't let notification failures block order creation
     try {
       // Send email notification using AWS SES
       try {
+        // Wait for order items to be created and get the actual product names
+        const createdOrderItems = await Promise.all(orderItemPromises);
+        const orderItemsWithNames = createdOrderItems.map(result => result.data).filter(Boolean);
+
         await EmailService.sendOrderConfirmationEmail({
-          orderId: 'temp', // Will be updated with actual order ID
+          orderId,
           confirmationNumber,
           customerEmail: orderData.customerEmail,
           orderDetails: {
-            items: orderData.items.map(item => ({
-              id: item.id,
-              orderId: 'temp',
-              productId: item.productId,
-              productName: `Product ${item.productId}`, // You might want to fetch actual product names
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              totalPrice: item.totalPrice,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            })),
+            items: orderItemsWithNames,
             subtotal: orderData.subtotal,
             tax: orderData.tax,
             shipping: orderData.shipping,
+            couponCode: orderData.couponCode,
+            couponDiscount: orderData.couponDiscount || 0,
             totalAmount: orderData.totalAmount,
             shippingAddress: {
               firstName: orderData.shippingAddress.firstName || '',
@@ -192,21 +263,30 @@ export class OrderService {
         console.log('✅ Order confirmation email sent via AWS SES');
       } catch (emailError) {
         console.error('❌ Failed to send email via AWS SES:', emailError);
+        console.log('ℹ️ Order created successfully without email notification');
       }
 
       // Send SMS notification using AWS SNS
       if (orderData.customerPhone) {
         try {
-          const smsMessage = `Order Confirmed! Order #${confirmationNumber}. Amount: ₹${orderData.totalAmount.toLocaleString()}. Payment: ${orderData.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid Online'}. Thank you for your order!`;
+          let smsMessage = `Order Confirmed! Order #${confirmationNumber}. Amount: ₹${orderData.totalAmount.toLocaleString()}`;
+          
+          if (orderData.couponCode && orderData.couponDiscount && orderData.couponDiscount > 0) {
+            smsMessage += ` (Saved ₹${orderData.couponDiscount.toLocaleString()} with ${orderData.couponCode})`;
+          }
+          
+          smsMessage += `. Payment: ${orderData.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Paid Online'}. Thank you for your order!`;
           
           await this.sendSMS(orderData.customerPhone, smsMessage);
           console.log('✅ Order confirmation SMS sent via AWS SNS');
         } catch (smsError) {
           console.error('❌ Failed to send SMS via AWS SNS:', smsError);
+          console.log('ℹ️ Order created successfully without SMS notification');
         }
       }
     } catch (error) {
-      console.error('❌ Error sending notifications:', error);
+      console.error('❌ Error in notification process:', error);
+      console.log('ℹ️ Order created successfully without notifications');
       // Don't throw error for notification failures
     }
   }
@@ -218,6 +298,7 @@ export class OrderService {
     paymentId?: string
   ): Promise<boolean> {
     try {
+      const client = getServerClient(); // Use server client for API operations
       const updateData: any = {
         id: orderId,
         paymentStatus,
@@ -272,9 +353,32 @@ export class OrderService {
     }
   }
 
+  // Update order with payment information (for Razorpay integration)
+  static async updateOrderPayment(orderId: string, paymentOrderId: string): Promise<boolean> {
+    try {
+      const client = getServerClient(); // Use server client for API operations
+      const result = await client.models.Order.update({
+        id: orderId,
+        paymentOrderId,
+      });
+
+      if (result.errors && result.errors.length > 0) {
+        console.error('Error updating order payment:', result.errors);
+        return false;
+      }
+
+      console.log('✅ Order payment info updated:', { orderId, paymentOrderId });
+      return true;
+    } catch (error) {
+      console.error('❌ Error updating order payment:', error);
+      return false;
+    }
+  }
+
   // Get order by ID
   static async getOrderById(orderId: string) {
     try {
+      const client = getServerClient(); // Use server client for API operations
       const result = await client.models.Order.get({ id: orderId });
       return result.data;
     } catch (error) {
@@ -286,6 +390,7 @@ export class OrderService {
   // Get order by confirmation number
   static async getOrderByConfirmationNumber(confirmationNumber: string) {
     try {
+      const client = await getClient();
       const result = await client.models.Order.list({
         filter: { confirmationNumber: { eq: confirmationNumber } }
       });
@@ -299,6 +404,7 @@ export class OrderService {
   // Get orders for a customer
   static async getCustomerOrders(customerId: string) {
     try {
+      const client = await getClient();
       const result = await client.models.Order.list({
         filter: { customerId: { eq: customerId } }
       });
@@ -354,6 +460,7 @@ export class OrderService {
   // Get all orders (admin only)
   static async getAllOrders() {
     try {
+      const client = await getClient();
       const result = await client.models.Order.list();
       
       if (result.errors && result.errors.length > 0) {
@@ -415,6 +522,7 @@ export class OrderService {
   // Update order status (admin only)
   static async updateOrderStatus(orderId: string, status: string) {
     try {
+      const client = await getClient();
       const result = await client.models.Order.update({
         id: orderId,
         status: status as any
@@ -477,6 +585,7 @@ export class OrderService {
   // Add tracking information (admin only)
   static async addTrackingInfo(orderId: string, trackingNumber: string, estimatedDelivery?: string) {
     try {
+      const client = await getClient();
       const updateData: any = {
         id: orderId,
         trackingNumber
@@ -524,6 +633,7 @@ export class OrderService {
   // Get order by ID with items
   static async getOrder(orderId: string) {
     try {
+      const client = getServerClient(); // Use server client for API operations
       const orderResult = await client.models.Order.get({ id: orderId });
       
       if (orderResult.errors && orderResult.errors.length > 0) {

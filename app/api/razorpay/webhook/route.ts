@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { OrderService } from '@/lib/data/orders';
-import { OrderCompletionService } from '@/lib/services/order-completion';
 import { validateRazorpayBasicConfig, isWebhookConfigured, razorpayConfig } from '@/lib/config/razorpay';
 
 export async function POST(request: NextRequest) {
@@ -73,19 +72,10 @@ async function handlePaymentCaptured(payment: any) {
   try {
     const orderId = payment.notes?.orderId;
     if (orderId) {
-      // Complete the order workflow with confirmation number, inventory update, and email
-      const completionResult = await OrderCompletionService.completeOrderWorkflow(
-        orderId,
-        payment.id
-      );
-
-      if (completionResult.success) {
-        console.log(`Payment captured and order completed for order ${orderId}, confirmation: ${completionResult.confirmationNumber}`);
-      } else {
-        console.error(`Failed to complete order workflow for order ${orderId}:`, completionResult.error);
-        // Fallback to basic status update
-        await OrderService.updateOrderStatus(orderId, 'processing');
-      }
+      console.log(`✅ Payment captured for order ${orderId}, payment ${payment.id}`);
+      // Update order status to 'processing' directly
+      await OrderService.updateOrderStatus(orderId, 'processing');
+      console.log(`✅ Order ${orderId} marked as processing`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -97,16 +87,10 @@ async function handlePaymentFailed(payment: any) {
   try {
     const orderId = payment.notes?.orderId;
     if (orderId) {
-      // Handle payment failure (release inventory and cancel order)
-      const failureResult = await OrderCompletionService.handlePaymentFailure(orderId);
-      
-      if (failureResult.success) {
-        console.log(`Payment failed for order ${orderId}, order cancelled and inventory released`);
-      } else {
-        console.error(`Failed to handle payment failure for order ${orderId}:`, failureResult.error);
-        // Fallback to basic cancellation
-        await OrderService.cancelOrder(orderId);
-      }
+      console.log(`❌ Payment failed for order ${orderId}`);
+      // Update order status to 'cancelled' directly
+      await OrderService.updateOrderStatus(orderId, 'cancelled');
+      console.log(`✅ Order ${orderId} marked as cancelled`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -118,19 +102,10 @@ async function handleOrderPaid(order: any) {
   try {
     const orderId = order.receipt;
     if (orderId) {
-      // Complete the order workflow
-      const completionResult = await OrderCompletionService.completeOrderWorkflow(
-        orderId,
-        order.id
-      );
-
-      if (completionResult.success) {
-        console.log(`Order ${orderId} marked as paid and completed, confirmation: ${completionResult.confirmationNumber}`);
-      } else {
-        console.error(`Failed to complete order workflow for order ${orderId}:`, completionResult.error);
-        // Fallback to basic status update
-        await OrderService.updateOrderStatus(orderId, 'processing');
-      }
+      console.log(`✅ Order paid for order ${orderId}`);
+      // Update order status to 'processing' directly
+      await OrderService.updateOrderStatus(orderId, 'processing');
+      console.log(`✅ Order ${orderId} marked as processing`);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';

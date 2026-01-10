@@ -1,8 +1,6 @@
 // Wishlist service supporting both authenticated and guest users
-import { generateClient } from 'aws-amplify/data';
+import { getClient } from '@/lib/amplify-client';
 import type { Schema } from '@/amplify/data/resource';
-
-const client = generateClient<Schema>();
 
 export interface WishlistItem {
   id: string;
@@ -19,6 +17,7 @@ export class WishlistService {
   // Get wishlist for authenticated user from database (lightweight - no product details)
   static async getAuthenticatedWishlistLightweight(customerId: string): Promise<{ productId: string; id: string; addedAt: string }[]> {
     try {
+      const client = await getClient();
       // Just get wishlist items without product details for better performance
       const wishlistResult = await client.models.Wishlist.list({
         filter: { customerId: { eq: customerId } }
@@ -41,6 +40,7 @@ export class WishlistService {
   // Get wishlist for authenticated user from database (with product details - for wishlist page)
   static async getAuthenticatedWishlist(customerId: string): Promise<WishlistItem[]> {
     try {
+      const client = await getClient();
       // First, get the wishlist items
       const wishlistResult = await client.models.Wishlist.list({
         filter: { customerId: { eq: customerId } }
@@ -103,6 +103,7 @@ export class WishlistService {
   // Add item to authenticated user's wishlist (optimized - no existence check)
   static async addToAuthenticatedWishlistDirect(customerId: string, productId: string): Promise<boolean> {
     try {
+      const client = await getClient();
       // Add to wishlist directly without checking existence (caller should check)
       const result = await client.models.Wishlist.create({
         customerId,
@@ -122,6 +123,7 @@ export class WishlistService {
   // Add item to authenticated user's wishlist (with existence check - for backward compatibility)
   static async addToAuthenticatedWishlist(customerId: string, productId: string): Promise<boolean> {
     try {
+      const client = await getClient();
       // Check if already exists
       const existing = await client.models.Wishlist.list({
         filter: { 
@@ -183,6 +185,7 @@ export class WishlistService {
   // Remove item from authenticated user's wishlist (optimized - direct removal)
   static async removeFromAuthenticatedWishlistDirect(wishlistItemId: string): Promise<boolean> {
     try {
+      const client = await getClient();
       // Remove from wishlist directly using the wishlist item ID
       const result = await client.models.Wishlist.delete({
         id: wishlistItemId
@@ -198,6 +201,7 @@ export class WishlistService {
   // Remove item from authenticated user's wishlist (with lookup - for backward compatibility)
   static async removeFromAuthenticatedWishlist(customerId: string, productId: string): Promise<boolean> {
     try {
+      const client = await getClient();
       const existing = await client.models.Wishlist.list({
         filter: { 
           customerId: { eq: customerId },
@@ -265,6 +269,7 @@ export class WishlistService {
     if (customerId) {
       // Check authenticated wishlist
       try {
+        const client = await getClient();
         const result = await client.models.Wishlist.list({
           filter: { 
             customerId: { eq: customerId },
@@ -307,6 +312,7 @@ export class WishlistService {
     }
 
     try {
+      const client = await getClient();
       // Single API call to get all wishlist items for the user
       const wishlistResult = await client.models.Wishlist.list({
         filter: { customerId: { eq: customerId } }
@@ -392,6 +398,7 @@ export class WishlistService {
   static async getWishlistCount(customerId?: string): Promise<number> {
     if (customerId) {
       try {
+        const client = await getClient();
         const result = await client.models.Wishlist.list({
           filter: { customerId: { eq: customerId } }
         });
@@ -409,6 +416,7 @@ export class WishlistService {
   // Clear all wishlist items (for authenticated users)
   static async clearAuthenticatedWishlist(customerId: string): Promise<boolean> {
     try {
+      const client = await getClient();
       const result = await client.models.Wishlist.list({
         filter: { customerId: { eq: customerId } }
       });

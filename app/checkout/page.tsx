@@ -28,6 +28,13 @@ export default function CheckoutPage() {
   const [editingBillingAddress, setEditingBillingAddress] = useState<SavedAddress | null>(null);
   const [products, setProducts] = useState<Map<string, Product>>(new Map());
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    id: string;
+    code: string;
+    name: string;
+    discountAmount: number;
+  } | null>(null);
+  const [finalTotal, setFinalTotal] = useState(0);
   const [orderResult, setOrderResult] = useState<{
     success: boolean;
     orderId?: string;
@@ -35,6 +42,14 @@ export default function CheckoutPage() {
     error?: string;
     paymentMethod?: string;
   } | null>(null);
+
+  // Update final total when cart or coupon changes
+  useEffect(() => {
+    if (cart) {
+      const discount = appliedCoupon?.discountAmount || 0;
+      setFinalTotal(cart.estimatedTotal - discount);
+    }
+  }, [cart, appliedCoupon]);
 
   // Load product details for cart items
   useEffect(() => {
@@ -77,9 +92,6 @@ export default function CheckoutPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentStep, shippingAddress]);
 
-  // Don't redirect if cart is empty - let user stay on checkout page
-  // This prevents redirect issues after order completion
-
   if (cartLoading) {
     return <PageLoading />;
   }
@@ -112,20 +124,20 @@ export default function CheckoutPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Order Information</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {orderResult.orderId && (
-                    <div>
-                      <p className="text-sm text-gray-600">Order ID</p>
-                      <p className="font-semibold text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded border">
-                        {orderResult.orderId}
-                      </p>
-                    </div>
-                  )}
-                  
                   {orderResult.confirmationNumber && (
                     <div>
                       <p className="text-sm text-gray-600">Confirmation Number</p>
                       <p className="font-semibold text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded border">
                         {orderResult.confirmationNumber}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {orderResult.orderId && (
+                    <div>
+                      <p className="text-sm text-gray-600">Order ID</p>
+                      <p className="font-semibold text-gray-900 font-mono text-sm bg-white px-3 py-2 rounded border">
+                        {orderResult.orderId}
                       </p>
                     </div>
                   )}
@@ -192,12 +204,12 @@ export default function CheckoutPage() {
                 >
                   Continue Shopping
                 </a>
-                <a 
+                {/* <a 
                   href="/" 
                   className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
                 >
                   Back to Homepage
-                </a>
+                </a> */}
               </div>
 
               {/* Support Information */}
@@ -211,7 +223,7 @@ export default function CheckoutPage() {
                     </a>
                   </p>
                   <p className="text-sm text-gray-500">
-                    Please include your Order ID ({orderResult.orderId}) in your email for faster assistance
+                    Please include your Confirmation Number ({orderResult.confirmationNumber}) in your email for faster assistance
                   </p>
                 </div>
               </div>
@@ -290,12 +302,12 @@ export default function CheckoutPage() {
                 >
                   Continue Shopping
                 </a>
-                <a 
+                {/* <a 
                   href="/" 
                   className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors inline-block"
                 >
                   Back to Homepage
-                </a>
+                </a> */}
               </div>
 
               {/* Support Information */}
@@ -342,11 +354,15 @@ export default function CheckoutPage() {
     setShippingAddress(address);
     setEditingShippingAddress(null); // Clear editing state
     if (sameAsShipping) {
-      // Copy shipping address to billing address
-      setBillingAddress({
+      // Copy shipping address to billing address, preserving email and phone
+      const billingAddr = {
         ...address,
-        type: 'billing'
-      });
+        type: 'billing' as const,
+        // Preserve email and phone from shipping address
+        email: (address as any).email,
+        phone: (address as any).phone,
+      };
+      setBillingAddress(billingAddr);
       setCurrentStep('review');
     } else {
       // Clear billing address and go to billing step
@@ -358,10 +374,13 @@ export default function CheckoutPage() {
   const handleSameAsShippingChange = (same: boolean) => {
     setSameAsShipping(same);
     if (same && shippingAddress) {
-      // Copy shipping address to billing address
+      // Copy shipping address to billing address, preserving email and phone
       setBillingAddress({
         ...shippingAddress,
-        type: 'billing'
+        type: 'billing',
+        // Preserve email and phone from shipping address
+        email: (shippingAddress as any).email,
+        phone: (shippingAddress as any).phone,
       });
     } else {
       // Clear billing address when unchecked
@@ -377,6 +396,11 @@ export default function CheckoutPage() {
 
   const handleBackToShipping = () => {
     setCurrentStep('shipping');
+    // If we have shipping address data, we want to show the form directly
+    // This ensures that when user navigates back, they see their entered data
+    if (shippingAddress) {
+      setEditingShippingAddress(null); // Clear any editing state
+    }
   };
 
   const handleBackToBilling = () => {
@@ -482,6 +506,16 @@ export default function CheckoutPage() {
                   isProcessing={false}
                   onSuccess={handleOrderSuccess}
                   onError={handleOrderError}
+                  appliedCoupon={appliedCoupon}
+                  onCouponApplied={(coupon, discountAmount) => {
+                    setAppliedCoupon({
+                      id: coupon.id,
+                      code: coupon.code,
+                      name: coupon.name,
+                      discountAmount,
+                    });
+                  }}
+                  onCouponRemoved={() => setAppliedCoupon(null)}
                 />
               )}
             </div>
@@ -550,10 +584,16 @@ export default function CheckoutPage() {
                     )}
                   </span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-600">Coupon Discount ({appliedCoupon.code})</span>
+                    <span className="text-green-600">-₹{appliedCoupon.discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-semibold">
                     <span className="text-gray-900">Total</span>
-                    <span className="text-gray-900">₹{cart.estimatedTotal.toLocaleString()}</span>
+                    <span className="text-gray-900">₹{finalTotal.toLocaleString()}</span>
                   </div>
                 </div>
               </div>

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { useCart } from '@/components/providers/cart-provider';
 import { PaymentButton } from './PaymentButton';
 import { ProductService } from '@/lib/services/product-service';
+import CouponSection from './CouponSection';
+import { getCurrentUser } from 'aws-amplify/auth';
 import type { ShoppingCart, CartItem, Address, Product } from '@/types';
 
 interface OrderReviewProps {
@@ -15,6 +17,14 @@ interface OrderReviewProps {
   isProcessing: boolean;
   onSuccess?: (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => void;
   onError?: (error: string) => void;
+  appliedCoupon?: {
+    id: string;
+    code: string;
+    name: string;
+    discountAmount: number;
+  } | null;
+  onCouponApplied?: (coupon: any, discountAmount: number) => void;
+  onCouponRemoved?: () => void;
 }
 
 export function OrderReview({
@@ -25,15 +35,36 @@ export function OrderReview({
   onPlaceOrder,
   onSuccess,
   onError,
+  appliedCoupon: initialAppliedCoupon,
+  onCouponApplied: onCouponAppliedProp,
+  onCouponRemoved: onCouponRemovedProp,
 }: OrderReviewProps) {
   const [products, setProducts] = useState<Map<string, Product>>(new Map());
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'razorpay' | 'cash_on_delivery'>('razorpay');
+  const [userId, setUserId] = useState<string | undefined>();
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    id: string;
+    code: string;
+    name: string;
+    discountAmount: number;
+  } | null>(initialAppliedCoupon || null);
+  const [finalTotal, setFinalTotal] = useState(cart.estimatedTotal);
 
-  // Load product details for cart items
+  // Load product details for cart items and user info
   useEffect(() => {
-    const loadProducts = async () => {
+    const loadData = async () => {
+      // Load user info
+      try {
+        const user = await getCurrentUser();
+        setUserId(user.userId);
+      } catch (error) {
+        // User not logged in
+        setUserId(undefined);
+      }
+
+      // Load products
       if (!items.length) {
         setIsLoadingProducts(false);
         return;
@@ -56,8 +87,26 @@ export function OrderReview({
       }
     };
 
-    loadProducts();
+    loadData();
   }, [items]);
+
+  const handleCouponApplied = (coupon: any, discountAmount: number) => {
+    const couponData = {
+      id: coupon.id,
+      code: coupon.code,
+      name: coupon.name,
+      discountAmount,
+    };
+    setAppliedCoupon(couponData);
+    setFinalTotal(cart.estimatedTotal - discountAmount);
+    onCouponAppliedProp?.(coupon, discountAmount);
+  };
+
+  const handleCouponRemoved = () => {
+    setAppliedCoupon(null);
+    setFinalTotal(cart.estimatedTotal);
+    onCouponRemovedProp?.();
+  };
 
   const formatAddress = (address: Partial<Address>) => {
     const parts = [
@@ -113,6 +162,16 @@ export function OrderReview({
           {formatAddress(billingAddress)}
         </div>
       </div>
+
+      {/* Coupon Section */}
+      <CouponSection
+        subtotal={cart.subtotal}
+        productIds={items.map(item => item.productId)}
+        userId={userId}
+        appliedCoupon={appliedCoupon}
+        onCouponApplied={handleCouponApplied}
+        onCouponRemoved={handleCouponRemoved}
+      />
 
       {/* Payment Method */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -206,6 +265,8 @@ export function OrderReview({
           onSuccess={handlePaymentSuccess}
           onError={handlePaymentError}
           selectedPaymentMethod={selectedPaymentMethod}
+          appliedCoupon={appliedCoupon}
+          finalTotal={finalTotal}
         />
       </div>
     </div>

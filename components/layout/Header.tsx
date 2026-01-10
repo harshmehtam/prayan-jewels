@@ -7,6 +7,7 @@ import { LoginButton } from '@/components/auth';
 import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
+import { useWishlist } from '@/components/providers/wishlist-provider';
 import { ProductService } from '@/lib/services/product-service';
 
 export default function Header() {
@@ -19,6 +20,7 @@ export default function Header() {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const { itemCount } = useCart();
+  const { wishlistCount } = useWishlist();
   const pathname = usePathname();
   const router = useRouter();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -376,14 +378,23 @@ export default function Header() {
               </div>
 
               {/* Wishlist - Hidden on very small screens, visible on sm+ */}
-              <button className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-              }`} style={{ outline: 'none', boxShadow: 'none' }}>
+              <Link 
+                href="/account/wishlist"
+                className={`hidden sm:block relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                }`} 
+                style={{ outline: 'none', boxShadow: 'none' }}
+              >
                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
-                <span className="sr-only">Wishlist</span>
-              </button>
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
+                    {wishlistCount}
+                  </span>
+                )}
+                <span className="sr-only">Wishlist ({wishlistCount})</span>
+              </Link>
 
               {/* User Account - Role-based UI after login */}
               {isAuthenticated ? (
@@ -442,6 +453,14 @@ export default function Header() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
                         Order History
+                      </div>
+                    </Link>
+                    <Link href="/track-order" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Track Order
                       </div>
                     </Link>
                     <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Wishlist</Link>
@@ -612,12 +631,19 @@ export default function Header() {
                     {/* Mobile-only links for hidden icons */}
                     <div className="sm:hidden">
                       <Link
-                        href="/wishlist"
+                        href="/account/wishlist"
                         className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
                         style={{ outline: 'none', boxShadow: 'none' }}
                         onClick={() => setIsMenuOpen(false)}
                       >
-                        <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Wishlist</span>
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-3 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">
+                            Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+                          </span>
+                        </div>
                         <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
@@ -688,19 +714,57 @@ export default function Header() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                             </svg>
                           </Link>
+
+                          {/* Track Order - For guest users */}
+                          <Link
+                            href="/track-order"
+                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                            style={{ outline: 'none', boxShadow: 'none' }}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <div className="flex items-center">
+                              <svg className="w-5 h-5 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Track Order</span>
+                            </div>
+                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
                         </>
                       ) : (
-                        <LoginButton 
-                          className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer outline-none focus:outline-none"
-                          variant="icon"
-                          redirectTo="/account"
-                          onModalOpen={() => setIsMenuOpen(false)}
-                        >
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Sign In</span>
-                          <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </LoginButton>
+                        <>
+                          <LoginButton 
+                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer outline-none focus:outline-none"
+                            variant="icon"
+                            redirectTo="/account"
+                            onModalOpen={() => setIsMenuOpen(false)}
+                          >
+                            <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Sign In</span>
+                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </LoginButton>
+
+                          {/* Track Order for guest users */}
+                          <Link
+                            href="/track-order"
+                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                            style={{ outline: 'none', boxShadow: 'none' }}
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <div className="flex items-center">
+                              <svg className="w-5 h-5 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Track Order</span>
+                            </div>
+                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        </>
                       )}
                     </div>
                   </div>

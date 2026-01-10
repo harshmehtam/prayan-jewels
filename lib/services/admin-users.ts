@@ -118,10 +118,10 @@ export class AdminUserService {
 
   /**
    * Get audit log for user management actions
-   * Note: Returns empty array since we don't have user management
+   * Note: Returns empty array since we don't have audit logging for now
    */
   static async getAuditLog(_userId?: string): Promise<any[]> {
-    // Since we don't have user management,
+    // Since we don't have audit logging enabled,
     // return empty array
     return [];
   }

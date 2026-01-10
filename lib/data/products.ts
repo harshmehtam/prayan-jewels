@@ -1,12 +1,12 @@
 // Product data access layer - Real Amplify GraphQL Integration
-import { getDynamicClient, handleAmplifyError, userClient } from '@/lib/amplify-client';
+import { getClient, client, handleAmplifyError } from '@/lib/amplify-client';
 import type { CreateProductInput, UpdateProductInput, ProductFilters, ProductSearchResult } from '@/types';
 
 export class ProductService {
   // Get all active products with comprehensive filtering
   static async getProducts(filters?: ProductFilters, limit?: number, nextToken?: string): Promise<ProductSearchResult> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Build filter conditions for Amplify GraphQL
       const filterConditions: any = {
@@ -42,7 +42,8 @@ export class ProductService {
         );
       }
 
-      // Apply in-stock filter by checking inventory (only for authenticated users)
+      // COMMENTED OUT - Apply in-stock filter by checking inventory - Not needed for now
+      /*
       if (filters?.inStock) {
         try {
           const productsWithInventory = await Promise.all(
@@ -67,6 +68,9 @@ export class ProductService {
           console.warn('Inventory check failed, skipping in-stock filter:', error);
         }
       }
+      */
+
+      // For now, ignore in-stock filter since we don't have inventory tracking
 
       // Apply sorting
       if (filters?.sortBy) {
@@ -84,6 +88,20 @@ export class ProductService {
         nextToken: response.nextToken || undefined
       };
     } catch (error) {
+      // Suppress auth errors after logout
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as any).message;
+        if (errorMessage?.includes('NoValidAuthTokens') || errorMessage?.includes('federated jwt')) {
+          console.log('Auth token expired, switching to guest mode for products');
+          // Return empty result for now, the client will retry with guest mode
+          return {
+            products: [],
+            totalCount: 0,
+            hasNextPage: false,
+            nextToken: undefined
+          };
+        }
+      }
       console.error('Error fetching products:', error);
       throw new Error(handleAmplifyError(error));
     }
@@ -92,7 +110,7 @@ export class ProductService {
   // Get a single product by ID with inventory information
   static async getProduct(id: string) {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       const response = await client.models.Product.get({ id });
       
@@ -100,7 +118,8 @@ export class ProductService {
         return { product: null, errors: response.errors };
       }
 
-      // Try to get inventory information
+      // COMMENTED OUT - Try to get inventory information - Not needed for now
+      /*
       let inventory = null;
       let availableQuantity = 10; // Default for display
 
@@ -116,6 +135,11 @@ export class ProductService {
         console.warn('Could not fetch inventory (guest user):', inventoryError);
         // Keep default values for guest users
       }
+      */
+
+      // Placeholder values for now
+      let inventory = null;
+      let availableQuantity = 10; // Default for display
 
       return {
         product: {
@@ -135,8 +159,9 @@ export class ProductService {
   // Create a new product (Admin only)
   static async createProduct(productData: CreateProductInput) {
     try {
-      // Use userClient for admin operations
-      const response = await userClient.models.Product.create({
+      // Use authenticated client for admin operations
+      const client = await getClient();
+      const response = await client.models.Product.create({
         name: productData.name,
         description: productData.description,
         price: productData.price,
@@ -144,9 +169,10 @@ export class ProductService {
         isActive: productData.isActive ?? true
       });
 
-      // Create initial inventory record
+      // COMMENTED OUT - Create initial inventory record - Not needed for now
+      /*
       if (response.data && productData.initialStock !== undefined) {
-        await userClient.models.InventoryItem.create({
+        await client.models.InventoryItem.create({
           productId: response.data.id,
           stockQuantity: productData.initialStock,
           reservedQuantity: 0,
@@ -156,6 +182,7 @@ export class ProductService {
           leadTime: productData.leadTime
         });
       }
+      */
 
       return {
         product: response.data,
@@ -170,11 +197,12 @@ export class ProductService {
   // Update an existing product (Admin only)
   static async updateProduct(id: string, updates: UpdateProductInput) {
     try {
-      // Use userClient for admin operations
+      // Use authenticated client for admin operations
+      const client = await getClient();
       // Remove id from updates to avoid duplication
       const { id: _, ...updateData } = updates;
       
-      const response = await userClient.models.Product.update({
+      const response = await client.models.Product.update({
         id,
         ...updateData
       });
@@ -192,18 +220,21 @@ export class ProductService {
   // Delete a product (Admin only)
   static async deleteProduct(id: string) {
     try {
-      // Use userClient for admin operations
-      // First, delete associated inventory
-      const inventoryResponse = await userClient.models.InventoryItem.list({
+      // Use authenticated client for admin operations
+      const client = await getClient();
+      // COMMENTED OUT - First, delete associated inventory - Not needed for now
+      /*
+      const inventoryResponse = await client.models.InventoryItem.list({
         filter: { productId: { eq: id } }
       });
       
       if (inventoryResponse.data?.[0]) {
-        await userClient.models.InventoryItem.delete({ id: inventoryResponse.data[0].id });
+        await client.models.InventoryItem.delete({ id: inventoryResponse.data[0].id });
       }
+      */
 
       // Then delete the product
-      const response = await userClient.models.Product.delete({ id });
+      const response = await client.models.Product.delete({ id });
 
       return {
         success: !!response.data,
@@ -226,7 +257,7 @@ export class ProductService {
   // Get featured/popular products
   static async getFeaturedProducts(limit: number = 6) {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       const response = await client.models.Product.list({
         filter: {

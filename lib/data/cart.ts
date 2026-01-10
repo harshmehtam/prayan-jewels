@@ -1,12 +1,12 @@
 // @ts-nocheck
 // Cart data access layer - Real Amplify GraphQL Integration
-import { getDynamicClient, handleAmplifyError, generateSessionId } from '@/lib/amplify-client';
+import { getClient, client, handleAmplifyError, generateSessionId } from '@/lib/amplify-client';
 
 export class CartService {
   // Get user cart with items in a single optimized call
   static async getUserCartWithItems(customerId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // First get the cart
       const cartResponse = await client.models.ShoppingCart.list({
@@ -115,7 +115,7 @@ export class CartService {
   // Get cart items by cart ID
   static async getCartItems(cartId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       const response = await client.models.CartItem.list({
         filter: { cartId: { eq: cartId } }
@@ -134,7 +134,7 @@ export class CartService {
   // Add item to cart - OPTIMIZED VERSION
   static async addItemToCart(cartId: string, productId: string, quantity: number, unitPrice: number): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Check if item already exists in cart
       const existingItemsResponse = await client.models.CartItem.list({
@@ -186,7 +186,7 @@ export class CartService {
   // Remove item from cart - OPTIMIZED VERSION
   static async removeItemFromCart(itemId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get the item to find the cart ID and calculate price change
       const itemResponse = await client.models.CartItem.get({ id: itemId });
@@ -217,7 +217,7 @@ export class CartService {
   // Update item quantity - OPTIMIZED VERSION
   static async updateItemQuantity(itemId: string, quantity: number): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get the item to calculate price change
       const itemResponse = await client.models.CartItem.get({ id: itemId });
@@ -253,7 +253,7 @@ export class CartService {
   // Clear entire cart
   static async clearCart(cartId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get all cart items
       const itemsResponse = await client.models.CartItem.list({
@@ -280,7 +280,7 @@ export class CartService {
   // Transfer guest cart to user cart
   static async transferGuestCartToUser(sessionId: string, customerId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get guest cart
       const guestCartResponse = await client.models.ShoppingCart.list({
@@ -356,7 +356,7 @@ export class CartService {
   // Validate cart inventory
   static async validateCartInventory(cartId: string): Promise<any> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get cart items
       const itemsResponse = await client.models.CartItem.list({
@@ -366,7 +366,8 @@ export class CartService {
       const items = itemsResponse.data || [];
       const unavailableItems: any[] = [];
 
-      // Check each item's availability
+      // COMMENTED OUT - Check each item's availability - Not needed for now
+      /*
       for (const item of items) {
         try {
           const inventoryResponse = await client.models.InventoryItem.list({
@@ -390,6 +391,9 @@ export class CartService {
           console.warn('Could not check inventory for product:', item.productId);
         }
       }
+      */
+
+      // For now, assume all items are available since we don't have inventory tracking
 
       return {
         isValid: unavailableItems.length === 0,
@@ -407,7 +411,7 @@ export class CartService {
   // Helper method to update cart totals efficiently (without fetching all items)
   private static async updateCartTotalsOptimized(cartId: string, subtotalChange: number): Promise<void> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get current cart to update totals incrementally
       const cartResponse = await client.models.ShoppingCart.get({ id: cartId });
@@ -442,7 +446,7 @@ export class CartService {
   // Helper method to update cart totals (full recalculation - use sparingly)
   private static async updateCartTotals(cartId: string): Promise<void> {
     try {
-      const client = await getDynamicClient();
+      const client = await getClient();
       
       // Get all cart items
       const itemsResponse = await client.models.CartItem.list({

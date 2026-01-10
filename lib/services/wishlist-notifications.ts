@@ -1,5 +1,5 @@
 // Wishlist notification service for price drops and stock availability
-import { client } from '@/lib/amplify-client';
+import { getClient, client } from '@/lib/amplify-client';
 import type { WishlistItem, Product } from '@/types';
 
 export interface WishlistNotification {
@@ -87,6 +87,8 @@ export class WishlistNotificationService {
       const notifications: WishlistNotification[] = [];
 
       // Check each wishlist item for stock availability
+      // COMMENTED OUT - Check each wishlist item for stock availability - Not needed for now
+      /*
       for (const wishlistItem of wishlistResponse.data) {
         try {
           // Get current inventory data
@@ -131,6 +133,9 @@ export class WishlistNotificationService {
           console.error(`Error checking stock for product ${wishlistItem.productId}:`, error);
         }
       }
+      */
+
+      // For now, return empty notifications since we don't have inventory tracking
 
       return notifications;
     } catch (error) {

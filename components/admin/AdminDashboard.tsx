@@ -263,6 +263,23 @@ export default function AdminDashboard({ className = '' }: AdminDashboardProps) 
             </a>
           </PermissionGate>
 
+          <PermissionGate resource="admin/products" action="read">
+            <a
+              href="/admin/coupons"
+              className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus-ring"
+            >
+              <div className="flex-shrink-0 p-2 bg-purple-100 rounded-lg">
+                <svg className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+              <div className="ml-3 min-w-0 flex-1">
+                <p className="text-responsive-xs font-medium text-gray-900 truncate">Manage Coupons</p>
+                <p className="text-xs text-gray-500 truncate">Create and manage discount coupons</p>
+              </div>
+            </a>
+          </PermissionGate>
+
           <PermissionGate resource="admin/inventory" action="read">
             <a
               href="/admin/inventory"

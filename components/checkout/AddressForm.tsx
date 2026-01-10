@@ -66,7 +66,7 @@ export function   AddressForm({
   initialData,
   editingAddress
 }: AddressFormProps) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [showAddressSelector, setShowAddressSelector] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   const [previouslySelectedAddress, setPreviouslySelectedAddress] = useState<SavedAddress | null>(null);
@@ -86,16 +86,22 @@ export function   AddressForm({
 
   // Initialize form based on user authentication status
   useEffect(() => {
+    // Wait for auth loading to complete before making decisions
+    if (authLoading) {
+      return;
+    }
+
     if (editingAddress) {
       // If editing an address, show form directly with the address data
       setShowAddressSelector(false);
       setShowForm(true);
       setIsEditing(true);
+      setEditingAddressId(editingAddress.id);
       const editFormData = {
         firstName: editingAddress.firstName || '',
         lastName: editingAddress.lastName || '',
-        email: editingAddress.email || '', // Load email from saved address
-        phone: (editingAddress as any).phone || '', // Load phone from saved address
+        email: editingAddress.email || '',
+        phone: editingAddress.phone || '',
         addressLine1: editingAddress.addressLine1 || '',
         addressLine2: editingAddress.addressLine2 || '',
         city: editingAddress.city || '',
@@ -113,11 +119,11 @@ export function   AddressForm({
       setShowAddressSelector(true);
       setShowForm(false);
     }
-  }, [user?.userId, editingAddress?.id]); // More specific dependencies
+  }, [user?.userId, editingAddress?.id, authLoading]);
 
-  // Load initial data
+  // Load initial data when provided
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !editingAddress) {
       const newFormData = {
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
@@ -132,7 +138,7 @@ export function   AddressForm({
       };
       setFormData(newFormData);
     }
-  }, [initialData]);
+  }, [initialData, editingAddress]);
 
   // Validate city/state with pincode when all three fields are filled
   const validateAddressMatch = useCallback(async (pincode: string, city: string, state: string) => {
@@ -217,7 +223,7 @@ export function   AddressForm({
       firstName: address.firstName || '',
       lastName: address.lastName || '',
       email: address.email || '', // Load email from saved address
-      phone: (address as any).phone || '', // Load phone from saved address
+      phone: address.phone || '', // Load phone from saved address
       addressLine1: address.addressLine1 || '',
       addressLine2: address.addressLine2 || '',
       city: address.city || '',
@@ -269,6 +275,9 @@ export function   AddressForm({
         postalCode: selectedAddress.postalCode,
         country: selectedAddress.country,
         isDefault: selectedAddress.isDefault,
+        // Include email and phone for shipping addresses
+        ...(type === 'shipping' && selectedAddress.email && { email: selectedAddress.email }),
+        ...(type === 'shipping' && selectedAddress.phone && { phone: selectedAddress.phone }),
       };
       onSubmit(addressData);
     }
@@ -277,18 +286,42 @@ export function   AddressForm({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
-    // Special handling for pincode
+    // Define character limits for each field
+    const limits = {
+      firstName: 20,
+      lastName: 20,
+      email: 100,
+      phone: 10,
+      addressLine1: 100,
+      addressLine2: 100,
+      city: 20,
+      postalCode: 6
+    };
+    
+    let processedValue = value;
+    
+    // Special handling for specific fields
     if (name === 'postalCode') {
       // Only allow digits and limit to 6 characters
-      const numericValue = value.replace(/\D/g, '').slice(0, 6);
-      setFormData(prev => ({ ...prev, [name]: numericValue }));
+      processedValue = value.replace(/\D/g, '').slice(0, limits.postalCode);
     } else if (name === 'phone') {
       // Only allow digits and limit to 10 characters
-      const numericValue = value.replace(/\D/g, '').slice(0, 10);
-      setFormData(prev => ({ ...prev, [name]: numericValue }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      processedValue = value.replace(/\D/g, '').slice(0, limits.phone);
+    } else if (name === 'firstName' || name === 'lastName') {
+      // Limit character count for names
+      processedValue = value.slice(0, limits[name as keyof typeof limits]);
+    } else if (name === 'email') {
+      // Limit character count for email
+      processedValue = value.slice(0, limits.email);
+    } else if (name === 'addressLine1' || name === 'addressLine2') {
+      // Limit character count for address lines
+      processedValue = value.slice(0, limits[name as keyof typeof limits]);
+    } else if (name === 'city') {
+      // Limit character count for city
+      processedValue = value.slice(0, limits.city);
     }
+    
+    setFormData(prev => ({ ...prev, [name]: processedValue }));
     
     // Clear error when user starts typing (only if field was touched)
     if (touchedFields.has(name) && errors[name as keyof ValidationErrors]) {
@@ -498,6 +531,80 @@ export function   AddressForm({
     validateForm();
   }, [formData, pincodeMatchResult, type]);
 
+  // Save changes to existing address
+  const handleSaveChanges = async () => {
+    if (!validateForm() || !editingAddressId || !user) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const addressInput: AddressInput = {
+        type: type,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: type === 'shipping' ? formData.email.trim() : undefined,
+        phone: type === 'shipping' ? formData.phone.trim() : undefined,
+        addressLine1: formData.addressLine1.trim(),
+        addressLine2: formData.addressLine2.trim() || undefined,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        postalCode: formData.postalCode.trim(),
+        country: formData.country.trim(),
+        isDefault: false,
+      };
+
+      const updatedAddress = await addressService.updateAddress(editingAddressId, addressInput);
+      
+      if (updatedAddress) {
+        console.log(`✅ ${type} address updated successfully`);
+        
+        // Also submit the address data for checkout flow
+        const addressData: Partial<Address> = {
+          type: type,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          addressLine1: formData.addressLine1.trim(),
+          addressLine2: formData.addressLine2.trim() || undefined,
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postalCode: formData.postalCode.trim(),
+          country: formData.country.trim(),
+          isDefault: false,
+          // Include email and phone for shipping addresses
+          ...(type === 'shipping' && formData.email && { email: formData.email.trim() }),
+          ...(type === 'shipping' && formData.phone && { phone: formData.phone.trim() }),
+        };
+
+        onSubmit(addressData);
+      } else {
+        throw new Error('Failed to update address');
+      }
+    } catch (error) {
+      console.error(`❌ Error updating ${type} address:`, error);
+      // Still proceed with checkout even if saving fails
+      const addressData: Partial<Address> = {
+        type: type,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        addressLine1: formData.addressLine1.trim(),
+        addressLine2: formData.addressLine2.trim() || undefined,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        postalCode: formData.postalCode.trim(),
+        country: formData.country.trim(),
+        isDefault: false,
+        ...(type === 'shipping' && formData.email && { email: formData.email.trim() }),
+        ...(type === 'shipping' && formData.phone && { phone: formData.phone.trim() }),
+      };
+
+      onSubmit(addressData);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -566,8 +673,21 @@ export function   AddressForm({
 
   return (
     <div className="space-y-6">
+      {/* Show loading state while auth is loading */}
+      {authLoading && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="space-y-3">
+              <div className="h-16 bg-gray-200 rounded"></div>
+              <div className="h-16 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Address Selector for logged-in users */}
-      {user && showAddressSelector && (
+      {!authLoading && user && showAddressSelector && (
         <div>
           <AddressSelector
             type={type}
@@ -634,7 +754,7 @@ export function   AddressForm({
       )}
 
       {/* Address Form */}
-      {showForm && (
+      {!authLoading && showForm && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold text-gray-900">
@@ -680,6 +800,7 @@ export function   AddressForm({
                   value={formData.firstName}
                   onChange={handleInputChange}
                   onBlur={() => handleFieldBlur('firstName')}
+                  maxLength={20}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                     touchedFields.has('firstName') && errors.firstName ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -688,6 +809,7 @@ export function   AddressForm({
                 {touchedFields.has('firstName') && errors.firstName && (
                   <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
                 )}
+                <p className="mt-1 text-xs text-gray-500">{formData.firstName.length}/20 characters</p>
               </div>
 
               <div>
@@ -701,6 +823,7 @@ export function   AddressForm({
                   value={formData.lastName}
                   onChange={handleInputChange}
                   onBlur={() => handleFieldBlur('lastName')}
+                  maxLength={20}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                     touchedFields.has('lastName') && errors.lastName ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -709,6 +832,7 @@ export function   AddressForm({
                 {touchedFields.has('lastName') && errors.lastName && (
                   <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
                 )}
+                <p className="mt-1 text-xs text-gray-500">{formData.lastName.length}/20 characters</p>
               </div>
             </div>
 
@@ -725,6 +849,7 @@ export function   AddressForm({
                   value={formData.email}
                   onChange={handleInputChange}
                   onBlur={() => handleFieldBlur('email')}
+                  maxLength={100}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                     touchedFields.has('email') && errors.email ? 'border-red-300' : 'border-gray-300'
                   }`}
@@ -734,7 +859,7 @@ export function   AddressForm({
                   <p className="mt-1 text-sm text-red-600">{errors.email}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  We'll send your order confirmation and updates to this email address
+                  We'll send your order confirmation and updates to this email address ({formData.email.length}/100 characters)
                 </p>
               </div>
             )}
@@ -762,7 +887,7 @@ export function   AddressForm({
                   <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
                 )}
                 <p className="mt-1 text-xs text-gray-500">
-                  We'll send you SMS updates about your order status and delivery
+                  We'll send you SMS updates about your order status and delivery ({formData.phone.length}/10 digits)
                 </p>
               </div>
             )}
@@ -779,6 +904,7 @@ export function   AddressForm({
                 value={formData.addressLine1}
                 onChange={handleInputChange}
                 onBlur={() => handleFieldBlur('addressLine1')}
+                maxLength={100}
                 className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                   touchedFields.has('addressLine1') && errors.addressLine1 ? 'border-red-300' : 'border-gray-300'
                 }`}
@@ -787,6 +913,7 @@ export function   AddressForm({
               {touchedFields.has('addressLine1') && errors.addressLine1 && (
                 <p className="mt-1 text-sm text-red-600">{errors.addressLine1}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">{formData.addressLine1.length}/100 characters</p>
             </div>
 
             <div>
@@ -799,9 +926,11 @@ export function   AddressForm({
                 name="addressLine2"
                 value={formData.addressLine2}
                 onChange={handleInputChange}
+                maxLength={100}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black"
                 placeholder="Apartment, suite, unit, building, floor, etc."
               />
+              <p className="mt-1 text-xs text-gray-500">{formData.addressLine2.length}/100 characters</p>
             </div>
 
             {/* City, State, Postal Code */}
@@ -817,6 +946,7 @@ export function   AddressForm({
                   value={formData.city}
                   onChange={handleInputChange}
                   onBlur={() => handleFieldBlur('city')}
+                  maxLength={20}
                   className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-black focus:border-black ${
                     (touchedFields.has('city') && errors.city) || pincodeMatchResult?.cityMatch === false ? 'border-red-300' : 
                     pincodeMatchResult?.cityMatch === true ? 'border-green-300' : 'border-gray-300'
@@ -829,6 +959,7 @@ export function   AddressForm({
                 {pincodeMatchResult?.cityMatch === true && !errors.city && (
                   <p className="mt-1 text-sm text-green-600">✓ City matches pincode</p>
                 )}
+                <p className="mt-1 text-xs text-gray-500">{formData.city.length}/20 characters</p>
               </div>
 
               <div>
@@ -906,6 +1037,7 @@ export function   AddressForm({
                     Validating address...
                   </p>
                 )}
+                <p className="mt-1 text-xs text-gray-500">{formData.postalCode.length}/6 digits</p>
               </div>
             </div>
 
@@ -931,8 +1063,8 @@ export function   AddressForm({
               )}
             </div>
 
-            {/* Save address option for logged-in users - only show when not editing */}
-            {user && !isEditing && (
+            {/* Save address option for logged-in users - only show when creating a completely new address */}
+            {user && !isEditing && !selectedAddress && (
               <div className="border-t border-gray-200 pt-6">
                 <div className="flex items-start">
                   <input
@@ -983,7 +1115,7 @@ export function   AddressForm({
               </div>
             )}
 
-            {/* Submit button */}
+            {/* Submit buttons */}
             <div className="flex justify-end pt-6">
               <div className="flex space-x-4">
                 {onBack && (
@@ -996,18 +1128,34 @@ export function   AddressForm({
                   </button>
                 )}
                 
-                <button
-                  type="submit"
-                  disabled={isSubmitting || isPincodeValidating || !isFormValid}
-                  className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isSubmitting ? 'Processing...' : 
-                   isPincodeValidating ? 'Validating...' :
-                   type === 'shipping' 
-                     ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
-                     : 'Review Order'
-                  }
-                </button>
+                {isEditing ? (
+                  // When editing an existing address, show "Save Changes" button
+                  <button
+                    type="button"
+                    onClick={handleSaveChanges}
+                    disabled={isSubmitting || isPincodeValidating || !isFormValid}
+                    className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSubmitting ? 'Saving Changes...' : 
+                     isPincodeValidating ? 'Validating...' :
+                     'Save Changes & Continue'
+                    }
+                  </button>
+                ) : (
+                  // When creating new address or using form normally
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || isPincodeValidating || !isFormValid}
+                    className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSubmitting ? 'Processing...' : 
+                     isPincodeValidating ? 'Validating...' :
+                     type === 'shipping' 
+                       ? (sameAsShipping ? 'Continue to Review' : 'Continue to Billing')
+                       : 'Review Order'
+                    }
+                  </button>
+                )}
               </div>
             </div>
           </form>

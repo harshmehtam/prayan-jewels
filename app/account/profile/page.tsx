@@ -44,11 +44,29 @@ export default function ProfilePage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
+    // Define character limits for each field
+    const limits = {
+      firstName: 20,
+      lastName: 20,
+      phone: 10
+    };
+    
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      let processedValue = value;
+      
+      // Apply character limits and special processing
+      if (name === 'phone') {
+        // Only allow digits and limit to 10 characters
+        processedValue = value.replace(/\D/g, '').slice(0, limits.phone);
+      } else if (name === 'firstName' || name === 'lastName') {
+        // Limit character count for names
+        processedValue = value.slice(0, limits[name as keyof typeof limits]);
+      }
+      
+      setFormData(prev => ({ ...prev, [name]: processedValue }));
     }
   };
 
@@ -179,8 +197,12 @@ export default function ProfilePage() {
                     value={formData.firstName}
                     onChange={handleInputChange}
                     disabled={!isEditing}
+                    maxLength={20}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   />
+                  {isEditing && (
+                    <p className="mt-1 text-xs text-gray-500">{formData.firstName.length}/20 characters</p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -193,8 +215,12 @@ export default function ProfilePage() {
                     value={formData.lastName}
                     onChange={handleInputChange}
                     disabled={!isEditing}
+                    maxLength={20}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                   />
+                  {isEditing && (
+                    <p className="mt-1 text-xs text-gray-500">{formData.lastName.length}/20 characters</p>
+                  )}
                 </div>
               </div>
 
@@ -210,9 +236,13 @@ export default function ProfilePage() {
                   value={formData.phone}
                   onChange={handleInputChange}
                   disabled={!isEditing}
+                  maxLength={10}
                   placeholder="+91 9876543210"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
                 />
+                {isEditing && (
+                  <p className="mt-1 text-xs text-gray-500">{formData.phone.length}/10 digits</p>
+                )}
               </div>
 
               {/* Date of Birth */}

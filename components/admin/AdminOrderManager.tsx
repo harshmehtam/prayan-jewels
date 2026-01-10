@@ -50,6 +50,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
       case 'shipped': return 'bg-purple-100 text-purple-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'refunded': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -207,6 +208,7 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
                       <option value="shipped">Shipped</option>
                       <option value="delivered">Delivered</option>
                       <option value="cancelled">Cancelled</option>
+                      <option value="refunded">Refunded</option>
                     </select>
                   </div>
 
@@ -250,6 +252,24 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
                     {updating && <LoadingSpinner size="sm" />}
                     <span>Update Order</span>
                   </button>
+
+                  {/* Download Invoice Button */}
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = `/api/orders/${order.id}/invoice`;
+                      link.download = `invoice-${order.confirmationNumber || order.id}.pdf`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 mt-2"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Download Invoice</span>
+                  </button>
                 </div>
               </div>
             </PermissionGate>
@@ -272,6 +292,12 @@ const OrderDetailModal: React.FC<OrderDetailModalProps> = ({ order, onClose, onU
               <span className="text-sm text-gray-600">Shipping:</span>
               <span className="text-sm text-gray-900">₹{(order.shipping || 0).toLocaleString()}</span>
             </div>
+            {order.couponCode && order.couponDiscount && order.couponDiscount > 0 && (
+              <div className="flex justify-between py-2">
+                <span className="text-sm text-green-600">Coupon Discount ({order.couponCode}):</span>
+                <span className="text-sm text-green-600">-₹{order.couponDiscount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between py-2 border-t border-gray-200 font-semibold">
               <span className="text-sm text-gray-900">Total:</span>
               <span className="text-sm text-gray-900">₹{order.totalAmount.toLocaleString()}</span>
@@ -289,7 +315,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
   const [error, setError] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<'processing' | 'shipped' | 'delivered' | 'cancelled' | ''>('');
+  const [bulkAction, setBulkAction] = useState<'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | ''>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -430,6 +456,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
       case 'shipped': return 'bg-purple-100 text-purple-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'refunded': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -506,6 +533,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
               <option value="shipped">Shipped</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
             </select>
           </div>
           <div>
@@ -581,6 +609,7 @@ export default function AdminOrderManager({ className = '' }: AdminOrderManagerP
                 <option value="shipped">Mark as Shipped</option>
                 <option value="delivered">Mark as Delivered</option>
                 <option value="cancelled">Mark as Cancelled</option>
+                <option value="refunded">Mark as Refunded</option>
               </select>
             </div>
             <div className="flex items-center space-x-2">

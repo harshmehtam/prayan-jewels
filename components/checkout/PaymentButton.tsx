@@ -1,10 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
-import { OrderService } from '@/lib/services/order-service';
 import { RazorpayService } from '@/lib/services/razorpay';
 import type { Address } from '@/types';
 
@@ -16,6 +14,13 @@ interface PaymentButtonProps {
   onSuccess: (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => void;
   onError: (error: string) => void;
   selectedPaymentMethod: 'razorpay' | 'cash_on_delivery';
+  appliedCoupon?: {
+    id: string;
+    code: string;
+    name: string;
+    discountAmount: number;
+  } | null;
+  finalTotal: number;
 }
 
 export function PaymentButton({
@@ -26,8 +31,9 @@ export function PaymentButton({
   onSuccess,
   onError,
   selectedPaymentMethod,
+  appliedCoupon,
+  finalTotal,
 }: PaymentButtonProps) {
-  const router = useRouter();
   const { user, userProfile } = useAuth();
   const { cart, items, clearCart } = useCart();
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -60,9 +66,13 @@ export function PaymentButton({
       console.log('✅ Using customer email from shipping address:', customerEmail);
       console.log('✅ Using customer phone from shipping address:', customerPhone);
 
+      // Create unique customer ID for guest users
+      // For guests, use email + phone hash to create a unique but consistent ID
+      const guestCustomerId = user?.userId || `guest_${btoa(customerEmail + '_' + customerPhone).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}`;
+      
       // Create order data
       const orderData = {
-        customerId: user?.userId || 'guest',
+        customerId: guestCustomerId,
         customerEmail,
         customerPhone,
         items,
@@ -72,12 +82,25 @@ export function PaymentButton({
         subtotal: cart.subtotal,
         tax: cart.estimatedTax,
         shipping: cart.estimatedShipping,
-        totalAmount: cart.estimatedTotal,
+        couponId: appliedCoupon?.id,
+        couponCode: appliedCoupon?.code,
+        couponDiscount: appliedCoupon?.discountAmount || 0,
+        totalAmount: finalTotal,
       };
 
       if (selectedPaymentMethod === 'cash_on_delivery') {
-        // Handle Cash on Delivery
-        const orderResult = await OrderService.createOrder(orderData);
+        // Handle Cash on Delivery via API route
+        console.log('📦 Creating COD order via API...');
+        
+        const response = await fetch('/api/orders/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(orderData),
+        });
+
+        const orderResult = await response.json();
         
         if (!orderResult.success) {
           throw new Error(orderResult.error || 'Failed to create order');
@@ -96,7 +119,9 @@ export function PaymentButton({
         
         // Prepare order data for Razorpay service
         const razorpayOrderData = {
-          customerId: user?.userId || 'guest',
+          customerId: guestCustomerId,
+          customerEmail,
+          customerPhone,
           items: items.map(item => ({
             productId: item.productId,
             quantity: item.quantity,
@@ -150,6 +175,11 @@ export function PaymentButton({
             setPaymentError(error.message);
             onError(error.message);
             onProcessingChange(false);
+          },
+          onDismiss: () => {
+            console.log('Razorpay modal dismissed/cancelled by user');
+            setPaymentError(null); // Clear any previous errors
+            onProcessingChange(false); // Reset loading state
           },
         });
       }

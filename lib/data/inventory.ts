@@ -1,6 +1,8 @@
-// Inventory data access layer
-import { client, handleAmplifyError, calculateAvailableInventory } from '@/lib/amplify-client';
-import type { InventoryItem } from '@/types';
+// COMMENTED OUT - Inventory data access layer - Not needed for now
+/*
+import { getClient, client, handleAmplifyError, calculateAvailableInventory } from '@/lib/amplify-client';
+// COMMENTED OUT - InventoryItem import - Not needed for now
+// import type { InventoryItem } from '@/types';
 
 export class InventoryService {
   // Get inventory for a specific product
@@ -157,7 +159,7 @@ export class InventoryService {
       const response = await client.models.InventoryItem.update({
         id: inventory.id,
         stockQuantity: Math.max(0, newStockQuantity),
-        reservedQuantity: newReservedQuantity
+        reservedQuantory: newReservedQuantity
       });
 
       return {
@@ -209,5 +211,28 @@ export class InventoryService {
     } catch (error) {
       return false;
     }
+  }
+}
+*/
+
+// PLACEHOLDER - Simple inventory check functions for basic functionality
+export class InventoryService {
+  // Simple in-stock check - always returns true for now
+  static async isProductInStock(productId: string, requestedQuantity: number = 1): Promise<boolean> {
+    // For now, assume all products are in stock
+    return true;
+  }
+
+  // Placeholder for inventory operations - no-op functions
+  static async reserveInventory(productId: string, quantity: number): Promise<void> {
+    // No-op for now
+  }
+
+  static async releaseReservedInventory(productId: string, quantity: number): Promise<void> {
+    // No-op for now
+  }
+
+  static async confirmInventory(productId: string, quantity: number): Promise<void> {
+    // No-op for now
   }
 }

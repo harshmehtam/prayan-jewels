@@ -94,7 +94,6 @@ export default function WishlistPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">Please Log In</h3>
             <p className="text-gray-600 mb-4">You need to be logged in to view your wishlist.</p>
             <LoginButton 
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               redirectTo="/account/wishlist"
             >
               Log In
@@ -206,7 +205,7 @@ export default function WishlistPage() {
             <p className="text-gray-600 mb-6">Save your favorite mangalsutra designs to view them here</p>
             <Link
               href="/products"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+              className="inline-flex items-center px-6 py-3 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-400"
             >
               Browse Products
               <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,11 +250,11 @@ export default function WishlistPage() {
                     <button
                       onClick={() => handleMoveToCart(item.productId, item.productPrice || 0)}
                       disabled={movingToCart === item.productId}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 px-4 py-2 text-sm font-semibold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400"
                     >
                       {movingToCart === item.productId ? (
                         <div className="flex items-center justify-center">
-                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
                           Moving...
                         </div>
                       ) : (
@@ -265,7 +264,7 @@ export default function WishlistPage() {
                     
                     <Link
                       href={`/products/${item.productId}`}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm font-medium"
+                      className="px-4 py-2 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium uppercase tracking-wider"
                     >
                       View
                     </Link>

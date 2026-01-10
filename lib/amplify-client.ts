@@ -1,59 +1,41 @@
-// Amplify client configuration and utilities
+// Simplified Amplify client configuration
 import { generateClient } from 'aws-amplify/data';
-import { getCurrentUser } from 'aws-amplify/auth';
 import { Amplify } from 'aws-amplify';
+import { getCurrentUser } from 'aws-amplify/auth';
 import outputs from '@/amplify_outputs.json';
 import type { Schema } from '@/amplify/data/resource';
 
-// Ensure Amplify is configured (especially for server-side usage)
+// Configure Amplify once
 if (!Amplify.getConfig().Auth?.Cognito) {
   Amplify.configure(outputs, { ssr: true });
 }
 
-// Generate the typed client for GraphQL operations
-export const client = generateClient<Schema>();
-
-// Generate a client specifically for guest/public access using IAM
-export const guestClient = generateClient<Schema>({
-  authMode: 'iam'
-});
-
-// Generate a client specifically for authenticated users
-export const userClient = generateClient<Schema>({
-  authMode: 'userPool'
-});
-
 /**
- * Simple auth mode check without React hooks
+ * Get client with appropriate auth mode
+ * This automatically detects if user is authenticated and uses the right auth mode
  */
-const getAuthMode = async (): Promise<'userPool' | 'iam'> => {
+export const getClient = async () => {
   try {
+    // Check if user is authenticated by trying to get current user
     await getCurrentUser();
-    return 'userPool';
-  } catch (error) {
-    return 'iam';
+    // User is authenticated, use userPool mode
+    return generateClient<Schema>({ authMode: 'userPool' });
+  } catch {
+    // User is not authenticated, use iam mode for guest access
+    return generateClient<Schema>({ authMode: 'iam' });
   }
 };
 
 /**
- * Get the appropriate client based on authentication status with proper error handling
+ * Get client for server-side operations (API routes)
+ * Always uses IAM mode since there's no user context in API routes
  */
-export const getDynamicClient = async () => {
-  // Ensure Amplify is configured before proceeding
-  try {
-    if (!Amplify.getConfig().Auth?.Cognito) {
-      console.log('Amplify not configured, configuring now...');
-      Amplify.configure(outputs, { ssr: true });
-    }
-    
-    const authMode = await getAuthMode();
-    return authMode === 'userPool' ? userClient : guestClient;
-  } catch (error) {
-    console.error('Error getting dynamic client:', error);
-    // Fallback to guest client if there's an auth error
-    return guestClient;
-  }
+export const getServerClient = () => {
+  return generateClient<Schema>({ authMode: 'iam' });
 };
+
+// Default client for cases where you don't need dynamic auth mode
+export const client = generateClient<Schema>();
 
 // Type exports for use throughout the application
 export type AmplifyClient = typeof client;
@@ -67,10 +49,12 @@ export function handleAmplifyError(error: any): string {
   return error?.message || 'An unexpected error occurred';
 }
 
-// Helper function to calculate available inventory
+// COMMENTED OUT - Helper function to calculate available inventory - Not needed for now
+/*
 export function calculateAvailableInventory(stockQuantity: number, reservedQuantity: number): number {
   return Math.max(0, stockQuantity - reservedQuantity);
 }
+*/
 
 // Helper function to format currency
 export function formatCurrency(amount: number, currency: string = 'INR'): string {

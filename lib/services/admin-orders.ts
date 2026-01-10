@@ -5,7 +5,7 @@ import { EmailService } from '@/lib/services/email';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 
 export interface OrderFilters {
-  status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
   customerId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -24,6 +24,7 @@ export interface OrderAnalytics {
     shipped: number;
     delivered: number;
     cancelled: number;
+    refunded: number;
   };
   recentOrders: Order[];
   topProducts: {
@@ -238,11 +239,29 @@ export class AdminOrderService {
       if (updateData.status) {
         const result = await OrderService.updateOrderStatus(orderId, updateData.status);
         
-        // If updating to shipped status, send notifications
+        // If updating to shipped status, send notifications with PDF invoice
         if (updateData.status === 'shipped' && result.order) {
-          // Cast the order to our Order type for notification purposes
-          const orderForNotification = result.order as any as Order;
-          await this.sendShippedNotifications(orderForNotification, updateData.trackingNumber, updateData.estimatedDelivery);
+          try {
+            // Get order items for PDF generation
+            const orderItemsResponse = await OrderService.getOrderItems(orderId);
+            const orderItems = orderItemsResponse.items || [];
+            
+            // Cast the order to our Order type for notification purposes
+            const orderForNotification = result.order as any as Order;
+            
+            // Send shipping notification with PDF invoice
+            await EmailService.sendOrderShippingEmailWithInvoice(
+              orderForNotification,
+              orderItems,
+              updateData.trackingNumber,
+              updateData.estimatedDelivery ? new Date(updateData.estimatedDelivery) : undefined
+            );
+            
+            console.log('✅ Shipped notification with PDF invoice sent successfully');
+          } catch (emailError) {
+            console.error('❌ Failed to send shipped notification with PDF invoice:', emailError);
+            // Don't fail the order update if email fails
+          }
         }
         
         // If updating to shipped status and tracking number provided
@@ -309,6 +328,7 @@ export class AdminOrderService {
         shipped: filteredOrders.filter(o => o.status === 'shipped').length,
         delivered: filteredOrders.filter(o => o.status === 'delivered').length,
         cancelled: filteredOrders.filter(o => o.status === 'cancelled').length,
+        refunded: filteredOrders.filter(o => o.status === 'refunded').length,
       };
 
       // Recent orders (last 10)
@@ -374,7 +394,7 @@ export class AdminOrderService {
       totalOrders: 0,
       totalRevenue: 0,
       averageOrderValue: 0,
-      ordersByStatus: { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0 },
+      ordersByStatus: { pending: 0, processing: 0, shipped: 0, delivered: 0, cancelled: 0, refunded: 0 },
       recentOrders: [],
       topProducts: [],
       salesByMonth: []

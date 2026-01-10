@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { OrderService } from '@/lib/data/orders';
+import { OrderService } from '@/lib/services/order-service';
 import { validateRazorpayBasicConfig } from '@/lib/config/razorpay';
 import type { CreateOrderInput } from '@/types';
 
@@ -29,9 +29,12 @@ export async function POST(request: NextRequest) {
     const subtotal = orderData.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
     const tax = subtotal * 0.18; // 18% GST
     const shipping = subtotal > 2000 ? 0 : 100; // Free shipping above ₹2000
-    const totalAmount = subtotal + tax + shipping;
+    
+    // Apply coupon discount if provided
+    const couponDiscount = orderData.couponDiscount || 0;
+    const totalAmount = subtotal + tax + shipping - couponDiscount;
 
-    console.log('Order totals calculated:', { subtotal, tax, shipping, totalAmount });
+    console.log('Order totals calculated:', { subtotal, tax, shipping, couponDiscount, totalAmount });
 
     // Initialize Razorpay instance
     const razorpay = new Razorpay({
@@ -58,10 +61,45 @@ export async function POST(request: NextRequest) {
     let databaseOrderCreated = false;
 
     try {
-      const orderResult = await OrderService.createOrder(orderData);
+      // For guest users, ensure we have a proper unique customer ID
+      let finalCustomerId = orderData.customerId;
+      if (orderData.customerId === 'guest' || orderData.customerId.startsWith('guest_')) {
+        // Generate a consistent guest customer ID based on email and phone
+        finalCustomerId = OrderService.generateGuestCustomerId(
+          orderData.customerEmail || '', 
+          orderData.customerPhone || ''
+        );
+        console.log('🔄 Generated guest customer ID:', finalCustomerId);
+      }
+
+      // Convert CreateOrderInput to the format expected by OrderService
+      const orderServiceData = {
+        customerId: finalCustomerId,
+        customerEmail: orderData.customerEmail,
+        customerPhone: orderData.customerPhone,
+        items: orderData.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.quantity * item.unitPrice,
+        })),
+        shippingAddress: orderData.shippingAddress,
+        billingAddress: orderData.billingAddress,
+        paymentMethod: 'razorpay' as const,
+        subtotal,
+        tax,
+        shipping,
+        couponId: orderData.couponId,
+        couponCode: orderData.couponCode,
+        couponDiscount,
+        totalAmount,
+        paymentOrderId: razorpayOrder.id,
+      };
+
+      const orderResult = await OrderService.createOrder(orderServiceData);
       
-      if (orderResult.order) {
-        internalOrderId = orderResult.order.id;
+      if (orderResult.success && orderResult.orderId) {
+        internalOrderId = orderResult.orderId;
         databaseOrderCreated = true;
         console.log('Database order created successfully:', internalOrderId);
         

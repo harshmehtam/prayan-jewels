@@ -50,7 +50,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'admin/inventory', action: 'update' },
     { resource: 'admin/customers', action: 'read' },
     { resource: 'admin/customers', action: 'update' },
+    { resource: 'admin/coupons', action: 'create' },
+    { resource: 'admin/coupons', action: 'read' },
+    { resource: 'admin/coupons', action: 'update' },
     { resource: 'admin/analytics', action: 'read' },
+    { resource: 'admin/reviews', action: 'read' },
+    { resource: 'admin/reviews', action: 'update' },
+    { resource: 'admin/reviews', action: 'delete' },
   ],
   super_admin: [
     // All admin permissions
@@ -77,7 +83,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'admin/inventory', action: 'update' },
     { resource: 'admin/customers', action: 'read' },
     { resource: 'admin/customers', action: 'update' },
+    { resource: 'admin/coupons', action: 'create' },
+    { resource: 'admin/coupons', action: 'read' },
+    { resource: 'admin/coupons', action: 'update' },
+    { resource: 'admin/coupons', action: 'delete' },
     { resource: 'admin/analytics', action: 'read' },
+    { resource: 'admin/reviews', action: 'read' },
+    { resource: 'admin/reviews', action: 'update' },
+    { resource: 'admin/reviews', action: 'delete' },
     // Super admin exclusive permissions
     { resource: 'admin/users', action: 'create' },
     { resource: 'admin/users', action: 'read' },

@@ -69,7 +69,7 @@ export default function AccountPage() {
             <p className="text-gray-600 mb-6">You need to be signed in to access your account</p>
             <Link
               href="/"
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-400"
             >
               Go to Home & Sign In
               <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +111,7 @@ export default function AccountPage() {
         </div>
 
         {/* Account Overview Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           {/* Orders */}
           <Link
             href="/account/orders"
@@ -167,6 +167,24 @@ export default function AccountPage() {
             </div>
           </Link>
 
+          {/* Reviews */}
+          <Link
+            href="/account/reviews"
+            className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Reviews</h3>
+                <p className="text-sm text-gray-500">My product reviews</p>
+              </div>
+            </div>
+          </Link>
+
           {/* Wishlist */}
           <Link
             href="/account/wishlist"
@@ -181,6 +199,24 @@ export default function AccountPage() {
               <div className="ml-4">
                 <h3 className="text-lg font-medium text-gray-900">Wishlist</h3>
                 <p className="text-sm text-gray-500">Saved items</p>
+              </div>
+            </div>
+          </Link>
+
+          {/* Coupons */}
+          <Link
+            href="/account/coupons"
+            className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Coupons</h3>
+                <p className="text-sm text-gray-500">My discount coupons</p>
               </div>
             </div>
           </Link>
@@ -238,7 +274,7 @@ export default function AccountPage() {
                 <p className="text-gray-600 mb-4">Start shopping to see your orders here</p>
                 <Link
                   href="/products"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-4 py-2 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-400"
                 >
                   Start Shopping
                 </Link>

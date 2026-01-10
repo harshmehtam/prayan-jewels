@@ -6,3 +6,4 @@ export { default as WishlistNotifications } from './WishlistNotifications';
 export { default as RichTextEditor } from './RichTextEditor';
 export { default as SimpleRichTextEditor } from './SimpleRichTextEditor';
 export { default as CachedAmplifyImage } from './CachedAmplifyImage';
+export { default as StarRating, CompactStarRating } from './StarRating';

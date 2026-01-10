@@ -18,6 +18,8 @@ export interface Product {
   updatedAt: string;
 }
 
+// COMMENTED OUT - InventoryItem interface - Not needed for now
+/*
 export interface InventoryItem {
   id: string;
   productId: string;
@@ -33,6 +35,7 @@ export interface InventoryItem {
   createdAt: string;
   updatedAt: string;
 }
+*/
 
 export interface Address {
   id: string;
@@ -88,8 +91,11 @@ export interface Order {
   subtotal: number;
   tax: number | null;
   shipping: number | null;
+  couponId?: string | null; // Applied coupon ID
+  couponCode?: string | null; // Applied coupon code
+  couponDiscount?: number | null; // Discount amount applied
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | null;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | null;
   paymentMethod: 'razorpay' | 'cash_on_delivery' | null;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | null;
   confirmationNumber?: string | null; // Unique order confirmation number
@@ -140,12 +146,12 @@ export interface CreateProductInput {
   price: number;
   images: string[]; // Local image paths
   isActive?: boolean;
-  // Additional fields for inventory setup
-  initialStock?: number;
-  reorderPoint?: number;
-  supplierName?: string;
-  supplierContact?: string;
-  leadTime?: number;
+  // COMMENTED OUT - Additional fields for inventory setup - Not needed for now
+  // initialStock?: number;
+  // reorderPoint?: number;
+  // supplierName?: string;
+  // supplierContact?: string;
+  // leadTime?: number;
 }
 
 export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'initialStock' | 'reorderPoint' | 'supplierName' | 'supplierContact' | 'leadTime'>> {
@@ -156,6 +162,8 @@ export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'in
 
 export interface CreateOrderInput {
   customerId: string;
+  customerEmail: string;
+  customerPhone: string;
   items: {
     productId: string;
     quantity: number;
@@ -163,6 +171,9 @@ export interface CreateOrderInput {
   }[];
   shippingAddress: Omit<Address, 'id' | 'userId' | 'type' | 'createdAt' | 'updatedAt'>;
   billingAddress: Omit<Address, 'id' | 'userId' | 'type' | 'createdAt' | 'updatedAt'>;
+  couponId?: string;
+  couponCode?: string;
+  couponDiscount?: number;
 }
 
 export interface CartOperations {
@@ -214,10 +225,12 @@ export interface SavedSearch {
 export interface AdminDashboardStats {
   totalOrders: number;
   totalRevenue: number;
-  lowStockItems: number;
+  // lowStockItems: number; // COMMENTED OUT - Not needed for now
   pendingOrders: number;
 }
 
+// COMMENTED OUT - InventoryAlert interface - Not needed for now
+/*
 export interface InventoryAlert {
   productId: string;
   productName: string;
@@ -225,6 +238,7 @@ export interface InventoryAlert {
   reorderPoint: number;
   alertType: 'low_stock' | 'out_of_stock';
 }
+*/
 
 // Wishlist types
 export interface WishlistItem {
@@ -241,6 +255,77 @@ export interface CreateWishlistItemInput {
   productId: string;
 }
 
+// Review and Rating types
+export interface ProductReview {
+  id: string;
+  productId: string;
+  customerId: string;
+  orderId: string;
+  orderItemId: string;
+  rating: number; // 1-5 stars
+  title: string;
+  comment: string;
+  isApproved: boolean;
+  isVerifiedPurchase: boolean;
+  helpfulCount: number;
+  reportCount: number;
+  adminNotes?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  product?: Product;
+  order?: Order;
+  orderItem?: OrderItem;
+  helpfulVotes?: ReviewHelpfulVote[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewHelpfulVote {
+  id: string;
+  reviewId: string;
+  customerId: string;
+  isHelpful: boolean;
+  review?: ProductReview;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateReviewInput {
+  productId: string;
+  orderId: string;
+  orderItemId: string;
+  rating: number;
+  title: string;
+  comment: string;
+}
+
+export interface UpdateReviewInput {
+  id: string;
+  rating?: number;
+  title?: string;
+  comment?: string;
+}
+
+export interface ReviewFilters {
+  productId?: string;
+  customerId?: string;
+  rating?: number;
+  isApproved?: boolean;
+  sortBy?: 'newest' | 'oldest' | 'rating-high' | 'rating-low' | 'helpful';
+}
+
+export interface ReviewStats {
+  averageRating: number;
+  totalReviews: number;
+  ratingDistribution: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+}
+
 // Payment related types (for Razorpay integration)
 export interface PaymentOrder {
   id: string;
@@ -254,4 +339,58 @@ export interface PaymentVerification {
   razorpay_order_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
+}
+
+// Coupon related types
+export interface Coupon {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  type: 'percentage' | 'fixed_amount';
+  value: number;
+  minimumOrderAmount?: number | null;
+  maximumDiscountAmount?: number | null;
+  usageLimit?: number | null;
+  usageCount: number;
+  userUsageLimit?: number | null;
+  isActive: boolean;
+  validFrom: string;
+  validUntil: string;
+  applicableProducts?: string[] | null;
+  excludedProducts?: string[] | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserCoupon {
+  id: string;
+  userId: string;
+  couponId: string;
+  usageCount: number;
+  lastUsedAt?: string | null;
+  coupon?: Coupon;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCouponInput {
+  code: string;
+  name: string;
+  description?: string;
+  type: 'percentage' | 'fixed_amount';
+  value: number;
+  minimumOrderAmount?: number;
+  maximumDiscountAmount?: number;
+  usageLimit?: number;
+  userUsageLimit?: number;
+  validFrom: string;
+  validUntil: string;
+  applicableProducts?: string[];
+  excludedProducts?: string[];
+}
+
+export interface UpdateCouponInput extends Partial<CreateCouponInput> {
+  id: string;
 }

@@ -2,7 +2,7 @@
 // Note: Since we removed user profiles from the database, this is now a stub implementation
 // Users are managed through AWS Cognito groups only
 
-import { client, handleAmplifyError } from '@/lib/amplify-client';
+import { getClient, client, handleAmplifyError } from '@/lib/amplify-client';
 import type { Address } from '@/types';
 
 export class UserService {

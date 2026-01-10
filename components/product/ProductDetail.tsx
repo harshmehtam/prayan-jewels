@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { ProductService } from '@/lib/services/product-service';
 import { AddToCartButton } from '@/components/cart';
 import { DELIVERY_CONFIG } from '@/lib/config/delivery';
+import { useWishlist } from '@/components/providers/wishlist-provider';
+import { useCart } from '@/components/providers/cart-provider';
+import ProductReviews from '@/components/product/ProductReviews';
+import AvailableCoupons from '@/components/product/AvailableCoupons';
 import type { Product } from '@/types';
 
 interface ProductDetailProps {
@@ -38,6 +43,21 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
   const [fullscreenImageIndex, setFullscreenImageIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [zoomPosition, setZoomPosition] = useState({ x: 0, y: 0 });
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
+
+  const { toggleWishlist, wishlistStatus } = useWishlist();
+  const { addItem } = useCart();
+  const router = useRouter();
+
+  // Use cached wishlist status from the hook
+  useEffect(() => {
+    if (product) {
+      setIsInWishlist(wishlistStatus[product.id] || false);
+    }
+  }, [product?.id, wishlistStatus]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -77,9 +97,55 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
     setImageError(prev => ({ ...prev, [index]: true }));
   };
 
-  const handleBuyNow = () => {
-    // TODO: Implement buy now functionality
-    console.log('Buy now:', { productId });
+  const handleBuyNow = async () => {
+    if (!product) return;
+    
+    setIsBuyingNow(true);
+    
+    try {
+      // Add product to cart
+      await addItem(product.id, 1, product.price);
+      
+      // Navigate to checkout page
+      router.push('/checkout');
+    } catch (error) {
+      console.error('Failed to add product to cart:', error);
+      // Reset loading state on error so user can try again
+      setIsBuyingNow(false);
+      // You could add a toast notification here for better UX
+      alert('Failed to add product to cart. Please try again.');
+    }
+    // Note: We don't set loading to false on success because we're navigating away
+  };
+
+  // Wishlist functionality
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!product) return;
+    
+    setIsTogglingWishlist(true);
+    
+    try {
+      // Pass product details to avoid unnecessary API calls
+      const productDetails = {
+        name: product.name,
+        price: product.price,
+        image: product.images[0] || ''
+      };
+      
+      const result = await toggleWishlist(product.id, productDetails);
+      setIsInWishlist(result.isInWishlist);
+      
+      // You could add a toast notification here
+      console.log(result.message);
+    } catch (error) {
+      console.error('Failed to toggle wishlist:', error);
+      // You could add error handling/toast here
+    } finally {
+      setIsTogglingWishlist(false);
+    }
   };
 
   const openFullscreen = (imageIndex: number) => {
@@ -504,7 +570,6 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
             {/* Header */}
             <div>
               <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">{product.name}</h1>
-              <p className="text-lg md:text-xl text-gray-600 mb-4 md:mb-6">{product.description}</p>
               
               {/* Price */}
               <div className="mb-6 md:mb-8">
@@ -575,6 +640,33 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
               </div>
             </div>
 
+            {/* Expandable Product Description */}
+            <div className="mb-6 md:mb-8">
+              <button
+                onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                className="flex items-center justify-between w-full text-left p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors duration-200"
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Product Description</h3>
+                <svg 
+                  className={`w-5 h-5 text-gray-600 transition-transform duration-200 ${isDescriptionExpanded ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {isDescriptionExpanded && (
+                <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg transition-all duration-300 ease-in-out">
+                  <div 
+                    className="text-gray-700 leading-relaxed product-description"
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Delivery Information */}
             <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center mb-2 md:mb-3">
@@ -590,76 +682,9 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
               </p>
             </div>
 
-            {/* Offers & Coupons */}
-            <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center mb-3 md:mb-4">
-                <svg className="w-5 md:w-6 h-5 md:h-6 text-gray-700 mr-2 md:mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                <span className="text-sm md:text-base font-medium text-gray-900">Available Offers</span>
-              </div>
-              
-              <div className="space-y-3 md:space-y-4">
-                {/* Coupon 1 */}
-                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-1 md:mb-2">
-                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">FIRST10</span>
-                      <span className="text-sm font-medium text-green-600">10% OFF</span>
-                    </div>
-                    <p className="text-sm text-gray-600">Get 10% off on your first order. Valid for new customers only.</p>
-                  </div>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText('FIRST10')}
-                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-
-                {/* Coupon 2 */}
-                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-1 md:mb-2">
-                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">SAVE500</span>
-                      <span className="text-sm font-medium text-green-600">₹500 OFF</span>
-                    </div>
-                    <p className="text-sm text-gray-600">Save ₹500 on orders above ₹5,000. Limited time offer.</p>
-                  </div>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText('SAVE500')}
-                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-
-                {/* Coupon 3 */}
-                <div className="flex items-start justify-between p-3 md:p-4 bg-white rounded-lg border border-gray-200">
-                  <div className="flex-1">
-                    <div className="flex items-center mb-1 md:mb-2">
-                      <span className="text-sm font-semibold text-gray-900 bg-gray-100 px-2 py-1 rounded mr-3">SILVER15</span>
-                      <span className="text-sm font-medium text-green-600">15% OFF</span>
-                    </div>
-                    <p className="text-sm text-gray-600">Special discount on silver jewelry. Valid till month end.</p>
-                  </div>
-                  <button 
-                    onClick={() => navigator.clipboard.writeText('SILVER15')}
-                    className="text-sm text-gray-700 font-medium hover:text-gray-900 transition-colors duration-200 ml-3 flex-shrink-0 flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-              </div>
+            {/* Available Coupons */}
+            <div className="mb-6 md:mb-8">
+              <AvailableCoupons productId={productId} productPrice={product.price} />
             </div>
 
             {/* Action Buttons */}
@@ -673,35 +698,64 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
                   buttonText="ADD TO BAG"
                 />
                 <button
-                  className="w-12 h-12 md:w-12 md:h-12 border-2 border-gray-300 hover:border-gray-900 transition-all duration-300 flex items-center justify-center group flex-shrink-0"
-                  aria-label="Add to wishlist"
+                  onClick={handleWishlistToggle}
+                  disabled={isTogglingWishlist}
+                  className="w-12 h-12 md:w-12 md:h-12 border-2 border-gray-300 hover:border-gray-900 transition-all duration-300 flex items-center justify-center group flex-shrink-0 disabled:opacity-50"
+                  aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
                   style={{ height: '48px' }} // Match the button height
                 >
-                  <svg 
-                    className="w-5 h-5 md:w-6 md:h-6 text-gray-600 group-hover:text-red-500 transition-colors duration-300" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-                    />
-                  </svg>
+                  {isTogglingWishlist ? (
+                    <svg className="w-5 h-5 animate-spin text-gray-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg 
+                      className={`w-5 h-5 md:w-6 md:h-6 transition-colors duration-300 group-hover:scale-110 ${
+                        isInWishlist 
+                          ? 'text-red-500 fill-red-500' 
+                          : 'text-gray-600 group-hover:text-red-500'
+                      }`}
+                      fill={isInWishlist ? "currentColor" : "none"}
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                      />
+                    </svg>
+                  )}
                 </button>
               </div>
               
               <button
                 onClick={handleBuyNow}
-                className="w-full bg-white text-gray-900 px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold uppercase tracking-wider border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 rounded-none"
+                disabled={isBuyingNow}
+                className="w-full bg-white text-gray-900 px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold uppercase tracking-wider border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gray-400 rounded-none disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Buy Now
+                {isBuyingNow ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  'Buy Now'
+                )}
               </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Product Reviews Section */}
+      <div className="container mx-auto px-4 py-8">
+        <ProductReviews productId={productId} productName={product.name} />
       </div>
 
       {/* Fullscreen Image Modal */}

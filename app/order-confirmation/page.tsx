@@ -179,12 +179,12 @@ export default function OrderConfirmationPage() {
                   Continue Shopping
                 </Link>
                 
-                <Link
+                {/* <Link
                   href="/"
                   className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
                 >
                   Back to Homepage
-                </Link>
+                </Link> */}
               </div>
             </>
           ) : (

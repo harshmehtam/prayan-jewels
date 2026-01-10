@@ -1,15 +1,13 @@
-import { generateClient } from 'aws-amplify/data';
+import { getClient, client } from '@/lib/amplify-client';
 import type { Schema } from '@/amplify/data/resource';
 import type { Address } from '@/types';
-
-const client = generateClient<Schema>();
 
 export interface AddressInput {
   type: 'shipping' | 'billing';
   firstName: string;
   lastName: string;
-  email?: string; // Optional email for order confirmations
-  phone?: string; // Optional phone for SMS notifications
+  email?: string; // Optional in input, will be converted to empty string if not provided
+  phone?: string; // Optional in input, will be converted to empty string if not provided
   addressLine1: string;
   addressLine2?: string;
   city: string;
@@ -22,6 +20,8 @@ export interface AddressInput {
 export interface SavedAddress extends AddressInput {
   id: string;
   userId: string;
+  email: string; // Always a string (empty if not provided)
+  phone: string; // Always a string (empty if not provided)
   createdAt: string;
   updatedAt: string;
 }
@@ -41,24 +41,31 @@ class AddressService {
         return [];
       }
 
-      return addresses.map(addr => ({
-        id: addr.id,
-        userId: addr.userId,
-        type: addr.type as 'shipping' | 'billing',
-        firstName: addr.firstName,
-        lastName: addr.lastName,
-        email: addr.email || undefined,
-        phone: addr.phone || undefined,
-        addressLine1: addr.addressLine1,
-        addressLine2: addr.addressLine2 || undefined,
-        city: addr.city,
-        state: addr.state,
-        postalCode: addr.postalCode,
-        country: addr.country,
-        isDefault: addr.isDefault || false,
-        createdAt: addr.createdAt,
-        updatedAt: addr.updatedAt,
-      }));
+      // Handle the case where addresses might be null or have null fields
+      if (!addresses || addresses.length === 0) {
+        return [];
+      }
+
+      return addresses
+        .filter(addr => addr !== null) // Filter out any null addresses
+        .map(addr => ({
+          id: addr.id,
+          userId: addr.userId,
+          type: addr.type as 'shipping' | 'billing',
+          firstName: addr.firstName || '',
+          lastName: addr.lastName || '',
+          email: addr.email || '', // Convert null to empty string
+          phone: addr.phone || '', // Convert null to empty string
+          addressLine1: addr.addressLine1 || '',
+          addressLine2: addr.addressLine2 || undefined,
+          city: addr.city || '',
+          state: addr.state || '',
+          postalCode: addr.postalCode || '',
+          country: addr.country || 'India',
+          isDefault: addr.isDefault || false,
+          createdAt: addr.createdAt,
+          updatedAt: addr.updatedAt,
+        }));
     } catch (error) {
       console.error('Error fetching user addresses:', error);
       return [];
@@ -82,24 +89,31 @@ class AddressService {
         return [];
       }
 
-      return addresses.map(addr => ({
-        id: addr.id,
-        userId: addr.userId,
-        type: addr.type as 'shipping' | 'billing',
-        firstName: addr.firstName,
-        lastName: addr.lastName,
-        email: addr.email || undefined,
-        phone: addr.phone || undefined,
-        addressLine1: addr.addressLine1,
-        addressLine2: addr.addressLine2 || undefined,
-        city: addr.city,
-        state: addr.state,
-        postalCode: addr.postalCode,
-        country: addr.country,
-        isDefault: addr.isDefault || false,
-        createdAt: addr.createdAt,
-        updatedAt: addr.updatedAt,
-      }));
+      // Handle the case where addresses might be null or have null fields
+      if (!addresses || addresses.length === 0) {
+        return [];
+      }
+
+      return addresses
+        .filter(addr => addr !== null) // Filter out any null addresses
+        .map(addr => ({
+          id: addr.id,
+          userId: addr.userId,
+          type: addr.type as 'shipping' | 'billing',
+          firstName: addr.firstName || '',
+          lastName: addr.lastName || '',
+          email: addr.email || '', // Convert null to empty string
+          phone: addr.phone || '', // Convert null to empty string
+          addressLine1: addr.addressLine1 || '',
+          addressLine2: addr.addressLine2 || undefined,
+          city: addr.city || '',
+          state: addr.state || '',
+          postalCode: addr.postalCode || '',
+          country: addr.country || 'India',
+          isDefault: addr.isDefault || false,
+          createdAt: addr.createdAt,
+          updatedAt: addr.updatedAt,
+        }));
     } catch (error) {
       console.error('Error fetching addresses by type:', error);
       return [];
@@ -152,8 +166,8 @@ class AddressService {
         type: address.type,
         firstName: address.firstName,
         lastName: address.lastName,
-        email: address.email,
-        phone: address.phone,
+        email: address.email || '', // Provide empty string if not provided
+        phone: address.phone || '', // Provide empty string if not provided
         addressLine1: address.addressLine1,
         addressLine2: address.addressLine2,
         city: address.city,
@@ -174,8 +188,8 @@ class AddressService {
         type: newAddress.type as 'shipping' | 'billing',
         firstName: newAddress.firstName,
         lastName: newAddress.lastName,
-        email: newAddress.email || undefined,
-        phone: newAddress.phone || undefined,
+        email: newAddress.email || '', // Convert null to empty string
+        phone: newAddress.phone || '', // Convert null to empty string
         addressLine1: newAddress.addressLine1,
         addressLine2: newAddress.addressLine2 || undefined,
         city: newAddress.city,
@@ -213,8 +227,8 @@ class AddressService {
         type: updatedAddress.type as 'shipping' | 'billing',
         firstName: updatedAddress.firstName,
         lastName: updatedAddress.lastName,
-        email: updatedAddress.email || undefined,
-        phone: updatedAddress.phone || undefined,
+        email: updatedAddress.email || '', // Convert null to empty string
+        phone: updatedAddress.phone || '', // Convert null to empty string
         addressLine1: updatedAddress.addressLine1,
         addressLine2: updatedAddress.addressLine2 || undefined,
         city: updatedAddress.city,

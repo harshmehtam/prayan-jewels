@@ -116,16 +116,16 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
         return;
       }
 
-      let filteredProducts = result.products.map(product => ({
+      let filteredProducts = result.products.map((product: any) => ({
         ...product,
-        images: product.images?.filter((img): img is string => img !== null) || [],
+        images: product.images?.filter((img: any): img is string => img !== null) || [],
       }));
 
       // Apply status filter
       if (statusFilter === 'active') {
-        filteredProducts = filteredProducts.filter(p => p.isActive);
+        filteredProducts = filteredProducts.filter((p: any) => p.isActive);
       } else if (statusFilter === 'inactive') {
-        filteredProducts = filteredProducts.filter(p => !p.isActive);
+        filteredProducts = filteredProducts.filter((p: any) => !p.isActive);
       }
 
       setProducts(filteredProducts);

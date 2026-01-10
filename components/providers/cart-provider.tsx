@@ -1,14 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { generateClient } from 'aws-amplify/data';
+import { getClient } from '@/lib/amplify-client';
 import { generateSessionId } from '@/lib/amplify-client';
 import { useAuth } from './auth-provider';
 import type { Schema } from '@/amplify/data/resource';
 import type { ShoppingCart, CartItem } from '@/types';
-
-// Create Amplify client
-const client = generateClient<Schema>();
 
 interface CartContextType {
   cart: ShoppingCart | null;
@@ -63,6 +60,7 @@ export function CartProvider({ children }: CartProviderProps) {
   // Get or create cart
   const getOrCreateCart = useCallback(async (): Promise<any> => {
     try {
+      const client = await getClient();
       let cartResponse;
 
       if (isAuthenticated && user?.userId) {
@@ -108,6 +106,14 @@ export function CartProvider({ children }: CartProviderProps) {
 
       return cart;
     } catch (error) {
+      // Suppress auth errors after logout
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as any).message;
+        if (errorMessage?.includes('NoValidAuthTokens') || errorMessage?.includes('federated jwt')) {
+          console.log('Auth token expired, user needs to re-authenticate');
+          return null;
+        }
+      }
       console.error('Error getting/creating cart:', error);
       return null;
     }
@@ -128,6 +134,7 @@ export function CartProvider({ children }: CartProviderProps) {
         setCart(cart);
         
         // Load cart items
+        const client = await getClient();
         const itemsResponse = await client.models.CartItem.list({
           filter: { cartId: { eq: cart.id } }
         });
@@ -163,6 +170,7 @@ export function CartProvider({ children }: CartProviderProps) {
         throw new Error('Unable to create cart');
       }
 
+      const client = await getClient();
       let newItems = [...items];
 
       // Check if item already exists in local state
@@ -216,7 +224,7 @@ export function CartProvider({ children }: CartProviderProps) {
       });
 
       // Update local cart state
-      setCart(prevCart => prevCart ? {
+      setCart((prevCart: any) => prevCart ? {
         ...prevCart,
         subtotal,
         estimatedTax,
@@ -241,6 +249,7 @@ export function CartProvider({ children }: CartProviderProps) {
       const estimatedTotal = subtotal + estimatedTax + estimatedShipping;
 
       // Update database
+      const client = await getClient();
       await client.models.ShoppingCart.update({
         id: cartId,
         subtotal,
@@ -279,6 +288,7 @@ export function CartProvider({ children }: CartProviderProps) {
       
       // Remove from database
       console.log('🗑️ Deleting from database...');
+      const client = await getClient();
       const deleteResult = await client.models.CartItem.delete({ id: itemId });
       console.log('🗑️ Delete result:', deleteResult);
       
@@ -304,6 +314,7 @@ export function CartProvider({ children }: CartProviderProps) {
       // Update cart in database
       if (cart) {
         console.log('🗑️ Updating cart totals in database...');
+        const client = await getClient();
         const cartUpdateResult = await client.models.ShoppingCart.update({
           id: cart.id,
           subtotal,
@@ -317,7 +328,7 @@ export function CartProvider({ children }: CartProviderProps) {
         }
 
         // Update local cart state
-        setCart(prevCart => prevCart ? {
+        setCart((prevCart: any) => prevCart ? {
           ...prevCart,
           subtotal,
           estimatedTax,
@@ -363,6 +374,7 @@ export function CartProvider({ children }: CartProviderProps) {
         const newTotalPrice = quantity * currentUnitPrice;
         
         // Update database with current price
+        const client = await getClient();
         await client.models.CartItem.update({
           id: itemId,
           quantity,
@@ -383,6 +395,7 @@ export function CartProvider({ children }: CartProviderProps) {
 
         // Update cart in database
         if (cart) {
+          const client = await getClient();
           await client.models.ShoppingCart.update({
             id: cart.id,
             subtotal,
@@ -392,7 +405,7 @@ export function CartProvider({ children }: CartProviderProps) {
           });
 
           // Update local cart state
-          setCart(prevCart => prevCart ? {
+          setCart((prevCart: any) => prevCart ? {
             ...prevCart,
             subtotal,
             estimatedTax,
@@ -413,6 +426,7 @@ export function CartProvider({ children }: CartProviderProps) {
 
     try {
       // Delete all items from database
+      const client = await getClient();
       const deletePromises = items.map(item =>
         client.models.CartItem.delete({ id: item.id })
       );
@@ -461,6 +475,7 @@ export function CartProvider({ children }: CartProviderProps) {
           const newTotalPrice = item.quantity * currentPrice;
           
           // Update in database
+          const client = await getClient();
           await client.models.CartItem.update({
             id: item.id,
             unitPrice: currentPrice,
@@ -493,6 +508,7 @@ export function CartProvider({ children }: CartProviderProps) {
 
         // Update cart in database
         if (cart) {
+          const client = await getClient();
           await client.models.ShoppingCart.update({
             id: cart.id,
             subtotal,
@@ -502,7 +518,7 @@ export function CartProvider({ children }: CartProviderProps) {
           });
 
           // Update local cart state
-          setCart(prevCart => prevCart ? {
+          setCart((prevCart: any) => prevCart ? {
             ...prevCart,
             subtotal,
             estimatedTax,
@@ -536,6 +552,7 @@ export function CartProvider({ children }: CartProviderProps) {
       });
 
       // Update cart in database
+      const client = await getClient();
       await client.models.ShoppingCart.update({
         id: cart.id,
         subtotal,
@@ -545,7 +562,7 @@ export function CartProvider({ children }: CartProviderProps) {
       });
 
       // Update local cart state
-      setCart(prevCart => prevCart ? {
+      setCart((prevCart: any) => prevCart ? {
         ...prevCart,
         subtotal,
         estimatedTax,

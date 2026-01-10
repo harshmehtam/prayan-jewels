@@ -1,9 +1,18 @@
 // Order data access layer
-import { client, handleAmplifyError } from '@/lib/amplify-client';
+import { getClient, client, handleAmplifyError } from '@/lib/amplify-client';
 import type { Order, OrderItem, CreateOrderInput } from '@/types';
 import { InventoryService } from './inventory';
 
 export class OrderService {
+  // Generate unique guest customer ID based on email and phone
+  static generateGuestCustomerId(email: string, phone: string): string {
+    // Create a consistent hash-based ID for guest users
+    // This allows the same guest to be identified across orders
+    const identifier = `${email.toLowerCase()}_${phone.replace(/\D/g, '')}`;
+    const hash = btoa(identifier).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+    return `guest_${hash}`;
+  }
+
   // Create a new order
   static async createOrder(orderData: CreateOrderInput) {
     try {
@@ -16,6 +25,8 @@ export class OrderService {
       // Create the order
       const orderResponse = await client.models.Order.create({
         customerId: orderData.customerId,
+        customerEmail: orderData.customerEmail || '',
+        customerPhone: orderData.customerPhone || '',
         subtotal,
         tax,
         shipping,
@@ -43,17 +54,21 @@ export class OrderService {
         throw new Error('Failed to create order');
       }
 
-      // Create order items
-      const orderItemPromises = orderData.items.map(item =>
-        client.models.OrderItem.create({
+      // Create order items with proper product names
+      const orderItemPromises = orderData.items.map(async (item) => {
+        // Fetch the actual product to get the name
+        const productResponse = await client.models.Product.get({ id: item.productId });
+        const productName = productResponse.data?.name || `Product ${item.productId}`;
+
+        return client.models.OrderItem.create({
           orderId: orderResponse.data!.id,
           productId: item.productId,
-          productName: `Product ${item.productId}`, // This should be fetched from product
+          productName,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.quantity * item.unitPrice
-        })
-      );
+        });
+      });
 
       const orderItemsResponse = await Promise.all(orderItemPromises);
 
@@ -329,6 +344,7 @@ export class OrderService {
         shippedOrders: orders.filter(order => order.status === 'shipped').length,
         deliveredOrders: orders.filter(order => order.status === 'delivered').length,
         cancelledOrders: orders.filter(order => order.status === 'cancelled').length,
+        refundedOrders: orders.filter(order => order.status === 'refunded').length,
       };
 
       return {

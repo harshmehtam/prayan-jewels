@@ -1,9 +1,6 @@
 // Real product service using Amplify API
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '@/amplify/data/resource';
+import { getClient } from '@/lib/amplify-client';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
-
-const client = generateClient<Schema>();
 
 // Simple cache to prevent duplicate requests
 const requestCache = new Map<string, Promise<ProductSearchResult>>();
@@ -48,6 +45,7 @@ export class ProductService {
     limit: number = 20
   ): Promise<ProductSearchResult> {
     try {
+      const client = await getClient();
 
       // Build the GraphQL filter
       let graphqlFilter: any = {
@@ -192,6 +190,7 @@ export class ProductService {
   // Internal method to actually fetch product by ID
   private static async _fetchProductById(id: string): Promise<Product | null> {
     try {
+      const client = await getClient();
       const result = await client.models.Product.get({ id });
 
       if (!result.data) {
