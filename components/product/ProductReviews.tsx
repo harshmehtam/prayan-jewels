@@ -193,7 +193,7 @@ export default function ProductReviews({ productId, productName }: ProductReview
         )}
 
         {/* Write Review Button */}
-        {user ? (
+        {/* {user ? (
           <div className="mt-6">
             {canReview ? (
               <button
@@ -227,7 +227,7 @@ export default function ProductReviews({ productId, productName }: ProductReview
               </p>
             </div>
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Filters and Sorting */}
@@ -307,9 +307,9 @@ export default function ProductReviews({ productId, productName }: ProductReview
         </div>
       ) : reviews.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-600">
+          {/* <p className="text-gray-600">
             {filters.rating ? `No ${filters.rating}-star reviews found.` : 'No reviews match your filters.'}
-          </p>
+          </p> */}
         </div>
       ) : (
         <div className="space-y-6">

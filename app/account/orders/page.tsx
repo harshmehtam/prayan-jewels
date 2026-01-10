@@ -4,6 +4,9 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { OrderService } from '@/lib/services/order-service';
+import { OrderCancellationService } from '@/lib/services/order-cancellation';
+import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
+import { Toast } from '@/components/ui/Toast';
 import type { Schema } from '@/amplify/data/resource';
 
 // Define order type with items as a simple array
@@ -20,6 +23,13 @@ export default function OrdersPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<OrderWithItems | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false
+  });
 
   // Simple useEffect - load orders when user is available
   useEffect(() => {
@@ -49,57 +59,58 @@ export default function OrdersPage() {
   }, [user?.userId, isAuthenticated, authLoading]);
 
   const canCancelOrder = (order: OrderWithItems) => {
-    const eligibleStatuses = ['pending', 'processing'];
-    return order.status && eligibleStatuses.includes(order.status);
+    // Check if order can be cancelled based on status
+    if (!OrderCancellationService.canCancelOrder(order)) {
+      return false;
+    }
+
+    // Additional check: Ensure this is an authenticated user's order (not guest)
+    if (!OrderCancellationService.isAuthenticatedUserOrder(order)) {
+      return false;
+    }
+
+    // Ensure the order belongs to the current user
+    if (order.customerId !== user?.userId) {
+      return false;
+    }
+
+    return true;
   };
 
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm('Are you sure you want to cancel this order? This action cannot be undone.')) {
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type, isVisible: true });
+  };
+
+  const handleCancelOrderClick = (order: OrderWithItems) => {
+    setOrderToCancel(order);
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!orderToCancel || !user?.userId) {
       return;
     }
 
-    setCancellingOrderId(orderId);
+    setCancellingOrderId(orderToCancel.id);
     try {
-      const order = orders.find(o => o.id === orderId);
-      if (!order) {
-        throw new Error('Order not found');
-      }
+      const result = await OrderCancellationService.cancelOrderForUser(orderToCancel.id, user.userId);
 
-      const eligibleStatuses = ['pending', 'processing'];
-      if (!order.status || !eligibleStatuses.includes(order.status)) {
-        let errorMessage = 'Order cannot be cancelled at this stage';
-        
-        if (order.status === 'shipped') {
-          errorMessage = 'Order has already been shipped and cannot be cancelled. Please contact customer support for returns.';
-        } else if (order.status === 'delivered') {
-          errorMessage = 'Order has been delivered and cannot be cancelled. Please contact customer support for returns.';
-        } else if (order.status === 'cancelled') {
-          errorMessage = 'Order has already been cancelled.';
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const updateResult = await OrderService.updateOrderStatus(orderId, 'cancelled');
-
-      if (updateResult.errors && updateResult.errors.length > 0) {
-        throw new Error(`Failed to cancel order: ${updateResult.errors.map(e => e.message).join(', ')}`);
-      }
-
-      // Simple local state update
+      // Update local state
       setOrders(prevOrders => 
         prevOrders.map(order => 
-          order.id === orderId 
+          order.id === orderToCancel.id 
             ? { ...order, status: 'cancelled' }
             : order
         )
       );
       
-      alert('Order cancelled successfully. If you paid online, refund will be processed within 5-7 business days.');
+      showToast(result.message || 'Order cancelled successfully.', 'success');
+      setShowCancelDialog(false);
+      setOrderToCancel(null);
 
     } catch (error) {
       console.error('Error cancelling order:', error);
-      alert(error instanceof Error ? error.message : 'Failed to cancel order. Please try again.');
+      showToast(error instanceof Error ? error.message : 'Failed to cancel order. Please try again.', 'error');
     } finally {
       setCancellingOrderId(null);
     }
@@ -196,6 +207,30 @@ export default function OrdersPage() {
             <h1 className="text-3xl font-bold text-gray-900">Order History</h1>
           </div>
           <p className="text-gray-600">View and manage your orders. You can cancel confirmed orders that haven't shipped yet.</p>
+          
+          {/* Cancellation Policy Info */}
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-blue-800">Cancellation Policy</h3>
+                <div className="mt-2 text-sm text-blue-700">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>You can only cancel orders that were placed while signed in to your account</li>
+                    <li>Orders can be cancelled while they are "Pending" or "Processing"</li>
+                    <li>Once shipped, orders cannot be cancelled but can be returned</li>
+                    <li>Refunds for online payments are processed within 5-7 business days</li>
+                    <li>COD orders are cancelled immediately with no charges</li>
+                    <li>Guest orders must be cancelled through the "Track Order" page</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Error Message */}
@@ -258,7 +293,7 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Order Items */}
-                  {order.items && order.items.length > 0 && (
+                  {order.items && Array.isArray(order.items) && order.items.length > 0 && (
                     <div className="border-t border-gray-200 pt-4">
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Items ({order.items.length})</h4>
                       <div className="space-y-2">
@@ -327,15 +362,36 @@ export default function OrdersPage() {
                       )}
                     </div>
                     
-                    {/* Cancel Order Button */}
-                    {canCancelOrder(order) && (
+                    {/* Cancel Order Button or Reason */}
+                    {canCancelOrder(order) ? (
                       <button
-                        onClick={() => handleCancelOrder(order.id)}
+                        onClick={() => handleCancelOrderClick(order)}
                         disabled={cancellingOrderId === order.id}
                         className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
                       </button>
+                    ) : (
+                      <div className="text-right">
+                        {OrderCancellationService.canCancelOrder(order) ? (
+                          // Order status allows cancellation but other conditions don't
+                          !OrderCancellationService.isAuthenticatedUserOrder(order) ? (
+                            <span className="text-xs text-gray-500">Guest order - use Track Order page</span>
+                          ) : order.customerId !== user?.userId ? (
+                            <span className="text-xs text-gray-500">Not your order</span>
+                          ) : (
+                            <span className="text-xs text-gray-500">Cannot cancel</span>
+                          )
+                        ) : (
+                          // Order status doesn't allow cancellation
+                          <span className="text-xs text-gray-500">
+                            {order.status === 'shipped' ? 'Already shipped' :
+                             order.status === 'delivered' ? 'Already delivered' :
+                             order.status === 'cancelled' ? 'Already cancelled' :
+                             'Cannot cancel'}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -360,6 +416,27 @@ export default function OrdersPage() {
             </div>
           )}
         </div>
+
+        {/* Cancel Order Dialog */}
+        <CancelOrderDialog
+          isOpen={showCancelDialog}
+          onClose={() => {
+            setShowCancelDialog(false);
+            setOrderToCancel(null);
+          }}
+          onConfirm={handleCancelOrder}
+          orderNumber={orderToCancel?.confirmationNumber || orderToCancel?.id.slice(-8) || ''}
+          paymentMethod={orderToCancel?.paymentMethod || 'cash_on_delivery'}
+          isLoading={cancellingOrderId === orderToCancel?.id}
+        />
+
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+        />
       </div>
     </div>
   );

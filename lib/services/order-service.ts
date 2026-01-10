@@ -394,7 +394,22 @@ export class OrderService {
       const result = await client.models.Order.list({
         filter: { confirmationNumber: { eq: confirmationNumber } }
       });
-      return result.data?.[0] || null;
+      
+      const order = result.data?.[0];
+      if (!order) {
+        return null;
+      }
+
+      // Get order items for this order
+      const itemsResult = await client.models.OrderItem.list({
+        filter: { orderId: { eq: order.id } }
+      });
+
+      // Attach items to the order
+      return {
+        ...order,
+        items: itemsResult.data || []
+      };
     } catch (error) {
       console.error('Error fetching order by confirmation number:', error);
       return null;

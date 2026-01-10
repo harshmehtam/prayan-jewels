@@ -1,6 +1,7 @@
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
 
+// Admin operations require authentication
 const client = generateClient<Schema>();
 
 export interface CreateCouponInput {
@@ -13,6 +14,7 @@ export interface CreateCouponInput {
   maximumDiscountAmount?: number;
   usageLimit?: number | null;
   userUsageLimit?: number | null;
+  showOnHeader?: boolean;
   validFrom: string;
   validUntil: string;
   applicableProducts?: string[];

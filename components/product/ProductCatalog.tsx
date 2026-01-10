@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { ProductService } from '@/lib/services/product-service';
 import { ProductFilters } from '@/types';
 import ProductGridCard from './ProductGridCard';
 import Pagination from '@/components/ui/Pagination';
@@ -23,62 +22,117 @@ export default function ProductCatalog({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Simplified filters - get price filters and search from URL
-  const [filters, setFilters] = useState<ProductFilters>(() => {
+  // Simplified filters - get price filters and search from URL (reactive to changes)
+  const filters = useMemo(() => {
     if (showBestsellers) {
       return {}; // No filters for bestsellers - show all products
     }
 
-    const initialFilters: ProductFilters = {};
+    const currentFilters: ProductFilters = {};
 
     // Get price filters from URL
     const maxPrice = searchParams.get('maxPrice');
     if (maxPrice) {
-      initialFilters.maxPrice = parseInt(maxPrice);
+      currentFilters.maxPrice = parseInt(maxPrice);
     }
 
     const minPrice = searchParams.get('minPrice');
     if (minPrice) {
-      initialFilters.minPrice = parseInt(minPrice);
+      currentFilters.minPrice = parseInt(minPrice);
     }
 
-    return initialFilters;
-  });
+    return currentFilters;
+  }, [searchParams, showBestsellers]);
 
-  const [searchQuery, setSearchQuery] = useState(() => {
-    // Get search query from URL
-    return searchParams.get('search') || '';
-  });
   const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'rating' | 'newest' | 'most-relevant'>('most-relevant');
   const [currentPage, setCurrentPage] = useState(1);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingRef = useRef(false);
+
+  // Get search query directly from URL params (reactive to changes)
+  const searchQuery = searchParams.get('search') || '';
 
   // Fetch products based on current filters and search
   const fetchProducts = useCallback(async () => {
+    console.log('fetchProducts called with:', { searchQuery, filters, sortBy, limit });
+    
+    // Prevent multiple simultaneous calls using ref
+    if (isLoadingRef.current) {
+      console.log('fetchProducts: Already loading, skipping');
+      return;
+    }
+    
     try {
+      isLoadingRef.current = true;
       setLoading(true);
       setError(null);
 
-      // Use getProducts for both search and regular filtering
-      const filtersWithSort = { 
-        ...filters, 
-        sortBy,
-        searchQuery: searchQuery.trim() || undefined
-      };
-      const result = await ProductService.getProducts(filtersWithSort, limit);
+      // Build query parameters for API call
+      const params = new URLSearchParams();
+      
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim());
+      }
+      
+      if (filters.minPrice !== undefined) {
+        params.append('minPrice', filters.minPrice.toString());
+      }
+      
+      if (filters.maxPrice !== undefined) {
+        params.append('maxPrice', filters.maxPrice.toString());
+      }
+      
+      if (sortBy) {
+        params.append('sortBy', sortBy);
+      }
+      
+      params.append('limit', limit.toString());
 
-      setProducts(result.products);
+      const apiUrl = `/api/products?${params.toString()}`;
+      console.log('Making API call to:', apiUrl);
+
+      // Call API route instead of direct service
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch products');
+      }
+
+      console.log('API response received:', data.data.products.length, 'products');
+      setProducts(data.data.products);
     } catch (err) {
+      console.error('fetchProducts error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load products');
       setProducts([]);
     } finally {
+      isLoadingRef.current = false;
       setLoading(false);
     }
   }, [filters, searchQuery, sortBy, limit]);
 
-  // Effect to fetch products when filters, search, or sort changes
+  // Effect to fetch products when dependencies change
   useEffect(() => {
+    console.log('ProductCatalog: Dependencies changed', { 
+      searchQuery, 
+      filters, 
+      sortBy, 
+      limit 
+    });
+    
+    console.log('ProductCatalog: Calling fetchProducts directly');
     fetchProducts();
-  }, [fetchProducts]);
+  }, [filters, searchQuery, sortBy, limit, fetchProducts]);
+
+  // Reset page when search parameters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchParams]);
 
   // Sort products based on selected sort option (now handled in service)
   const sortedProducts = useMemo(() => {
@@ -164,7 +218,6 @@ export default function ProductCatalog({
             <div className="flex-shrink-0">
               <button
                 onClick={() => {
-                  setFilters({});
                   setCurrentPage(1);
                   // Update URL to remove price filters
                   const url = new URL(window.location.href);

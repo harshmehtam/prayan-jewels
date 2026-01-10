@@ -203,7 +203,7 @@ export default function OrderDetailsPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Items</h2>
           
           <div className="space-y-4">
-            {order.items && order.items.length > 0 ? (
+            {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
               order.items.map((item) => (
                 <div key={item.id} className="flex items-center space-x-4 py-4 border-b border-gray-200 last:border-b-0">
                   <div className="flex-shrink-0 w-16 h-16 bg-gray-100 rounded-md"></div>

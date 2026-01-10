@@ -33,7 +33,6 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const { addItem } = useCart();
   const { toggleWishlist, wishlistStatus } = useWishlist();
-  const { isAuthenticated } = useAuth();
 
   // Use cached wishlist status from the hook
   useEffect(() => {
@@ -88,8 +87,6 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
     try {
       await addItem(product.id, 1, product.price);
       setAddToCartSuccess(true);
-      console.log('Added to cart:', product.name);
-      
       // Reset success state after 2 seconds
       setTimeout(() => {
         setAddToCartSuccess(false);
@@ -117,12 +114,6 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
       
       const result = await toggleWishlist(product.id, productDetails);
       setIsInWishlist(result.isInWishlist);
-      
-      // You could add a toast notification here
-      console.log(result.message);
-    } catch (error) {
-      console.error('Failed to toggle wishlist:', error);
-      // You could add error handling/toast here
     } finally {
       setIsTogglingWishlist(false);
     }

@@ -125,7 +125,7 @@ export class RazorpayService {
     customerName: string;
     customerEmail: string;
     customerPhone: string;
-    onSuccess: (orderId: string, paymentId: string) => void;
+    onSuccess: (orderId: string, paymentId: string, confirmationNumber?: string) => void;
     onError: (error: Error) => void;
     onDismiss?: () => void;
   }): Promise<void> {
@@ -161,7 +161,7 @@ export class RazorpayService {
             });
 
             if (verificationResult.success) {
-              options.onSuccess(orderResponse.orderId, response.razorpay_payment_id);
+              options.onSuccess(orderResponse.orderId, response.razorpay_payment_id, verificationResult.confirmationNumber);
             } else {
               options.onError(new Error('Payment verification failed'));
             }

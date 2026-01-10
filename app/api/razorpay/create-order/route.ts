@@ -103,14 +103,9 @@ export async function POST(request: NextRequest) {
         databaseOrderCreated = true;
         console.log('Database order created successfully:', internalOrderId);
         
-        // Update our order with Razorpay order ID
-        try {
-          await OrderService.updateOrderPayment(internalOrderId, razorpayOrder.id);
-          console.log('Order updated with Razorpay payment ID');
-        } catch (updateError) {
-          console.error('Failed to update order with payment ID:', updateError);
-          // Continue anyway - payment can still proceed
-        }
+        // Skip updating order with Razorpay payment ID for now
+        // The order will be updated after successful payment verification
+        console.log('Order created, will update payment details after verification');
       }
     } catch (dbError) {
       console.error('Database order creation failed, but continuing with Razorpay payment:', dbError);

@@ -108,7 +108,6 @@ export function PaymentButton({
 
         console.log('✅ COD Order created successfully:', orderResult.orderId, orderResult.confirmationNumber);
         
-        // Clear cart and call success handler
         await clearCart();
         onSuccess(orderResult.orderId!, 'COD_' + Date.now(), orderResult.confirmationNumber, 'cash_on_delivery');
         
@@ -157,14 +156,11 @@ export function PaymentButton({
           customerName,
           customerEmail,
           customerPhone,
-          onSuccess: async (orderId: string, paymentId: string) => {
+          onSuccess: async (orderId: string, paymentId: string, confirmationNumber?: string) => {
             try {
-              // Clear cart
               await clearCart();
-              onSuccess(orderId, paymentId, undefined, 'razorpay');
-              console.log('✅ Razorpay payment successful, cart cleared');
+              onSuccess(orderId, paymentId, confirmationNumber, 'razorpay');
             } catch (error) {
-              console.error('Error handling payment success:', error);
               onError('Payment successful but failed to complete order. Please contact support.');
             } finally {
               onProcessingChange(false);

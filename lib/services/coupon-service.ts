@@ -1,7 +1,5 @@
-import { generateClient } from 'aws-amplify/data';
+import { getClient } from '@/lib/amplify-client';
 import type { Schema } from '@/amplify/data/resource';
-
-const client = generateClient<Schema>();
 
 export interface CouponValidationResult {
   isValid: boolean;
@@ -17,10 +15,23 @@ export interface ApplyCouponInput {
   productIds: string[];
 }
 
+// Simple cache to prevent duplicate API calls
+interface CacheEntry {
+  data: any[];
+  timestamp: number;
+  userId?: string;
+}
+
+const CACHE_DURATION = 30000; // 30 seconds
+const couponCache = new Map<string, CacheEntry>();
+
 export class CouponService {
   static async validateAndApplyCoupon(input: ApplyCouponInput): Promise<CouponValidationResult> {
     try {
       const { code, userId, subtotal, productIds } = input;
+
+      // Get appropriate client
+      const client = await getClient();
 
       // Get coupon by code
       const { data: coupons, errors } = await client.models.Coupon.list({
@@ -160,6 +171,7 @@ export class CouponService {
 
   static async getUserCouponUsage(userId: string, couponId: string): Promise<number> {
     try {
+      const client = await getClient();
       const { data, errors } = await client.models.UserCoupon.list({
         filter: {
           userId: { eq: userId },
@@ -181,6 +193,8 @@ export class CouponService {
 
   static async recordCouponUsage(userId: string, couponId: string) {
     try {
+      const client = await getClient();
+      
       // Check if user coupon record exists
       const { data: existingRecords } = await client.models.UserCoupon.list({
         filter: {
@@ -213,9 +227,63 @@ export class CouponService {
     }
   }
 
-  static async getAvailableCoupons(userId?: string) {
+  static async getHeaderPromotionalCoupons() {
+    const cacheKey = 'header-promotional';
+    const cached = couponCache.get(cacheKey);
+    
+    // Return cached data if still valid
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.data;
+    }
+
     try {
+      const client = await getClient();
       const now = new Date().toISOString();
+      const { data, errors } = await client.models.Coupon.list({
+        filter: {
+          isActive: { eq: true },
+          showOnHeader: { eq: true },
+          validFrom: { le: now },
+          validUntil: { ge: now },
+        }
+      });
+
+      if (errors) {
+        console.error('Error fetching header promotional coupons:', errors);
+        return [];
+      }
+
+      // Filter out coupons that have reached their usage limit
+      const availableCoupons = (data || []).filter(coupon => 
+        !coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit
+      );
+
+      // Cache the result
+      couponCache.set(cacheKey, {
+        data: availableCoupons,
+        timestamp: Date.now()
+      });
+
+      return availableCoupons;
+    } catch (error) {
+      console.error('Error fetching header promotional coupons:', error);
+      return [];
+    }
+  }
+
+  static async getAvailableCoupons(userId?: string) {
+    const cacheKey = `available-coupons-${userId || 'guest'}`;
+    const cached = couponCache.get(cacheKey);
+    
+    // Return cached data if still valid and for the same user
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION && cached.userId === userId) {
+      return cached.data;
+    }
+
+    try {
+      const client = await getClient();
+      const now = new Date().toISOString();
+      
       const { data, errors } = await client.models.Coupon.list({
         filter: {
           isActive: { eq: true },
@@ -275,6 +343,13 @@ export class CouponService {
                  (!coupon.excludedUsers || coupon.excludedUsers.length === 0);
         });
       }
+
+      // Cache the result
+      couponCache.set(cacheKey, {
+        data: availableCoupons,
+        timestamp: Date.now(),
+        userId
+      });
 
       return availableCoupons;
     } catch (error) {

@@ -1,16 +1,12 @@
 // Review service for managing product reviews and ratings
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '@/amplify/data/resource';
+import { getClient, handleAmplifyError } from '@/lib/amplify-client';
 import type { 
   ProductReview, 
   CreateReviewInput, 
   UpdateReviewInput, 
   ReviewFilters, 
-  ReviewStats,
-  ReviewHelpfulVote 
+  ReviewStats
 } from '@/types';
-
-const client = generateClient<Schema>();
 
 export class ReviewService {
   /**
@@ -22,6 +18,8 @@ export class ReviewService {
     existingReview?: ProductReview;
   }> {
     try {
+      const client = await getClient();
+      
       // Get all orders for this customer
       const ordersResult = await client.models.Order.list({
         filter: { 
@@ -42,20 +40,25 @@ export class ReviewService {
       }
 
       // Get order items for this product from customer's orders
-      const orderItemsResult = await client.models.OrderItem.list({
-        filter: {
-          and: [
-            { productId: { eq: productId } },
-            { orderId: { in: orderIds } }
-          ]
+      let orderItems: any[] = [];
+      
+      // Query order items for each order ID separately to avoid 'in' filter issue
+      for (const orderId of orderIds) {
+        const orderItemsResult = await client.models.OrderItem.list({
+          filter: {
+            and: [
+              { productId: { eq: productId } },
+              { orderId: { eq: orderId } }
+            ]
+          }
+        });
+
+        if (orderItemsResult.errors) {
+          throw new Error(orderItemsResult.errors[0].message);
         }
-      });
 
-      if (orderItemsResult.errors) {
-        throw new Error(orderItemsResult.errors[0].message);
+        orderItems = orderItems.concat(orderItemsResult.data || []);
       }
-
-      const orderItems = orderItemsResult.data || [];
 
       if (orderItems.length === 0) {
         return { canReview: false, orderItems: [] };
@@ -87,7 +90,7 @@ export class ReviewService {
       return {
         canReview: !existingReview, // Can review if no existing review
         orderItems: orderItemsWithDates,
-        existingReview: existingReview as ProductReview
+        existingReview: existingReview as unknown as ProductReview
       };
 
     } catch (error) {
@@ -104,6 +107,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       // Verify user can review this product
       const eligibility = await this.canUserReviewProduct(customerId, reviewData.productId);
       
@@ -143,11 +148,11 @@ export class ReviewService {
         return { errors: result.errors.map(e => e.message) };
       }
 
-      return { review: result.data as ProductReview };
+      return { review: result.data as unknown as ProductReview };
 
     } catch (error) {
       console.error('Error creating review:', error);
-      return { errors: [error instanceof Error ? error.message : 'Failed to create review'] };
+      return { errors: [handleAmplifyError(error)] };
     }
   }
 
@@ -159,6 +164,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       // Get existing review and verify ownership
       const existingResult = await client.models.ProductReview.get({ id: reviewData.id });
       
@@ -188,16 +195,17 @@ export class ReviewService {
         return { errors: result.errors.map(e => e.message) };
       }
 
-      return { review: result.data as ProductReview };
+      return { review: result.data as unknown as ProductReview };
 
     } catch (error) {
       console.error('Error updating review:', error);
-      return { errors: [error instanceof Error ? error.message : 'Failed to update review'] };
+      return { errors: [handleAmplifyError(error)] };
     }
   }
 
   /**
    * Get reviews for a product (only approved reviews for public view)
+   * This method works for both authenticated and guest users
    */
   static async getProductReviews(productId: string, filters: ReviewFilters = {}): Promise<{
     reviews: ProductReview[];
@@ -205,6 +213,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       // Get all approved reviews for the product
       const reviewsResult = await client.models.ProductReview.list({
         filter: {
@@ -251,19 +261,32 @@ export class ReviewService {
       }
 
       // Calculate stats
-      const stats = this.calculateReviewStats(reviews);
+      const stats = this.calculateReviewStats(reviews as unknown as ProductReview[]);
 
       return { 
-        reviews: reviews as ProductReview[], 
+        reviews: reviews as unknown as ProductReview[], 
         stats 
       };
 
     } catch (error) {
+      // Suppress auth errors for guest users, similar to product service
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = (error as any).message;
+        if (errorMessage?.includes('NoValidAuthTokens') || errorMessage?.includes('federated jwt')) {
+          console.log('Auth token expired, switching to guest mode for reviews');
+          // Return empty result for now, the client will retry with guest mode
+          return {
+            reviews: [],
+            stats: { averageRating: 0, totalReviews: 0, ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } }
+          };
+        }
+      }
+      
       console.error('Error getting product reviews:', error);
       return { 
         reviews: [], 
         stats: { averageRating: 0, totalReviews: 0, ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } },
-        errors: [error instanceof Error ? error.message : 'Failed to get reviews'] 
+        errors: [handleAmplifyError(error)]
       };
     }
   }
@@ -303,6 +326,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       // Check if user already voted on this review
       const existingVoteResult = await client.models.ReviewHelpfulVote.list({
         filter: {
@@ -349,7 +374,7 @@ export class ReviewService {
 
     } catch (error) {
       console.error('Error voting on review:', error);
-      return { success: false, errors: [error instanceof Error ? error.message : 'Failed to vote'] };
+      return { success: false, errors: [handleAmplifyError(error)] };
     }
   }
 
@@ -358,6 +383,8 @@ export class ReviewService {
    */
   private static async updateReviewHelpfulCount(reviewId: string): Promise<void> {
     try {
+      const client = await getClient();
+      
       // Get all helpful votes for this review
       const votesResult = await client.models.ReviewHelpfulVote.list({
         filter: { reviewId: { eq: reviewId } }
@@ -389,6 +416,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       const result = await client.models.ProductReview.list({
         filter: { customerId: { eq: customerId } }
       });
@@ -397,11 +426,11 @@ export class ReviewService {
         return { reviews: [], errors: result.errors.map(e => e.message) };
       }
 
-      return { reviews: result.data as ProductReview[] };
+      return { reviews: result.data as unknown as ProductReview[] };
 
     } catch (error) {
       console.error('Error getting user reviews:', error);
-      return { reviews: [], errors: [error instanceof Error ? error.message : 'Failed to get reviews'] };
+      return { reviews: [], errors: [handleAmplifyError(error)] };
     }
   }
 
@@ -413,6 +442,8 @@ export class ReviewService {
     errors?: string[];
   }> {
     try {
+      const client = await getClient();
+      
       // Get existing review and verify ownership
       const existingResult = await client.models.ProductReview.get({ id: reviewId });
       
@@ -440,7 +471,7 @@ export class ReviewService {
 
     } catch (error) {
       console.error('Error deleting review:', error);
-      return { success: false, errors: [error instanceof Error ? error.message : 'Failed to delete review'] };
+      return { success: false, errors: [handleAmplifyError(error)] };
     }
   }
 }

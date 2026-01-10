@@ -30,6 +30,7 @@ interface Coupon {
   usageCount: number;
   userUsageLimit?: number | null;
   isActive: boolean;
+  showOnHeader?: boolean;
   validFrom: string;
   validUntil: string;
   applicableProducts?: string[];
@@ -74,6 +75,7 @@ export default function AdminCouponManager() {
     maximumDiscountAmount: undefined,
     usageLimit: null,
     userUsageLimit: null, // No default limit (unlimited)
+    showOnHeader: false,
     validFrom: '',
     validUntil: '',
     applicableProducts: [],
@@ -241,6 +243,7 @@ export default function AdminCouponManager() {
       maximumDiscountAmount: undefined,
       usageLimit: null,
       userUsageLimit: null, // No default limit (unlimited)
+      showOnHeader: false,
       validFrom: '',
       validUntil: '',
       applicableProducts: [],
@@ -264,6 +267,7 @@ export default function AdminCouponManager() {
       maximumDiscountAmount: coupon.maximumDiscountAmount,
       usageLimit: coupon.usageLimit,
       userUsageLimit: coupon.userUsageLimit || null,
+      showOnHeader: coupon.showOnHeader || false,
       validFrom: coupon.validFrom.split('T')[0],
       validUntil: coupon.validUntil.split('T')[0],
       applicableProducts: coupon.applicableProducts || [],
@@ -399,6 +403,11 @@ export default function AdminCouponManager() {
                       <Badge variant={coupon.isActive ? 'default' : 'secondary'}>
                         {coupon.isActive ? 'Active' : 'Inactive'}
                       </Badge>
+                      {coupon.showOnHeader && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          Header Promo
+                        </Badge>
+                      )}
                       {isExpired(coupon.validUntil) && (
                         <Badge variant="destructive">Expired</Badge>
                       )}
@@ -563,6 +572,19 @@ function CouponForm({ formData, setFormData, onSubmit, onCancel, isEditing }: Co
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData(prev => ({ ...prev, description: e.target.value }))}
           placeholder="Get 20% off on all products"
         />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="showOnHeader"
+          checked={formData.showOnHeader || false}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, showOnHeader: e.target.checked }))}
+          className="h-4 w-4 text-amber-600 focus:ring-amber-500 border-gray-300 rounded"
+        />
+        <Label htmlFor="showOnHeader" className="text-sm font-medium text-gray-700">
+          Show as promotional banner in header
+        </Label>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

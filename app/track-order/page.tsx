@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { GuestOrderLookup } from '@/lib/utils/guest-order-lookup';
-import type { Order } from '@/types';
+import { OrderCancellationService } from '@/lib/services/order-cancellation';
+import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
+import { Toast } from '@/components/ui/Toast';
 
 export default function TrackOrderPage() {
   const [email, setEmail] = useState('');
@@ -11,13 +13,20 @@ export default function TrackOrderPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [searchType, setSearchType] = useState<'all' | 'specific'>('specific');
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState<any>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
+    message: '',
+    type: 'info',
+    isVisible: false
+  });
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email || !phone) {
-      setError('Email and phone number are required');
+    if (!email || !phone || !confirmationNumber) {
+      setError('Email, phone number, and order number are required');
       return;
     }
 
@@ -26,34 +35,76 @@ export default function TrackOrderPage() {
     setOrders([]);
 
     try {
-      if (searchType === 'specific' && confirmationNumber) {
-        // Search for specific order by confirmation number
-        const order = await GuestOrderLookup.findGuestOrderByConfirmation(
-          confirmationNumber,
-          email,
-          phone
-        );
-        
-        if (order) {
-          setOrders([order]);
-        } else {
-          setError('Order not found or credentials do not match');
-        }
+      // Search for specific order by confirmation number
+      const order = await GuestOrderLookup.findGuestOrderByConfirmation(
+        confirmationNumber,
+        email,
+        phone
+      );
+      
+      if (order) {
+        setOrders([order]);
       } else {
-        // Search for all orders by email and phone
-        const foundOrders = await GuestOrderLookup.findGuestOrders(email, phone);
-        
-        if (foundOrders.length > 0) {
-          setOrders(foundOrders);
-        } else {
-          setError('No orders found for the provided email and phone number');
-        }
+        setError('Order not found or credentials do not match');
       }
     } catch (err) {
       setError('An error occurred while searching for orders');
       console.error('Order search error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
+    setToast({ message, type, isVisible: true });
+  };
+
+  const canCancelOrder = (order: any) => {
+    // Check if order can be cancelled based on status
+    if (!OrderCancellationService.canCancelOrder(order)) {
+      return false;
+    }
+
+    // Additional check: Ensure this is a guest order
+    if (!OrderCancellationService.isGuestOrder(order)) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleCancelOrderClick = (order: any) => {
+    setOrderToCancel(order);
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!orderToCancel) {
+      return;
+    }
+
+    setCancellingOrderId(orderToCancel.id);
+    try {
+      const result = await OrderCancellationService.cancelOrderForGuest(orderToCancel.id, email, phone);
+
+      // Update local state
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderToCancel.id 
+            ? { ...order, status: 'cancelled' }
+            : order
+        )
+      );
+      
+      showToast(result.message || 'Order cancelled successfully.', 'success');
+      setShowCancelDialog(false);
+      setOrderToCancel(null);
+
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      showToast(error instanceof Error ? error.message : 'Failed to cancel order. Please try again.', 'error');
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
@@ -79,44 +130,51 @@ export default function TrackOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 pt-32 sm:pt-36 md:pt-52 lg:pt-36 pb-12 sm:pb-16 lg:pb-20">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Track Your Order</h1>
           <p className="text-gray-600">
-            Enter your email and phone number to track your orders
+            Enter your order number, email and phone number to track your order
           </p>
+        </div>
+
+        {/* Cancellation Policy Info */}
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-blue-800">Order Cancellation</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <ul className="list-disc list-inside space-y-1">
+                  <li>You can cancel guest orders that are still "Pending" or "Processing"</li>
+                  <li>Orders placed while signed in must be cancelled from your account page</li>
+                  <li>Once shipped, please contact customer support for returns</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
           <form onSubmit={handleSearch} className="space-y-6">
-            {/* Search Type Selection */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-3 block">
-                Search Type
+              <label htmlFor="confirmationNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                Order Number (Confirmation Number) *
               </label>
-              <div className="flex space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="specific"
-                    checked={searchType === 'specific'}
-                    onChange={(e) => setSearchType(e.target.value as 'specific')}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Search by Order Number</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="all"
-                    checked={searchType === 'all'}
-                    onChange={(e) => setSearchType(e.target.value as 'all')}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Show All My Orders</span>
-                </label>
-              </div>
+              <input
+                type="text"
+                id="confirmationNumber"
+                value={confirmationNumber}
+                onChange={(e) => setConfirmationNumber(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
+                placeholder="Enter your order number"
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -151,22 +209,6 @@ export default function TrackOrderPage() {
               </div>
             </div>
 
-            {searchType === 'specific' && (
-              <div>
-                <label htmlFor="confirmationNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                  Order Confirmation Number
-                </label>
-                <input
-                  type="text"
-                  id="confirmationNumber"
-                  value={confirmationNumber}
-                  onChange={(e) => setConfirmationNumber(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                  placeholder="Enter your order confirmation number"
-                />
-              </div>
-            )}
-
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                 <p className="text-red-700 text-sm">{error}</p>
@@ -184,7 +226,7 @@ export default function TrackOrderPage() {
                   Searching...
                 </div>
               ) : (
-                'Track Orders'
+                'Track Order'
               )}
             </button>
           </form>
@@ -193,9 +235,7 @@ export default function TrackOrderPage() {
         {/* Orders Results */}
         {orders.length > 0 && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {orders.length === 1 ? 'Order Details' : `Found ${orders.length} Orders`}
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-900">Order Details</h2>
             
             {orders.map((order) => (
               <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -280,7 +320,7 @@ export default function TrackOrderPage() {
                   </div>
                 </div>
 
-                {order.items && order.items.length > 0 && (
+                {order.items && Array.isArray(order.items) && order.items.length > 0 && (
                   <div className="border-t border-gray-200 pt-4 mt-4">
                     <h4 className="font-medium text-gray-900 mb-2">Order Items</h4>
                     <div className="space-y-2">
@@ -293,6 +333,43 @@ export default function TrackOrderPage() {
                           <p className="font-medium text-gray-900">₹{item.totalPrice.toLocaleString()}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Order Actions */}
+                {canCancelOrder(order) ? (
+                  <div className="border-t border-gray-200 pt-4 mt-4 flex justify-end">
+                    <button
+                      onClick={() => handleCancelOrderClick(order)}
+                      disabled={cancellingOrderId === order.id}
+                      className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {cancellingOrderId === order.id ? 'Cancelling...' : 'Cancel Order'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="border-t border-gray-200 pt-4 mt-4 flex justify-end">
+                    <div className="text-right">
+                      {OrderCancellationService.canCancelOrder(order) ? (
+                        // Order status allows cancellation but other conditions don't
+                        !OrderCancellationService.isGuestOrder(order) ? (
+                          <div className="text-xs text-gray-500">
+                            <p>This order was placed with an account.</p>
+                            <p>Please sign in to cancel it.</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-500">Cannot cancel</span>
+                        )
+                      ) : (
+                        // Order status doesn't allow cancellation
+                        <span className="text-xs text-gray-500">
+                          {order.status === 'shipped' ? 'Already shipped - contact support for returns' :
+                           order.status === 'delivered' ? 'Already delivered - contact support for returns' :
+                           order.status === 'cancelled' ? 'Already cancelled' :
+                           'Cannot cancel at this stage'}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -310,6 +387,27 @@ export default function TrackOrderPage() {
             </a>
           </p>
         </div>
+
+        {/* Cancel Order Dialog */}
+        <CancelOrderDialog
+          isOpen={showCancelDialog}
+          onClose={() => {
+            setShowCancelDialog(false);
+            setOrderToCancel(null);
+          }}
+          onConfirm={handleCancelOrder}
+          orderNumber={orderToCancel?.confirmationNumber || orderToCancel?.id || ''}
+          paymentMethod={orderToCancel?.paymentMethod || 'cash_on_delivery'}
+          isLoading={cancellingOrderId === orderToCancel?.id}
+        />
+
+        {/* Toast Notification */}
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          isVisible={toast.isVisible}
+          onClose={() => setToast(prev => ({ ...prev, isVisible: false }))}
+        />
       </div>
     </div>
   );

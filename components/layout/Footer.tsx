@@ -17,7 +17,7 @@ export default function Footer() {
           </div>
 
           {/* Quick Links */}
-          <div className="lg:col-span-1">
+          {/* <div className="lg:col-span-1">
             <h4 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Quick Links</h4>
             <ul className="space-y-2">
               <li>
@@ -31,7 +31,7 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </div> */}
 
           {/* Contact Us */}
           <div className="lg:col-span-1">

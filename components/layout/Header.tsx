@@ -8,7 +8,7 @@ import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
-import { ProductService } from '@/lib/services/product-service';
+import PromotionalBanner from './PromotionalBanner';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -84,14 +84,22 @@ export default function Header() {
     if (searchQuery.trim().length >= 2) {
       debounceRef.current = setTimeout(async () => {
         try {
-          // Get products and extract unique names that match the search
-          const result = await ProductService.getProducts({ searchQuery: searchQuery.trim() }, 10);
-          const productNames = result.products.map(product => product.name);
+          // Call dedicated search suggestions API
+          const response = await fetch(`/api/products/search?q=${encodeURIComponent(searchQuery.trim())}&limit=5`);
           
-          // Get top 5 unique suggestions
-          const uniqueSuggestions = [...new Set(productNames)].slice(0, 5);
-          setSuggestions(uniqueSuggestions);
-          setShowSuggestions(uniqueSuggestions.length > 0);
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            setSuggestions(data.data.suggestions);
+            setShowSuggestions(data.data.suggestions.length > 0);
+          } else {
+            setSuggestions([]);
+            setShowSuggestions(false);
+          }
         } catch (error) {
           console.error('Failed to fetch suggestions:', error);
           setSuggestions([]);
@@ -135,12 +143,30 @@ export default function Header() {
   // Search functionality
   const handleSearch = (query: string = searchQuery) => {
     const trimmedQuery = query.trim();
+    const currentPath = window.location.pathname;
+    const currentSearch = new URLSearchParams(window.location.search).get('search');
+    
     if (trimmedQuery) {
-      // Navigate to products page with search query
-      router.push(`/products?search=${encodeURIComponent(trimmedQuery)}`);
+      const newUrl = `/products?search=${encodeURIComponent(trimmedQuery)}`;
+      
+      // If we're already on products page with a different search, use replace to force update
+      if (currentPath === '/products' && currentSearch !== trimmedQuery) {
+        router.replace(newUrl);
+      } else {
+        router.push(newUrl);
+      }
+      
+      // Clear search input after a short delay to allow navigation to start
+      setTimeout(() => {
+        setSearchQuery('');
+      }, 100);
     } else {
       // Navigate to products page without search
-      router.push('/products');
+      if (currentPath === '/products' && currentSearch) {
+        router.replace('/products');
+      } else {
+        router.push('/products');
+      }
     }
     // Close suggestions and mobile menu
     setShowSuggestions(false);
@@ -171,7 +197,6 @@ export default function Header() {
         e.preventDefault();
         if (selectedSuggestionIndex >= 0) {
           const selectedSuggestion = suggestions[selectedSuggestionIndex];
-          setSearchQuery(selectedSuggestion);
           handleSearch(selectedSuggestion);
         } else {
           handleSearch();
@@ -190,7 +215,6 @@ export default function Header() {
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
     handleSearch(suggestion);
   };
 
@@ -271,13 +295,8 @@ export default function Header() {
 
   return (
     <>
-      {/* Top Promotional Banner - Better mobile text wrapping */}
-      <div className="bg-gray-100 text-center py-2 px-2 sm:px-4 text-sm sm:text-base text-gray-800 border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
-        <div className="max-w-screen-xl mx-auto">
-          <span className="font-medium">Enjoy 20% Off Your First Order Over $200:</span>
-          <span className="font-semibold"> Code HELLO20</span>
-        </div>
-      </div>
+      {/* Dynamic Promotional Banner */}
+      <PromotionalBanner />
 
       {/* Main Header - Dynamic background based on scroll and route */}
       <header className={`fixed top-8 left-0 right-0 z-40 transition-all duration-300 ${
@@ -376,6 +395,21 @@ export default function Header() {
                   )}
                 </div>
               </div>
+
+              {/* Track Order - Desktop and Tablet */}
+              <Link 
+                href="/track-order"
+                className={`hidden md:block relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
+                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+                }`} 
+                style={{ outline: 'none', boxShadow: 'none' }}
+                title="Track Order"
+              >
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="sr-only">Track Order</span>
+              </Link>
 
               {/* Wishlist - Hidden on very small screens, visible on sm+ */}
               <Link 

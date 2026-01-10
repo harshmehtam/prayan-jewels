@@ -59,7 +59,7 @@ export default function Home() {
 
       {/* Featured Products Grid */}
       <ProductGrid 
-        title="Handcrafted Jewelry Collection"
+        title="Jewelry Collection"
         subtitle="Discover timeless pieces crafted with precision and care"
         limit={4}
         showViewAll={true}

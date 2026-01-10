@@ -113,6 +113,7 @@ const schema = a.schema({
       usageCount: a.integer().default(0), // Current usage count
       userUsageLimit: a.integer(), // Per-user usage limit (null for unlimited)
       isActive: a.boolean().default(true),
+      showOnHeader: a.boolean().default(false), // Show as promotional banner in header
       validFrom: a.datetime().required(),
       validUntil: a.datetime().required(),
       applicableProducts: a.string().array(), // Product IDs this coupon applies to (empty for all products)
@@ -187,7 +188,7 @@ const schema = a.schema({
     .authorization((allow) => [
       // Authenticated users can manage their own orders
       allow.ownerDefinedIn('customerId'),
-      // Guest users can create and read orders (needed for payment processing)
+      // Guest users can create, read, and update orders (needed for payment processing)
       allow.guest().to(['create', 'read', 'update']),
       // Admin full access
       allow.group('admin').to(['create', 'read', 'update', 'delete']),
