@@ -77,8 +77,7 @@ export class AdminUtils {
         role: userResponse.profile.role,
         user: {
           firstName: userResponse.profile.firstName,
-          lastName: userResponse.profile.lastName,
-          phone: userResponse.profile.phone
+          lastName: userResponse.profile.lastName
         }
       };
     } catch (error) {

@@ -77,11 +77,15 @@ export async function POST(request: NextRequest) {
         customerId: finalCustomerId,
         customerEmail: orderData.customerEmail,
         customerPhone: orderData.customerPhone,
-        items: orderData.items.map(item => ({
+        items: orderData.items.map((item, index) => ({
+          id: `temp_${index}_${Date.now()}`, // Temporary ID for order creation
+          cartId: 'temp_cart', // Temporary cart ID
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.quantity * item.unitPrice,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })),
         shippingAddress: orderData.shippingAddress,
         billingAddress: orderData.billingAddress,

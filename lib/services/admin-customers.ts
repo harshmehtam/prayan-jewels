@@ -287,7 +287,7 @@ export class AdminCustomerService {
         adminContext,
         'password_reset',
         resetData.userId || resetData.customerId || 'unknown',
-        resetData.email,
+        undefined, // email not available in resetData
         `Attempted to reset customer password (not implemented - users managed through Cognito)`,
         { resetData },
         false, // success = false since not implemented

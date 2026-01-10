@@ -50,29 +50,12 @@ export async function GET(request: NextRequest) {
       inactiveProducts: products.filter(p => !p.isActive).length,
     };
     
-    // Get inventory statistics (if inventory items exist)
-    let inventoryStats = {
+    // Inventory tracking is not implemented yet
+    const inventoryStats = {
       totalItems: 0,
       lowStockItems: 0,
       outOfStockItems: 0,
     };
-    
-    try {
-      const inventoryResponse = await client.models.InventoryItem.list({
-        limit: 1000,
-      });
-      
-      const inventory = inventoryResponse.data || [];
-      inventoryStats = {
-        totalItems: inventory.length,
-        lowStockItems: inventory.filter(i => 
-          i.stockQuantity <= (i.reorderPoint || 5) && i.stockQuantity > 0
-        ).length,
-        outOfStockItems: inventory.filter(i => i.stockQuantity <= 0).length,
-      };
-    } catch (inventoryError) {
-      console.warn('Could not fetch inventory statistics:', inventoryError);
-    }
     
     return NextResponse.json({
       users: userStats,

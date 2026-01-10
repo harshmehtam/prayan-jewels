@@ -252,7 +252,7 @@ export class AdminOrderService {
             // Send shipping notification with PDF invoice
             await EmailService.sendOrderShippingEmailWithInvoice(
               orderForNotification,
-              orderItems,
+              orderItems as any as OrderItem[],
               updateData.trackingNumber,
               updateData.estimatedDelivery ? new Date(updateData.estimatedDelivery) : undefined
             );

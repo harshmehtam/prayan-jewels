@@ -5,10 +5,10 @@ import { PDFInvoiceService } from '@/lib/services/pdf-invoice';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // Get order details
     const orderResponse = await OrderService.getOrder(orderId);
@@ -33,7 +33,7 @@ export async function GET(
     const filename = PDFInvoiceService.generateInvoiceFilename(orderResponse.order as any);
 
     // Return PDF as response
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

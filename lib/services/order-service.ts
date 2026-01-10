@@ -687,4 +687,32 @@ export class OrderService {
       };
     }
   }
+
+  // Get order items for an order
+  static async getOrderItems(orderId: string) {
+    try {
+      const client = getServerClient(); // Use server client for API operations
+      const response = await client.models.OrderItem.list({
+        filter: { orderId: { eq: orderId } }
+      });
+
+      if (response.errors && response.errors.length > 0) {
+        return {
+          items: [],
+          errors: response.errors
+        };
+      }
+
+      return {
+        items: response.data || [],
+        errors: null
+      };
+    } catch (error) {
+      console.error('Error fetching order items:', error);
+      return {
+        items: [],
+        errors: [{ message: error instanceof Error ? error.message : 'Failed to fetch order items' }]
+      };
+    }
+  }
 }

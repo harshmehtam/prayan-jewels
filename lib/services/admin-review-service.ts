@@ -71,7 +71,7 @@ export class AdminReviewService {
       }
 
       return { 
-        reviews: reviews as ProductReview[],
+        reviews: reviews as any as ProductReview[],
         nextToken: result.nextToken || undefined
       };
 
@@ -104,7 +104,7 @@ export class AdminReviewService {
         return { errors: result.errors.map(e => e.message) };
       }
 
-      return { review: result.data as ProductReview };
+      return { review: result.data as any as ProductReview };
 
     } catch (error) {
       console.error('Error approving review:', error);
@@ -132,7 +132,7 @@ export class AdminReviewService {
         return { errors: result.errors.map(e => e.message) };
       }
 
-      return { review: result.data as ProductReview };
+      return { review: result.data as any as ProductReview };
 
     } catch (error) {
       console.error('Error rejecting review:', error);

@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -17,7 +18,7 @@ interface OrderDetails {
   estimatedDelivery?: string;
 }
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
@@ -292,5 +293,23 @@ export default function OrderConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <CheckoutHeader />
+        <div className="max-w-2xl mx-auto px-4 py-16">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading order confirmation...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <OrderConfirmationContent />
+    </Suspense>
   );
 }
