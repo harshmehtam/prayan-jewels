@@ -1,5 +1,6 @@
 // Real product service using Amplify API
 import { getClient } from '@/lib/amplify-client';
+import { ReviewCache } from '@/lib/utils/review-cache';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
 
 // Simple cache to prevent duplicate requests
@@ -87,22 +88,33 @@ export class ProductService {
         };
       }
 
-      // Transform products to match expected interface
-      const transformedProducts: Product[] = result.data.map(product => ({
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: product.price,
-        images: product.images?.filter((img): img is string => img !== null) || [],
-        isActive: product.isActive,
-        viewCount: product.viewCount,
-        createdAt: product.createdAt,
-        updatedAt: product.updatedAt,
-        // Add default values for optional fields
-        averageRating: 4.5, // Default rating
-        totalReviews: Math.floor(Math.random() * 100) + 10, // Random reviews for now
-        purchaseCount: Math.floor((product.viewCount || 0) * 0.1), // Estimate based on views
-      }));
+      // Transform products to match expected interface and fetch real ratings
+      const productIds = result.data.map(p => p.id);
+      const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
+      
+      const transformedProducts: Product[] = result.data.map((product) => {
+        const stats = reviewStatsMap.get(product.id) || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+        
+        return {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          images: product.images?.filter((img): img is string => img !== null) || [],
+          isActive: product.isActive,
+          viewCount: product.viewCount,
+          createdAt: product.createdAt,
+          updatedAt: product.updatedAt,
+          // Use real review data instead of static values
+          averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+          totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
+          purchaseCount: Math.floor((product.viewCount || 0) * 0.1), // Estimate based on views
+        };
+      });
 
       // Apply sorting if specified
       if (filters.sortBy) {
@@ -127,23 +139,18 @@ export class ProductService {
         });
       }
 
-      console.log('✅ Products fetched successfully:', transformedProducts.length);
-
       return {
         products: transformedProducts,
         totalCount: transformedProducts.length,
-        hasNextPage: false, // For now, we don't implement pagination
+        hasNextPage: false,
         nextToken: undefined,
-        suggestions: ['mangalsutra', 'silver', 'gold'],
       };
     } catch (error) {
-      console.error('Error fetching products:', error);
       return {
         products: [],
         totalCount: 0,
         hasNextPage: false,
         nextToken: undefined,
-        suggestions: ['mangalsutra', 'silver', 'gold'],
       };
     }
   }
@@ -199,6 +206,9 @@ export class ProductService {
 
       const product = result.data;
 
+      // Get real review stats for this product
+      const stats = await ReviewCache.getProductReviewStats(id);
+
       // Transform to match expected Product interface
       const transformedProduct: Product = {
         id: product.id,
@@ -210,9 +220,9 @@ export class ProductService {
         viewCount: product.viewCount,
         createdAt: product.createdAt,
         updatedAt: product.updatedAt,
-        // Add default values for optional fields
-        averageRating: 4.5, // Default rating
-        totalReviews: Math.floor(Math.random() * 100) + 10, // Random reviews for now
+        // Use real review data instead of static values
+        averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+        totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
         purchaseCount: Math.floor((product.viewCount || 0) * 0.1), // Estimate based on views
       };
 

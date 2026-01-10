@@ -153,6 +153,12 @@ export class ReviewService {
     } catch (error) {
       console.error('Error creating review:', error);
       return { errors: [handleAmplifyError(error)] };
+    } finally {
+      // Clear cache for this product so ratings update immediately
+      if (reviewData.productId) {
+        const { ReviewCache } = await import('@/lib/utils/review-cache');
+        ReviewCache.clearProductCache(reviewData.productId);
+      }
     }
   }
 
@@ -163,6 +169,8 @@ export class ReviewService {
     review?: ProductReview;
     errors?: string[];
   }> {
+    let existingReview: any = null;
+    
     try {
       const client = await getClient();
       
@@ -173,7 +181,7 @@ export class ReviewService {
         return { errors: existingResult.errors.map(e => e.message) };
       }
 
-      const existingReview = existingResult.data;
+      existingReview = existingResult.data;
       if (!existingReview) {
         return { errors: ['Review not found'] };
       }
@@ -200,6 +208,12 @@ export class ReviewService {
     } catch (error) {
       console.error('Error updating review:', error);
       return { errors: [handleAmplifyError(error)] };
+    } finally {
+      // Clear cache for this product so ratings update immediately
+      if (existingReview?.productId) {
+        const { ReviewCache } = await import('@/lib/utils/review-cache');
+        ReviewCache.clearProductCache(existingReview.productId);
+      }
     }
   }
 
@@ -441,6 +455,8 @@ export class ReviewService {
     success: boolean;
     errors?: string[];
   }> {
+    let existingReview: any = null;
+    
     try {
       const client = await getClient();
       
@@ -451,7 +467,7 @@ export class ReviewService {
         return { success: false, errors: existingResult.errors.map(e => e.message) };
       }
 
-      const existingReview = existingResult.data;
+      existingReview = existingResult.data;
       if (!existingReview) {
         return { success: false, errors: ['Review not found'] };
       }
@@ -472,6 +488,12 @@ export class ReviewService {
     } catch (error) {
       console.error('Error deleting review:', error);
       return { success: false, errors: [handleAmplifyError(error)] };
+    } finally {
+      // Clear cache for this product so ratings update immediately
+      if (existingReview?.productId) {
+        const { ReviewCache } = await import('@/lib/utils/review-cache');
+        ReviewCache.clearProductCache(existingReview.productId);
+      }
     }
   }
 }

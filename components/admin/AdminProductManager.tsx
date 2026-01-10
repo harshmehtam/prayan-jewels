@@ -63,7 +63,14 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [submitting, setSubmitting] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | ''>('');
+  const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | 'price_update' | ''>('');
+  const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
+  const [bulkPriceData, setBulkPriceData] = useState({
+    updateType: 'percentage' as 'percentage' | 'fixed' | 'set_price',
+    value: 0,
+    minPrice: 0,
+    maxPrice: 0,
+  });
   const [showInventoryManager, setShowInventoryManager] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -167,6 +174,19 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       });
     };
   }, [imageBlobs]);
+
+  // Store selected files for S3 upload (simplified)
+  const [uploadProgress, setUploadProgress] = useState<{
+    uploading: boolean;
+    completed: number;
+    total: number;
+    currentFile: string;
+  }>({
+    uploading: false,
+    completed: 0,
+    total: 0,
+    currentFile: '',
+  });
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -333,6 +353,11 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       return;
     }
 
+    if (bulkAction === 'price_update') {
+      setShowBulkPriceModal(true);
+      return;
+    }
+
     if (!confirm(`Are you sure you want to ${bulkAction} ${selectedProducts.size} products?`)) {
       return;
     }
@@ -360,6 +385,151 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     }
   };
 
+  // Handle bulk price update
+  const handleBulkPriceUpdate = async () => {
+    // Validate input based on update type
+    if (selectedProducts.size === 0) {
+      setError('Please select products');
+      return;
+    }
+
+    if (bulkPriceData.updateType === 'set_price' && bulkPriceData.value <= 0) {
+      setError('Please enter a valid price (must be greater than 0)');
+      return;
+    }
+
+    if ((bulkPriceData.updateType === 'percentage' || bulkPriceData.updateType === 'fixed') && bulkPriceData.value === 0) {
+      setError('Please enter a non-zero value');
+      return;
+    }
+
+    // Get selected products data from current state (no API calls needed)
+    const selectedProductsList = products.filter(p => selectedProducts.has(p.id));
+    
+    // Validate price constraints
+    const priceRange = {
+      min: bulkPriceData.minPrice > 0 ? bulkPriceData.minPrice : undefined,
+      max: bulkPriceData.maxPrice > 0 ? bulkPriceData.maxPrice : undefined,
+    };
+
+    if (priceRange.min || priceRange.max) {
+      const filteredProducts = selectedProductsList.filter(p => {
+        const withinMin = !priceRange.min || p.price >= priceRange.min;
+        const withinMax = !priceRange.max || p.price <= priceRange.max;
+        return withinMin && withinMax;
+      });
+
+      if (filteredProducts.length === 0) {
+        setError('No products match the price range criteria');
+        return;
+      }
+
+      if (filteredProducts.length < selectedProductsList.length) {
+        const message = `Only ${filteredProducts.length} out of ${selectedProductsList.length} selected products match the price range. Continue?`;
+        if (!confirm(message)) {
+          return;
+        }
+      }
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      // Show confirmation with price preview
+      const previewProducts = selectedProductsList
+        .filter(p => {
+          const withinMin = !priceRange.min || p.price >= priceRange.min;
+          const withinMax = !priceRange.max || p.price <= priceRange.max;
+          return withinMin && withinMax;
+        })
+        .slice(0, 5);
+
+      const previewText = previewProducts.map(product => {
+        let newPrice: number;
+        switch (bulkPriceData.updateType) {
+          case 'percentage':
+            newPrice = product.price * (1 + bulkPriceData.value / 100);
+            break;
+          case 'fixed':
+            newPrice = product.price + bulkPriceData.value;
+            break;
+          case 'set_price':
+            newPrice = bulkPriceData.value;
+            break;
+          default:
+            newPrice = product.price;
+        }
+        newPrice = Math.max(0, Math.round(newPrice * 100) / 100);
+        return `${product.name.substring(0, 30)}...: ₹${product.price} → ₹${newPrice}`;
+      }).join('\n');
+      
+      const confirmMessage = `Update prices for selected products?\n\nPreview:\n${previewText}${previewProducts.length < selectedProductsList.length ? '\n...and more' : ''}`;
+      
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      console.log(`🚀 Starting bulk price update for ${selectedProductsList.length} products...`);
+
+      // Use the ultra-optimized single-call bulk price update method
+      // Pass the product data we already have instead of just IDs
+      const productsForUpdate = selectedProductsList.map(p => ({
+        id: p.id,
+        price: p.price,
+        name: p.name
+      }));
+
+      const result = await AdminProductService.bulkUpdatePricesSingleCall(
+        productsForUpdate,
+        bulkPriceData.updateType,
+        bulkPriceData.value,
+        priceRange.min || priceRange.max ? priceRange : undefined
+      );
+
+      if (result.errors && result.errors.length > 0) {
+        setError(result.errors[0].message);
+      } else {
+        const message = `Successfully updated ${result.successful.length} products` + 
+          (result.skipped > 0 ? `, skipped ${result.skipped} products` : '') +
+          (result.failed > 0 ? `, ${result.failed} failed` : '');
+        
+        console.log(`✅ ${message}`);
+        
+        // Show success message to user (you could replace this with a toast notification)
+        if (result.failed === 0) {
+          // Temporary success indication - you might want to add a proper toast system
+          const successDiv = document.createElement('div');
+          successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          successDiv.textContent = message;
+          document.body.appendChild(successDiv);
+          setTimeout(() => document.body.removeChild(successDiv), 3000);
+        }
+      }
+
+      // Reset and reload
+      setSelectedProducts(new Set());
+      setBulkAction('');
+      setShowBulkPriceModal(false);
+      setBulkPriceData({
+        updateType: 'percentage',
+        value: 0,
+        minPrice: 0,
+        maxPrice: 0,
+      });
+      
+      // Force reload to get updated data
+      console.log('🔄 Reloading products to reflect changes...');
+      await loadProducts(true);
+      
+    } catch (err) {
+      console.error('❌ Error updating prices:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update prices');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Handle product selection
   const handleProductSelect = (productId: string, selected: boolean) => {
     const newSelected = new Set(selectedProducts);
@@ -379,19 +549,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       setSelectedProducts(new Set());
     }
   };
-
-  // Store selected files for S3 upload (simplified)
-  const [uploadProgress, setUploadProgress] = useState<{
-    uploading: boolean;
-    completed: number;
-    total: number;
-    currentFile: string;
-  }>({
-    uploading: false,
-    completed: 0,
-    total: 0,
-    currentFile: '',
-  });
 
   // Handle image upload - create preview URLs and store files for S3 upload
   const handleImageUpload = async (files: FileList | null) => {
@@ -521,250 +678,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     }
   };
 
-  // Create a stable image component to prevent re-render issues
-  const ImagePreview = React.memo(({ 
-    imageId, 
-    index, 
-    isDragged, 
-    onDragStart, 
-    onDragOver, 
-    onDragEnd, 
-    onDrop, 
-    onRemove, 
-    onMoveUp, 
-    onMoveDown, 
-    canMoveUp, 
-    canMoveDown 
-  }: {
-    imageId: string;
-    index: number;
-    isDragged: boolean;
-    onDragStart: (e: React.DragEvent) => void;
-    onDragOver: (e: React.DragEvent) => void;
-    onDragEnd: () => void;
-    onDrop: (e: React.DragEvent) => void;
-    onRemove: () => void;
-    onMoveUp: () => void;
-    onMoveDown: () => void;
-    canMoveUp: boolean;
-    canMoveDown: boolean;
-  }) => {
-    const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    
-    // Get the actual image URL - either blob URL for new uploads or Amplify Storage path for existing
-    const blobData = imageBlobs.get(imageId);
-    const isNewUpload = !!blobData;
-    const imageUrl = isNewUpload ? blobData.url : imageId; // For existing images, imageId is the storage path
-
-    // Reset error state when image changes
-    React.useEffect(() => {
-      setImageError(false);
-      setImageLoaded(false);
-    }, [imageId]);
-
-    // Prevent drag if image is not loaded yet
-    const handleDragStart = (e: React.DragEvent) => {
-      if (!imageLoaded && !imageError) {
-        e.preventDefault();
-        return;
-      }
-      onDragStart(e);
-    };
-
-    // Memoized image component to prevent re-renders
-    const MemoizedImage = React.useMemo(() => {
-      if (!isNewUpload) {
-        return (
-          <CachedAmplifyImage
-            path={imageId}
-            alt={`Product image ${index + 1}`}
-            className="w-full h-full object-cover"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
-          />
-        );
-      }
-      return null;
-    }, [imageId, index, isNewUpload]);
-
-    // For existing images (Amplify Storage paths), use the cached image component
-    if (!isNewUpload) {
-      return (
-        <div 
-          className={`relative group transition-opacity ${
-            isDragged ? 'opacity-50' : 'opacity-100'
-          } cursor-move`}
-          draggable={true}
-          onDragStart={handleDragStart}
-          onDragOver={onDragOver}
-          onDragEnd={onDragEnd}
-          onDrop={onDrop}
-        >
-          <div className="w-full h-32 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-            {MemoizedImage}
-          </div>
-          
-          {/* Remove button */}
-          <button
-            type="button"
-            onClick={onRemove}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Remove image"
-          >
-            ×
-          </button>
-          
-          {/* Reorder buttons */}
-          {(canMoveUp || canMoveDown) && (
-            <div className="absolute top-1 left-1 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {canMoveUp && (
-                <button
-                  type="button"
-                  onClick={onMoveUp}
-                  className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
-                  title="Move up"
-                >
-                  ↑
-                </button>
-              )}
-              {canMoveDown && (
-                <button
-                  type="button"
-                  onClick={onMoveDown}
-                  className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
-                  title="Move down"
-                >
-                  ↓
-                </button>
-              )}
-            </div>
-          )}
-          
-          {/* Main image indicator */}
-          {index === 0 && (
-            <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded shadow">
-              Main Image
-            </div>
-          )}
-          
-          {/* Image number */}
-          <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
-            {index + 1}
-          </div>
-        </div>
-      );
-    }
-
-    // For new uploads (blob URLs), use the existing logic
-    return (
-      <div 
-        className={`relative group transition-opacity ${
-          isDragged ? 'opacity-50' : 'opacity-100'
-        } ${imageLoaded || imageError ? 'cursor-move' : 'cursor-wait'}`}
-        draggable={imageLoaded || imageError}
-        onDragStart={handleDragStart}
-        onDragOver={onDragOver}
-        onDragEnd={onDragEnd}
-        onDrop={onDrop}
-      >
-        {!imageError ? (
-          <img
-            src={imageUrl}
-            alt={`Product image ${index + 1}`}
-            className="w-full h-32 object-cover rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
-            onError={() => {
-              console.error('Image failed to load:', imageUrl);
-              setImageError(true);
-            }}
-            onLoad={() => {
-              setImageLoaded(true);
-              setImageError(false);
-            }}
-          />
-        ) : (
-          <div className="w-full h-32 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <svg className="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-              </svg>
-              <p className="text-xs">Image Error</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Loading indicator */}
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-gray-100 bg-opacity-90 rounded-lg flex items-center justify-center">
-            <div className="text-gray-500">
-              <svg className="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-          </div>
-        )}
-        
-        {/* Drag indicator - only show when image is loaded */}
-        {(imageLoaded || imageError) && (
-          <div className="absolute top-1 right-1 bg-gray-500 bg-opacity-75 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" stroke="currentColor" strokeWidth="2" fill="none"/>
-            </svg>
-          </div>
-        )}
-        
-        {/* Remove button */}
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Remove image"
-        >
-          ×
-        </button>
-        
-        {/* Reorder buttons - only show when image is loaded */}
-        {(canMoveUp || canMoveDown) && (imageLoaded || imageError) && (
-          <div className="absolute top-1 left-1 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {canMoveUp && (
-              <button
-                type="button"
-                onClick={onMoveUp}
-                className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
-                title="Move up"
-              >
-                ↑
-              </button>
-            )}
-            {canMoveDown && (
-              <button
-                type="button"
-                onClick={onMoveDown}
-                className="bg-blue-500 text-white rounded w-5 h-5 flex items-center justify-center text-xs hover:bg-blue-600"
-                title="Move down"
-              >
-                ↓
-              </button>
-            )}
-          </div>
-        )}
-        
-        {/* Main image indicator */}
-        {index === 0 && (
-          <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded shadow">
-            Main Image
-          </div>
-        )}
-        
-        {/* Image number */}
-        <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
-          {index + 1}
-        </div>
-      </div>
-    );
-  });
-
   // Move image up or down in the array
   const moveImage = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
@@ -871,6 +784,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                 <option value="">Select Action</option>
                 <option value="activate">Activate</option>
                 <option value="deactivate">Deactivate</option>
+                <option value="price_update">Update Prices</option>
                 <option value="delete">Delete</option>
               </select>
             </div>
@@ -1009,6 +923,198 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
         )}
       </div>
 
+      {/* Bulk Price Update Modal */}
+      {showBulkPriceModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Bulk Price Update ({selectedProducts.size} products)
+              </h3>
+              <button
+                onClick={() => {
+                  setShowBulkPriceModal(false);
+                  setBulkAction('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Update Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Update Type</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="updateType"
+                      value="percentage"
+                      checked={bulkPriceData.updateType === 'percentage'}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, updateType: e.target.value as any }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Percentage</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="updateType"
+                      value="fixed"
+                      checked={bulkPriceData.updateType === 'fixed'}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, updateType: e.target.value as any }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Fixed Amount</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="updateType"
+                      value="set_price"
+                      checked={bulkPriceData.updateType === 'set_price'}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, updateType: e.target.value as any }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Set Price</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Value Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {bulkPriceData.updateType === 'percentage' && 'Percentage Change (%)'}
+                  {bulkPriceData.updateType === 'fixed' && 'Amount to Add/Subtract (₹)'}
+                  {bulkPriceData.updateType === 'set_price' && 'New Price (₹)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={bulkPriceData.value}
+                  onChange={(e) => setBulkPriceData(prev => ({ ...prev, value: parseFloat(e.target.value) || 0 }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder={
+                    bulkPriceData.updateType === 'percentage' ? 'e.g., 10 for 10% increase, -5 for 5% decrease' :
+                    bulkPriceData.updateType === 'fixed' ? 'e.g., 100 to add ₹100, -50 to subtract ₹50' :
+                    'e.g., 1500 to set all prices to ₹1500'
+                  }
+                  {...(bulkPriceData.updateType === 'set_price' && { min: "0" })}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {bulkPriceData.updateType === 'percentage' && 'Positive values increase prices, negative values decrease them'}
+                  {bulkPriceData.updateType === 'fixed' && 'Positive values add to current price, negative values subtract'}
+                  {bulkPriceData.updateType === 'set_price' && 'All selected products will be set to this price'}
+                </p>
+              </div>
+
+              {/* Price Range Filters */}
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Optional: Apply only to products within price range</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Minimum Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={bulkPriceData.minPrice}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, minPrice: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="0 (no minimum)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Maximum Price (₹)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={bulkPriceData.maxPrice}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, maxPrice: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="0 (no maximum)"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Leave empty to apply to all selected products. Use range to target specific price segments.
+                </p>
+              </div>
+
+              {/* Preview */}
+              {bulkPriceData.value > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">Preview (first 3 products)</h4>
+                  <div className="space-y-1">
+                    {products
+                      .filter(p => selectedProducts.has(p.id))
+                      .filter(p => {
+                        const withinMin = bulkPriceData.minPrice <= 0 || p.price >= bulkPriceData.minPrice;
+                        const withinMax = bulkPriceData.maxPrice <= 0 || p.price <= bulkPriceData.maxPrice;
+                        return withinMin && withinMax;
+                      })
+                      .slice(0, 3)
+                      .map(product => {
+                        let newPrice: number;
+                        switch (bulkPriceData.updateType) {
+                          case 'percentage':
+                            newPrice = product.price * (1 + bulkPriceData.value / 100);
+                            break;
+                          case 'fixed':
+                            newPrice = product.price + bulkPriceData.value;
+                            break;
+                          case 'set_price':
+                            newPrice = bulkPriceData.value;
+                            break;
+                          default:
+                            newPrice = product.price;
+                        }
+                        newPrice = Math.max(0, Math.round(newPrice * 100) / 100);
+                        
+                        return (
+                          <div key={product.id} className="text-xs text-blue-800">
+                            <span className="font-medium">{product.name.substring(0, 30)}...</span>
+                            <span className="ml-2">₹{product.price} → ₹{newPrice}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBulkPriceModal(false);
+                    setBulkAction('');
+                  }}
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkPriceUpdate}
+                  disabled={submitting || (bulkPriceData.updateType === 'set_price' ? bulkPriceData.value <= 0 : bulkPriceData.value === 0)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {submitting && <LoadingSpinner size="sm" />}
+                  <span>{submitting ? 'Updating...' : 'Update Prices'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Product Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -1047,22 +1153,17 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Complete Description *
-                    <span className="text-xs text-gray-500 block mt-1">
-                      Include inspiration, design details, materials, dimensions, features, etc. in a comprehensive description
-                    </span>
                   </label>
                   {useSimpleEditor ? (
                     <SimpleRichTextEditor
                       value={formData.description}
                       onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-                      // placeholder="Example: The Inspiration: The Silver Alluring Mangalsutra is inspired by the beauty of stars and their shine that brightens up the day of whoever looks up at the sky. The Design: The silver mangalsutra has pear-shaped zircon embellishments on the centre. 925 Silver, Adjustable size to ensure no fitting issues, AAA+ Quality Zircons, Length of necklace is 44 cm with 5cm adjustable portion, Dimensions: 4.3 cm x 0.8 cm, Rhodium finish to prevent tarnish, Comes with the PRAYAN Jewellery kit and authenticity certificate"
                       required
                     />
                   ) : (
                     <RichTextEditor
                       value={formData.description}
                       onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
-                      // placeholder="Example: The Inspiration: The Silver Alluring Mangalsutra is inspired by the beauty of stars and their shine that brightens up the day of whoever looks up at the sky. The Design: The silver mangalsutra has pear-shaped zircon embellishments on the centre. 925 Silver, Adjustable size to ensure no fitting issues, AAA+ Quality Zircons, Length of necklace is 44 cm with 5cm adjustable portion, Dimensions: 4.3 cm x 0.8 cm, Rhodium finish to prevent tarnish, Comes with the PRAYAN Jewellery kit and authenticity certificate"
                       required
                     />
                   )}
@@ -1120,12 +1221,6 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Select multiple images to upload. All formats supported (JPG, PNG, etc.) - converted to WebP automatically (max 5MB each).
-                      <br />
-                      The first image will be used as the main product image.
-                      <br />
-                      <span className="font-medium">Tip:</span> You can drag and drop images to reorder them, or use the arrow buttons.
-                      <br />
-                      <span className="font-medium text-green-600">Next.js Optimized:</span> Images use Next.js Image component with automatic WebP conversion and caching.
                     </p>
                   </div>
 
@@ -1135,40 +1230,65 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                         <p className="text-sm text-gray-700 font-medium">
                           Image Preview ({formData.images.length} image{formData.images.length !== 1 ? 's' : ''})
                         </p>
-                        <div className="flex items-center space-x-2">
-                          <p className="text-xs text-gray-500">
-                            First image will be the main product image
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              cleanupImageUrls(formData.images);
-                              setFormData(prev => ({ ...prev, images: [] }));
-                            }}
-                            className="text-xs text-red-600 hover:text-red-800 underline"
-                          >
-                            Clear All
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            cleanupImageUrls(formData.images);
+                            setFormData(prev => ({ ...prev, images: [] }));
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800 underline"
+                        >
+                          Clear All
+                        </button>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {formData.images.map((imageId, index) => (
-                          <ImagePreview
-                            key={imageId}
-                            imageId={imageId}
-                            index={index}
-                            isDragged={draggedIndex === index}
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragOver={handleDragOver}
-                            onDragEnd={handleDragEnd}
-                            onDrop={(e) => handleDrop(e, index)}
-                            onRemove={() => removeImage(index)}
-                            onMoveUp={() => moveImage(index, index - 1)}
-                            onMoveDown={() => moveImage(index, index + 1)}
-                            canMoveUp={index > 0}
-                            canMoveDown={index < formData.images.length - 1}
-                          />
-                        ))}
+                        {formData.images.map((imageId, index) => {
+                          const blobData = imageBlobs.get(imageId);
+                          const isNewUpload = !!blobData;
+                          const imageUrl = isNewUpload ? blobData.url : imageId;
+
+                          return (
+                            <div key={imageId} className="relative group">
+                              <div className="w-full h-32 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                                {isNewUpload ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Product image ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <CachedAmplifyImage
+                                    path={imageId}
+                                    alt={`Product image ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                              </div>
+                              
+                              {/* Remove button */}
+                              <button
+                                type="button"
+                                onClick={() => removeImage(index)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove image"
+                              >
+                                ×
+                              </button>
+                              
+                              {/* Main image indicator */}
+                              {index === 0 && (
+                                <div className="absolute bottom-2 left-2 bg-blue-500 text-white text-xs px-2 py-1 rounded shadow">
+                                  Main Image
+                                </div>
+                              )}
+                              
+                              {/* Image number */}
+                              <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded">
+                                {index + 1}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

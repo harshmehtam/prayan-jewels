@@ -1,5 +1,6 @@
 // Product data access layer - Real Amplify GraphQL Integration
 import { getClient, client, handleAmplifyError } from '@/lib/amplify-client';
+import { ReviewCache } from '@/lib/utils/review-cache';
 import type { CreateProductInput, UpdateProductInput, ProductFilters, ProductSearchResult } from '@/types';
 
 export class ProductService {
@@ -77,12 +78,29 @@ export class ProductService {
         products = this.sortProducts(products, filters.sortBy);
       }
 
-      return {
-        products: products.map(p => ({
+      // Get products with real review data using batch optimization
+      const productIds = products.map(p => p.id);
+      const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
+      
+      const productsWithReviews = products.map((p) => {
+        const stats = reviewStatsMap.get(p.id) || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+        
+        return {
           ...p,
           images: p.images.filter((img): img is string => img !== null),
-          availableQuantity: (p as any).availableQuantity || 10 // Default stock for display
-        })),
+          availableQuantity: (p as any).availableQuantity || 10, // Default stock for display
+          // Use real review data instead of static values
+          averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+          totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
+        };
+      });
+
+      return {
+        products: productsWithReviews,
         totalCount: products.length,
         hasNextPage: !!response.nextToken,
         nextToken: response.nextToken || undefined
@@ -141,12 +159,18 @@ export class ProductService {
       let inventory = null;
       let availableQuantity = 10; // Default for display
 
+      // Get real review stats for this product
+      const stats = await ReviewCache.getProductReviewStats(id);
+
       return {
         product: {
           ...response.data,
           images: response.data.images.filter((img): img is string => img !== null),
           availableQuantity,
-          inventory
+          inventory,
+          // Use real review data instead of static values
+          averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+          totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
         },
         errors: response.errors
       };
@@ -271,12 +295,29 @@ export class ProductService {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
-      return {
-        products: products.slice(0, limit).map(p => ({
+      // Get products with real review data using batch optimization
+      const productIds = products.slice(0, limit).map(p => p.id);
+      const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
+      
+      const productsWithReviews = products.slice(0, limit).map((p) => {
+        const stats = reviewStatsMap.get(p.id) || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+        
+        return {
           ...p,
           images: p.images.filter((img): img is string => img !== null),
-          availableQuantity: 10 // Default stock for display
-        })),
+          availableQuantity: 10, // Default stock for display
+          // Use real review data instead of static values
+          averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+          totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
+        };
+      });
+
+      return {
+        products: productsWithReviews,
         errors: response.errors
       };
     } catch (error) {

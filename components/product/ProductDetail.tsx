@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
+import { CompactStarRating } from '@/components/ui/StarRating';
 import { ProductService } from '@/lib/services/product-service';
 import { AddToCartButton } from '@/components/cart';
 import { DELIVERY_CONFIG } from '@/lib/config/delivery';
@@ -26,6 +27,8 @@ interface ProductWithInventory {
   viewCount?: number | null;
   createdAt: string;
   updatedAt: string;
+  averageRating?: number | null;
+  totalReviews?: number | null;
   inventory?: {
     stockQuantity: number;
     reservedQuantity: number;
@@ -570,6 +573,17 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
             {/* Header */}
             <div>
               <h1 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 md:mb-4">{product.name}</h1>
+              
+              {/* Rating - Only show if product has reviews */}
+              {product.averageRating && product.totalReviews && product.totalReviews > 0 && (
+                <div className="mb-4">
+                  <CompactStarRating 
+                    rating={product.averageRating} 
+                    totalReviews={product.totalReviews}
+                    size="md"
+                  />
+                </div>
+              )}
               
               {/* Price */}
               <div className="mb-6 md:mb-8">

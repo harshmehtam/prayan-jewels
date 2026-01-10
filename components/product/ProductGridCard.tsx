@@ -6,7 +6,6 @@ import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
 import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
-import { useAuth } from '@/components/providers/auth-provider';
 
 interface Product {
   id: string;
@@ -270,8 +269,8 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
             {product.name}
           </h3>
 
-          {/* Rating */}
-          {product.averageRating && product.totalReviews && (
+          {/* Rating - Only show if product has reviews */}
+          {product.averageRating && product.totalReviews && product.totalReviews > 0 && (
             <CompactStarRating 
               rating={product.averageRating} 
               totalReviews={product.totalReviews}
