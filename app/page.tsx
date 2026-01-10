@@ -1,13 +1,18 @@
+'use client';
+
 import Link from 'next/link';
 import PriceRangeCards from '@/components/product/PriceRangeCards';
 import ProductGrid from '@/components/product/ProductGrid';
 import FeaturesSection from '@/components/layout/FeaturesSection';
+import { useHeaderSpacing } from '@/hooks/use-header-spacing';
 
 export default function Home() {
+  const { headerPaddingClasses } = useHeaderSpacing();
+
   return (
     <div>
       {/* Hero Section - Mobile optimized */}
-      <section className="relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden pt-28 sm:pt-32 lg:pt-36">
+      <section className={`relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden ${headerPaddingClasses}`}>
         {/* Large Background Image Area */}
         <div className="absolute inset-0 top-0">
           {/* Full background with jewelry photography style */}

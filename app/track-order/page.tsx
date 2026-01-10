@@ -5,6 +5,7 @@ import { GuestOrderLookup } from '@/lib/utils/guest-order-lookup';
 import { OrderCancellationService } from '@/lib/services/order-cancellation';
 import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
+import { useHeaderSpacing } from '@/hooks/use-header-spacing';
 
 export default function TrackOrderPage() {
   const [email, setEmail] = useState('');

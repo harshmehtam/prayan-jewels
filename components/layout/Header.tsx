@@ -8,6 +8,7 @@ import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
+import { useHeaderSpacing } from '@/hooks/use-header-spacing';
 import PromotionalBanner from './PromotionalBanner';
 
 export default function Header() {
@@ -21,6 +22,7 @@ export default function Header() {
   const { isAuthenticated, userProfile, signOut } = useAuth();
   const { itemCount } = useCart();
   const { wishlistCount } = useWishlist();
+  const { headerTopPosition } = useHeaderSpacing();
   const pathname = usePathname();
   const router = useRouter();
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -299,7 +301,7 @@ export default function Header() {
       <PromotionalBanner />
 
       {/* Main Header - Dynamic background based on scroll and route */}
-      <header className={`fixed top-8 left-0 right-0 z-40 transition-all duration-300 ${
+      <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${headerTopPosition} ${
         isScrolled || !isHomePage
           ? 'bg-white shadow-md text-black' 
           : 'bg-transparent backdrop-blur-sm text-black'
