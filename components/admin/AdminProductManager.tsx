@@ -6,8 +6,10 @@ import { Product, CreateProductInput, UpdateProductInput } from '@/types';
 import { AdminProductService } from '@/lib/services/admin-products';
 import { SimpleImageService } from '@/lib/services/simple-image-service';
 import { validateImageFiles } from '@/lib/utils/image-utils';
+import { validatePrices } from '@/lib/utils/price-utils';
 import ProductInventoryManager from './ProductInventoryManager';
 import { PermissionGate } from '@/components/auth/AdminRoute';
+import { useRoleAccess } from '@/lib/hooks/useRoleAccess';
 import { LoadingSpinner, CachedAmplifyImage } from '@/components/ui';
 
 // Dynamically import RichTextEditor to avoid SSR issues
@@ -42,6 +44,7 @@ interface ProductFormData {
   name: string;
   description: string;
   price: number;
+  actualPrice: number;
   images: string[];
   isActive: boolean;
 }
@@ -50,11 +53,13 @@ const initialFormData: ProductFormData = {
   name: '',
   description: '',
   price: 0,
+  actualPrice: 0,
   images: [],
   isActive: true,
 };
 
 export default function AdminProductManager({ className = '' }: AdminProductManagerProps) {
+  const { isSuperAdmin } = useRoleAccess();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +71,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
   const [bulkAction, setBulkAction] = useState<'activate' | 'deactivate' | 'delete' | 'price_update' | ''>('');
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
   const [bulkPriceData, setBulkPriceData] = useState({
+    priceField: 'selling' as 'selling' | 'actual',
     updateType: 'percentage' as 'percentage' | 'fixed' | 'set_price',
     value: 0,
     minPrice: 0,
@@ -75,6 +81,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [useSimpleEditor, setUseSimpleEditor] = useState(false);
+  const [priceValidationError, setPriceValidationError] = useState<string | null>(null);
   
   // Store blob URLs with metadata to prevent premature cleanup
   const [imageBlobs, setImageBlobs] = useState<Map<string, { 
@@ -195,6 +202,13 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
     setError(null);
 
     try {
+      // Validate prices
+      const priceValidation = validatePrices(formData.price, formData.actualPrice);
+      if (!priceValidation.isValid) {
+        setError(priceValidation.error!);
+        setSubmitting(false);
+        return;
+      }
       // Convert image IDs to final storage paths (not blob URLs)
       const imageUrls = formData.images.map((imageId) => {
         const blobData = imageBlobs.get(imageId);
@@ -315,6 +329,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       name: product.name,
       description: product.description,
       price: product.price,
+      actualPrice: product.actualPrice || 0,
       images: product.images, // These are already URLs, not blob IDs
       isActive: product.isActive ?? true,
     });
@@ -477,11 +492,13 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       const productsForUpdate = selectedProductsList.map(p => ({
         id: p.id,
         price: p.price,
+        actualPrice: p.actualPrice || undefined,
         name: p.name
       }));
 
       const result = await AdminProductService.bulkUpdatePricesSingleCall(
         productsForUpdate,
+        bulkPriceData.priceField,
         bulkPriceData.updateType,
         bulkPriceData.value,
         priceRange.min || priceRange.max ? priceRange : undefined
@@ -512,6 +529,7 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
       setBulkAction('');
       setShowBulkPriceModal(false);
       setBulkPriceData({
+        priceField: 'selling',
         updateType: 'percentage',
         value: 0,
         minPrice: 0,
@@ -785,7 +803,8 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                 <option value="activate">Activate</option>
                 <option value="deactivate">Deactivate</option>
                 <option value="price_update">Update Prices</option>
-                <option value="delete">Delete</option>
+                {/* Only superadmin can perform bulk delete */}
+                {isSuperAdmin && <option value="delete">Delete</option>}
               </select>
             </div>
             <div className="flex items-center space-x-2">
@@ -879,7 +898,18 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₹{product.price.toLocaleString()}
+                      <div className="flex flex-col">
+                        <div className="font-medium">₹{product.price.toLocaleString()}</div>
+                        <div className="text-xs text-gray-500">Selling Price</div>
+                        {product.actualPrice && product.actualPrice > 0 && (
+                          <>
+                            <div className="text-xs text-gray-400 line-through">₹{product.actualPrice.toLocaleString()}</div>
+                            <div className="text-xs text-green-600">
+                              {Math.round(((product.actualPrice - product.price) / product.actualPrice) * 100)}% off
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -945,6 +975,38 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
             </div>
 
             <div className="space-y-6">
+              {/* Price Field Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Price Field to Update</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="priceField"
+                      value="selling"
+                      checked={bulkPriceData.priceField === 'selling'}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, priceField: e.target.value as any }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Selling Price</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="priceField"
+                      value="actual"
+                      checked={bulkPriceData.priceField === 'actual'}
+                      onChange={(e) => setBulkPriceData(prev => ({ ...prev, priceField: e.target.value as any }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">Actual Price</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selling Price: What customers pay. Actual Price: Original/MRP price for showing discounts.
+                </p>
+              </div>
+
               {/* Update Type Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Update Type</label>
@@ -1054,32 +1116,36 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                     {products
                       .filter(p => selectedProducts.has(p.id))
                       .filter(p => {
-                        const withinMin = bulkPriceData.minPrice <= 0 || p.price >= bulkPriceData.minPrice;
-                        const withinMax = bulkPriceData.maxPrice <= 0 || p.price <= bulkPriceData.maxPrice;
+                        const currentPrice = bulkPriceData.priceField === 'selling' ? p.price : (p.actualPrice || 0);
+                        const withinMin = bulkPriceData.minPrice <= 0 || currentPrice >= bulkPriceData.minPrice;
+                        const withinMax = bulkPriceData.maxPrice <= 0 || currentPrice <= bulkPriceData.maxPrice;
                         return withinMin && withinMax;
                       })
                       .slice(0, 3)
                       .map(product => {
+                        const currentPrice = bulkPriceData.priceField === 'selling' ? product.price : (product.actualPrice || 0);
                         let newPrice: number;
                         switch (bulkPriceData.updateType) {
                           case 'percentage':
-                            newPrice = product.price * (1 + bulkPriceData.value / 100);
+                            newPrice = currentPrice * (1 + bulkPriceData.value / 100);
                             break;
                           case 'fixed':
-                            newPrice = product.price + bulkPriceData.value;
+                            newPrice = currentPrice + bulkPriceData.value;
                             break;
                           case 'set_price':
                             newPrice = bulkPriceData.value;
                             break;
                           default:
-                            newPrice = product.price;
+                            newPrice = currentPrice;
                         }
                         newPrice = Math.max(0, Math.round(newPrice * 100) / 100);
                         
                         return (
                           <div key={product.id} className="text-xs text-blue-800">
                             <span className="font-medium">{product.name.substring(0, 30)}...</span>
-                            <span className="ml-2">₹{product.price} → ₹{newPrice}</span>
+                            <span className="ml-2">
+                              {bulkPriceData.priceField === 'selling' ? 'Selling' : 'Actual'}: ₹{currentPrice} → ₹{newPrice}
+                            </span>
                           </div>
                         );
                       })}
@@ -1178,18 +1244,53 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Price (₹) *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Selling Price (₹) *</label>
                     <input
                       type="number"
                       required
                       min="0"
                       step="0.01"
                       value={formData.price}
-                      onChange={(e) => setFormData(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                      onChange={(e) => {
+                        const newPrice = parseFloat(e.target.value) || 0;
+                        setFormData(prev => ({ ...prev, price: newPrice }));
+                        
+                        // Validate prices in real-time
+                        const validation = validatePrices(newPrice, formData.actualPrice);
+                        setPriceValidationError(validation.isValid ? null : validation.error!);
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Customer pays this price"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Actual Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.actualPrice || ''}
+                      onChange={(e) => {
+                        const newActualPrice = parseFloat(e.target.value) || 0;
+                        setFormData(prev => ({ ...prev, actualPrice: newActualPrice }));
+                        
+                        // Validate prices in real-time
+                        const validation = validatePrices(formData.price, newActualPrice);
+                        setPriceValidationError(validation.isValid ? null : validation.error!);
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Original/MRP price (optional)"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      <strong>To show discount:</strong> Set this higher than selling price. Leave empty if no discount.
+                    </p>
+                    {formData.price > 0 && formData.actualPrice > 0 && formData.actualPrice > formData.price && (
+                      <p className="text-xs text-green-600 mt-1 font-medium">
+                        ✓ Discount: {Math.round(((formData.actualPrice - formData.price) / formData.actualPrice) * 100)}% OFF (Save ₹{(formData.actualPrice - formData.price).toLocaleString()})
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center">
                     <input
@@ -1204,6 +1305,20 @@ export default function AdminProductManager({ className = '' }: AdminProductMana
                     </label>
                   </div>
                 </div>
+                
+                {/* Price Validation Error */}
+                {priceValidationError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex">
+                      <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="ml-3">
+                        <p className="text-sm text-red-700">{priceValidationError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Images */}

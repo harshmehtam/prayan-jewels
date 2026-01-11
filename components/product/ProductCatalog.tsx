@@ -118,14 +118,6 @@ export default function ProductCatalog({
 
   // Effect to fetch products when dependencies change
   useEffect(() => {
-    console.log('ProductCatalog: Dependencies changed', { 
-      searchQuery, 
-      filters, 
-      sortBy, 
-      limit 
-    });
-    
-    console.log('ProductCatalog: Calling fetchProducts directly');
     fetchProducts();
   }, [filters, searchQuery, sortBy, limit, fetchProducts]);
 

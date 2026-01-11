@@ -11,6 +11,7 @@ import { useWishlist } from '@/components/providers/wishlist-provider';
 import { useCart } from '@/components/providers/cart-provider';
 import ProductReviews from '@/components/product/ProductReviews';
 import AvailableCoupons from '@/components/product/AvailableCoupons';
+import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 import type { Product } from '@/types';
 
 interface ProductDetailProps {
@@ -22,6 +23,7 @@ interface ProductWithInventory {
   name: string;
   description: string;
   price: number;
+  actualPrice?: number | null;
   images: string[];
   isActive: boolean | null;
   viewCount?: number | null;
@@ -587,11 +589,28 @@ export default function ProductDetail({ productId }: ProductDetailProps) {
               
               {/* Price */}
               <div className="mb-6 md:mb-8">
-                <div className="text-3xl md:text-4xl font-bold text-gray-900">
-                  {formatPrice(product.price)}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="text-3xl md:text-4xl font-bold text-gray-900">
+                    {formatPrice(product.price)}
+                  </div>
+                  {product.actualPrice && product.actualPrice > product.price && (
+                    <>
+                      <div className="text-xl md:text-2xl text-gray-500 line-through">
+                        {formatPrice(product.actualPrice)}
+                      </div>
+                      <div className="bg-black text-white px-2 py-1 rounded-md text-sm font-medium">
+                        {Math.round(((product.actualPrice - product.price) / product.actualPrice) * 100)}% OFF
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="text-sm text-gray-600 mt-2">
                   Inclusive of all taxes
+                  {product.actualPrice && product.actualPrice > product.price && (
+                    <span className="ml-2 text-gray-900 font-medium">
+                      You save ₹{(product.actualPrice - product.price).toLocaleString()}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

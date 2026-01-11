@@ -6,18 +6,8 @@ import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
 import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  images: string[];
-  isActive: boolean | null;
-  availableQuantity?: number;
-  averageRating?: number | null;
-  totalReviews?: number | null;
-}
+import { formatPrice as formatPriceUtil } from '@/lib/utils/price-utils';
+import type { Product } from '@/types';
 
 interface ProductGridCardProps {
   product: Product;
@@ -37,15 +27,6 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
   useEffect(() => {
     setIsInWishlist(wishlistStatus[product.id] || false);
   }, [product.id, wishlistStatus]);
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(price);
-  };
 
   // Removed badge and out-of-stock functionality
 
@@ -224,6 +205,13 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
             )}
           </button>
 
+          {/* Discount Badge */}
+          {product.actualPrice && Number(product.actualPrice) > Number(product.price) && (
+            <div className="absolute top-3 left-3 z-20 bg-black text-white text-base font-medium px-3 py-1.5 rounded shadow-lg">
+              {Math.round(((Number(product.actualPrice) - Number(product.price)) / Number(product.actualPrice)) * 100)}% OFF
+            </div>
+          )}
+
           {/* Guest User Wishlist Prompt - Show only for non-authenticated users */}
           {/* {!isAuthenticated && isInWishlist && (
             <div className="absolute top-16 right-3 z-30 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
@@ -265,7 +253,7 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
         {/* Product Info */}
         <div className="space-y-1 p-3 pt-0">
           {/* Product Name */}
-          <h3 className="text-sm font-normal text-gray-900 line-clamp-2 group-hover:text-gray-700 transition-colors leading-tight">
+          <h3 className="text-lg font-medium text-gray-900 line-clamp-2 group-hover:text-gray-700 transition-colors leading-tight">
             {product.name}
           </h3>
 
@@ -279,14 +267,28 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
           )}
 
           {/* Material/Quality Badge */}
-          <p className="text-xs text-amber-600 font-medium">
+          <p className="text-base text-amber-600 font-medium">
             925 Silver
           </p>
 
           {/* Price */}
-          <p className="text-sm font-semibold text-gray-900 pt-1">
-            {formatPrice(product.price)}
-          </p>
+          <div className="pt-1">
+            <div className="flex items-center gap-2">
+              <p className="text-xl font-semibold text-gray-900">
+                {formatPriceUtil(product.price)}
+              </p>
+              {product.actualPrice && Number(product.actualPrice) > Number(product.price) && (
+                <p className="text-base text-gray-500 line-through">
+                  {formatPriceUtil(Number(product.actualPrice))}
+                </p>
+              )}
+            </div>
+            {product.actualPrice && Number(product.actualPrice) > Number(product.price) && (
+              <p className="text-base text-gray-900 font-medium">
+                Save ₹{(Number(product.actualPrice) - Number(product.price)).toLocaleString()}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </Link>

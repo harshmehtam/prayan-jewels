@@ -11,6 +11,7 @@ import CheckoutHeader from '@/components/layout/CheckoutHeader';
 import PageLoading from '@/components/ui/PageLoading';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { ProductService } from '@/lib/services/product-service';
+import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 import type { Address, Product } from '@/types';
 import type { SavedAddress } from '@/lib/services/address-service';
 
@@ -523,6 +524,7 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 {items.map((item) => {
                   const product = products.get(item.productId);
+                  const priceInfo = calculatePriceInfo(item.unitPrice, product?.actualPrice);
                   
                   return (
                     <div key={item.id} className="flex items-center space-x-3">
@@ -545,9 +547,26 @@ export default function CheckoutPage() {
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {product?.name || `Product ${item.productId}`}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          Qty: {item.quantity} × ₹{item.unitPrice.toLocaleString()}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-gray-500">
+                            Qty: {item.quantity} × {formatPrice(priceInfo.sellingPrice)}
+                          </p>
+                          {priceInfo.hasDiscount && (
+                            <>
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatPrice(priceInfo.actualPrice!)}
+                              </span>
+                              <span className="text-xs bg-black text-white px-1.5 py-0.5 rounded font-medium">
+                                {priceInfo.discountPercentage}% OFF
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {priceInfo.hasDiscount && (
+                          <p className="text-xs text-black">
+                            Save ₹{(priceInfo.discountAmount * item.quantity).toLocaleString()} total
+                          </p>
+                        )}
                       </div>
                       <div className="text-sm font-medium text-gray-900">
                         ₹{item.totalPrice.toLocaleString()}

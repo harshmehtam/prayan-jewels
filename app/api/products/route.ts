@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductService } from '@/lib/data/products';
+import { ProductService } from '@/lib/services/product-service';
 import type { ProductFilters } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       inStock: inStock || undefined
     };
 
-    const result = await ProductService.getProducts(filters, limit, nextToken);
+    const result = await ProductService.getProducts(filters, limit);
 
     return NextResponse.json({
       success: true,
@@ -33,48 +33,6 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching products:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch products';
-    
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: errorMessage 
-      },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    
-    // TODO: Add authentication check for admin users
-    // const user = await getCurrentUser();
-    // if (!user || !hasAdminRole(user)) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
-
-    const result = await ProductService.createProduct(body);
-
-    if (result.errors) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Failed to create product',
-          details: result.errors 
-        },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: result.product
-    });
-
-  } catch (error) {
-    console.error('Error creating product:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create product';
     
     return NextResponse.json(
       { 

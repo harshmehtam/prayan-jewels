@@ -104,6 +104,7 @@ export class ProductService {
           name: product.name,
           description: product.description,
           price: product.price,
+          actualPrice: product.actualPrice, // Add actualPrice field
           images: product.images?.filter((img): img is string => img !== null) || [],
           isActive: product.isActive,
           viewCount: product.viewCount,
@@ -215,6 +216,7 @@ export class ProductService {
         name: product.name,
         description: product.description,
         price: product.price,
+        actualPrice: product.actualPrice, // Add actualPrice field
         images: product.images?.filter((img): img is string => img !== null) || [],
         isActive: product.isActive,
         viewCount: product.viewCount,

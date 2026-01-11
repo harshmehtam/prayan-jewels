@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/components/providers/cart-provider';
 import { ProductService } from '@/lib/services/product-service';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
+import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 import type { Product } from '@/types';
 
 interface CartModalProps {
@@ -339,7 +340,36 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-lg font-medium text-gray-900">₹{item.unitPrice}</span>
+                        {/* Price Display with Discount Info */}
+                        <div className="flex flex-col">
+                          {(() => {
+                            const priceInfo = calculatePriceInfo(item.unitPrice, item.product?.actualPrice);
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg font-medium text-gray-900">
+                                    {formatPrice(priceInfo.sellingPrice)}
+                                  </span>
+                                  {priceInfo.hasDiscount && (
+                                    <>
+                                      <span className="text-sm text-gray-500 line-through">
+                                        {formatPrice(priceInfo.actualPrice!)}
+                                      </span>
+                                      <span className="text-xs bg-black text-white px-1.5 py-0.5 rounded font-medium">
+                                        {priceInfo.discountPercentage}% OFF
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                                {priceInfo.hasDiscount && (
+                                  <span className="text-xs text-black">
+                                    Save ₹{priceInfo.discountAmount.toLocaleString()} per item
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
                         
                         {/* Quantity Controls */}
                         <div className="flex items-center border border-gray-300 rounded">

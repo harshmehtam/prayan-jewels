@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductService } from '@/lib/data/products';
+import { ProductService } from '@/lib/services/product-service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get products matching the search query
-    const result = await ProductService.searchProducts(query.trim(), {}, limit);
+    const result = await ProductService.getProducts({ searchQuery: query.trim() }, limit);
     
     // Extract unique product names as suggestions
     const suggestions = [...new Set(result.products.map(product => product.name))].slice(0, limit);

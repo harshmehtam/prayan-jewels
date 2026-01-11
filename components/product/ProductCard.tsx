@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from '@/components/providers/cart-provider';
 import { ProductCardImage } from '@/components/ui/OptimizedImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
+import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 
 interface QuickAddButtonProps {
   product: {
@@ -77,6 +78,7 @@ interface ProductCardProps {
     name: string;
     description: string;
     price: number;
+    actualPrice?: number | null;
     images: string[];
     isActive: boolean | null;
     availableQuantity?: number;
@@ -87,6 +89,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const priceInfo = calculatePriceInfo(product.price, product.actualPrice);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -160,6 +163,13 @@ export default function ProductCard({ product }: ProductCardProps) {
               Out of Stock
             </div>
           )}
+
+          {/* Discount Badge */}
+          {priceInfo.hasDiscount && (
+            <div className="absolute top-2 right-2 bg-black text-white text-xs font-medium px-2 py-1 rounded">
+              {priceInfo.discountPercentage}% OFF
+            </div>
+          )}
         </div>
 
         {/* Product Info */}
@@ -186,9 +196,16 @@ export default function ProductCard({ product }: ProductCardProps) {
 
           <div className="flex items-center justify-between">
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-base sm:text-lg font-bold text-gray-900 truncate">
-                {formatPrice(product.price)}
-              </span>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-base sm:text-lg font-bold text-gray-900">
+                  {formatPrice(priceInfo.sellingPrice)}
+                </span>
+                {priceInfo.hasDiscount && (
+                  <span className="text-sm text-gray-500 line-through">
+                    {formatPrice(priceInfo.actualPrice!)}
+                  </span>
+                )}
+              </div>
               {product.availableQuantity !== undefined && (
                 <span className={`text-xs ${
                   isOutOfStock 

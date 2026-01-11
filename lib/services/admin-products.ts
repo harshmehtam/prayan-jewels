@@ -161,7 +161,11 @@ export class AdminProductService {
       // Create the product
       const client = await this.getClient();
       const productResult = await client.models.Product.create({
-        ...productData,
+        name: productData.name,
+        description: productData.description,
+        price: productData.price,
+        actualPrice: productData.actualPrice || null, // Ensure actualPrice is properly handled
+        images: productData.images,
         isActive: productData.isActive ?? true,
       });
 
@@ -467,7 +471,8 @@ export class AdminProductService {
 
   // Ultra-optimized bulk price update - single GraphQL request with multiple mutations
   static async bulkUpdatePricesSingleCall(
-    products: Array<{ id: string; price: number; name: string }>,
+    products: Array<{ id: string; price: number; actualPrice?: number; name: string }>,
+    priceField: 'selling' | 'actual',
     updateType: 'percentage' | 'fixed' | 'set_price',
     value: number,
     priceRange?: { min?: number; max?: number }
@@ -477,8 +482,9 @@ export class AdminProductService {
       
       // Filter products based on price range (no API calls needed)
       const validProducts = products.filter(product => {
-        if (priceRange?.min && product.price < priceRange.min) return false;
-        if (priceRange?.max && product.price > priceRange.max) return false;
+        const currentPrice = priceField === 'selling' ? product.price : (product.actualPrice || 0);
+        if (priceRange?.min && currentPrice < priceRange.min) return false;
+        if (priceRange?.max && currentPrice > priceRange.max) return false;
         return true;
       });
 
@@ -493,20 +499,21 @@ export class AdminProductService {
 
       // Calculate new prices for all products
       const productsWithNewPrices = validProducts.map(product => {
+        const currentPrice = priceField === 'selling' ? product.price : (product.actualPrice || 0);
         let newPrice: number;
         
         switch (updateType) {
           case 'percentage':
-            newPrice = product.price * (1 + value / 100);
+            newPrice = currentPrice * (1 + value / 100);
             break;
           case 'fixed':
-            newPrice = product.price + value;
+            newPrice = currentPrice + value;
             break;
           case 'set_price':
             newPrice = value;
             break;
           default:
-            newPrice = product.price;
+            newPrice = currentPrice;
         }
 
         // Ensure price is not negative and round to 2 decimal places
@@ -514,30 +521,27 @@ export class AdminProductService {
 
         return {
           ...product,
-          newPrice
+          newPrice,
+          priceField
         };
       });
 
-      console.log(`🚀 Executing bulk price update for ${productsWithNewPrices.length} products in single GraphQL call...`);
-
-      // Create a single GraphQL mutation with multiple update operations
-      // This uses GraphQL's ability to batch multiple mutations in one request
-      const mutations = productsWithNewPrices.map((product, index) => ({
-        [`update${index}`]: {
-          __typename: 'Product',
-          id: product.id,
-          price: product.newPrice
-        }
-      }));
+      console.log(`🚀 Executing bulk ${priceField} price update for ${productsWithNewPrices.length} products in single GraphQL call...`);
 
       // Execute all updates in a single GraphQL request using Promise.all
       // This is the most efficient way with Amplify's current API
       const updatePromises = productsWithNewPrices.map(product => {
-        console.log(`📝 Updating ${product.name}: ₹${product.price} → ₹${product.newPrice}`);
-        return client.models.Product.update({
-          id: product.id,
-          price: product.newPrice,
-        });
+        const currentPrice = priceField === 'selling' ? product.price : (product.actualPrice || 0);
+        console.log(`📝 Updating ${product.name} ${priceField} price: ₹${currentPrice} → ₹${product.newPrice}`);
+        
+        const updateData: any = { id: product.id };
+        if (priceField === 'selling') {
+          updateData.price = product.newPrice;
+        } else {
+          updateData.actualPrice = product.newPrice;
+        }
+        
+        return client.models.Product.update(updateData);
       });
 
       // Execute all updates concurrently - this is as close to a single call as we can get
@@ -547,7 +551,7 @@ export class AdminProductService {
       const failed = results.filter(r => !r.data);
       const skipped = products.length - validProducts.length;
 
-      console.log(`✅ Bulk price update completed: ${successful.length} successful, ${failed.length} failed, ${skipped} skipped`);
+      console.log(`✅ Bulk ${priceField} price update completed: ${successful.length} successful, ${failed.length} failed, ${skipped} skipped`);
 
       return {
         successful,

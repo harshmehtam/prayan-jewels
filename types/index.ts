@@ -5,7 +5,8 @@ export interface Product {
   id: string;
   name: string;
   description: string; // Single comprehensive description with all details
-  price: number;
+  price: number; // Selling price (what customer pays)
+  actualPrice?: number | null; // Original/MRP price (for showing discount)
   images: string[]; // Local image paths
   isActive: boolean | null;
   viewCount?: number | null; // Number of times viewed
@@ -143,7 +144,8 @@ export interface OrderItem {
 export interface CreateProductInput {
   name: string;
   description: string; // Single comprehensive description
-  price: number;
+  price: number; // Selling price
+  actualPrice?: number; // Original/MRP price (optional)
   images: string[]; // Local image paths
   isActive?: boolean;
   // COMMENTED OUT - Additional fields for inventory setup - Not needed for now

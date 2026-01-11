@@ -6,7 +6,8 @@ const schema = a.schema({
     .model({
       name: a.string().required(),
       description: a.string().required(), // Single comprehensive description with all details
-      price: a.float().required(),
+      price: a.float().required(), // Selling price (what customer pays)
+      actualPrice: a.float(), // Original/MRP price (for showing discount)
       images: a.string().array().required(), // Local image paths
       isActive: a.boolean().default(true),
       viewCount: a.integer().default(0), // Track product views
@@ -19,7 +20,8 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.guest().to(['read']),
       allow.authenticated().to(['read']),
-      allow.group('admin').to(['create', 'read', 'update', 'delete']),
+      allow.group('admin').to(['create', 'read', 'update']),
+      allow.group('super_admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
   // COMMENTED OUT - Inventory tracking for products - Not needed for now
@@ -64,6 +66,7 @@ const schema = a.schema({
       // Users can only access their own addresses using owner field
       allow.ownerDefinedIn('userId'),
       allow.group('admin').to(['read']),
+      allow.group('super_admin').to(['read', 'delete']),
     ]),
 
   // Shopping cart for customers
@@ -127,7 +130,8 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.guest().to(['read']),
       allow.authenticated().to(['read']),
-      allow.group('admin').to(['create', 'read', 'update', 'delete']),
+      allow.group('admin').to(['create', 'read', 'update']),
+      allow.group('super_admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
   // User coupon usage tracking
@@ -142,6 +146,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.ownerDefinedIn('userId'),
       allow.group('admin').to(['read']),
+      allow.group('super_admin').to(['read', 'delete']),
     ]),
 
   // Order management
@@ -190,8 +195,10 @@ const schema = a.schema({
       allow.ownerDefinedIn('customerId'),
       // Guest users can create, read, and update orders (needed for payment processing)
       allow.guest().to(['create', 'read', 'update']),
-      // Admin full access
-      allow.group('admin').to(['create', 'read', 'update', 'delete']),
+      // Admin can create, read, and update orders
+      allow.group('admin').to(['create', 'read', 'update']),
+      // Only super_admin can delete orders
+      allow.group('super_admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
   // Wishlist for customer product saving
@@ -231,7 +238,8 @@ const schema = a.schema({
       allow.ownerDefinedIn('customerId').to(['create', 'read', 'update']),
       allow.authenticated().to(['read']), // All authenticated users can read approved reviews
       allow.guest().to(['read']), // Guests can read approved reviews
-      allow.group('admin').to(['create', 'read', 'update', 'delete']),
+      allow.group('admin').to(['create', 'read', 'update']),
+      allow.group('super_admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
   // Review helpful voting system
@@ -245,6 +253,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.ownerDefinedIn('customerId').to(['create', 'read', 'update', 'delete']),
       allow.group('admin').to(['read']),
+      allow.group('super_admin').to(['read', 'delete']),
     ]),
   // Order items
   OrderItem: a
@@ -263,7 +272,8 @@ const schema = a.schema({
       // Inherit authorization from parent Order model
       allow.authenticated().to(['create', 'read']),
       allow.guest().to(['create', 'read', 'update']), // Guest users can create, read, and update order items
-      allow.group('admin').to(['create', 'read', 'update', 'delete']),
+      allow.group('admin').to(['create', 'read', 'update']),
+      allow.group('super_admin').to(['create', 'read', 'update', 'delete']),
     ]),
 
   // COMMENTED OUT - Audit log for tracking admin actions and security events - Not needed for now

@@ -1,6 +1,6 @@
 // Search service for managing search history and saved searches
 import type { SearchHistory, SavedSearch, ProductFilters } from '@/types';
-import { ProductService } from '@/lib/data/products';
+import { ProductService } from '@/lib/services/product-service';
 
 // In-memory storage for search history and saved searches
 // In a production app, these would be stored in Amplify DataStore or a database
@@ -236,7 +236,7 @@ export class SearchService {
   ) {
     try {
       // Use ProductService to perform the actual search
-      const result = await ProductService.searchProducts(query, filters, limit);
+      const result = await ProductService.getProducts({ searchQuery: query, ...filters }, limit);
       
       // Add to search history if user is provided
       if (userId && query.trim()) {

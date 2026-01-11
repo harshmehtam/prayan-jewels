@@ -5,46 +5,56 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-50 text-gray-800 border-t border-gray-200">
-      <div className="container mx-auto container-mobile py-8 sm:py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+      <div className="container mx-auto container-mobile py-12 sm:py-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
           {/* About Us */}
           <div className="lg:col-span-1">
-            <h4 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">About Us</h4>
+            <h4 className="text-base sm:text-lg font-semibold mb-6 text-gray-900">About Us</h4>
             <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
               Discover our exquisite collection of traditional and modern silver mangalsutra designs.
-                            Crafted with precision and love, each piece tells a story of elegance and tradition.
+              Crafted with precision and love, each piece tells a story of elegance and tradition.
             </p>
           </div>
 
           {/* Quick Links */}
-          {/* <div className="lg:col-span-1">
-            <h4 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Quick Links</h4>
-            <ul className="space-y-2">
+          <div className="lg:col-span-1">
+            <h4 className="text-base sm:text-lg font-semibold mb-6 text-gray-900">Quick Links</h4>
+            <ul className="space-y-3">
               <li>
-                <Link href="/about" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
-                  About Us
+                <Link href="/products" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
+                  All Products
+                </Link>
+              </li>
+              {/* <li>
+                <Link href="/products?category=traditional" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
+                  Traditional Designs
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
-                  Contact Us
+                <Link href="/products?category=modern" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
+                  Modern Designs
+                </Link>
+              </li> */}
+              <li>
+                <Link href="/track-order" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
+                  Track Your Order
                 </Link>
               </li>
             </ul>
-          </div> */}
+          </div>
 
           {/* Contact Us */}
           <div className="lg:col-span-1">
-            <h4 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Contact Us</h4>
-            <div className="space-y-3 text-sm sm:text-base">
+            <h4 className="text-base sm:text-lg font-semibold mb-6 text-gray-900">Contact Us</h4>
+            <div className="space-y-4 text-sm sm:text-base">
               <div>
                 <p className="font-medium text-gray-900">Prayan Jewels</p>
-                <p className="text-gray-600 leading-relaxed">
+                <p className="text-gray-600 leading-relaxed mt-1">
                   B, Sparsh, Malik Sheri, Surat 395002, Gujarat, India
                 </p>
               </div>
               
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <p className="text-gray-600">
                   <span className="font-medium">Email:</span> support@prayanjewels.in
                 </p>
@@ -62,10 +72,10 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Information */}
+          {/* Customer Service */}
           <div className="lg:col-span-1">
-            <h4 className="text-base sm:text-lg font-semibold mb-4 text-gray-900">Information</h4>
-            <ul className="space-y-2">
+            <h4 className="text-base sm:text-lg font-semibold mb-6 text-gray-900">Customer Service</h4>
+            <ul className="space-y-3">
               <li>
                 <Link href="/privacy" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
                   Privacy Policy
@@ -83,7 +93,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/shipping" className="text-gray-600 hover:text-gray-900 transition-colors text-sm sm:text-base focus-ring rounded-md px-1 py-1">
-                  Payment & Shipping Policy
+                  Shipping Policy
                 </Link>
               </li>
             </ul>
@@ -91,7 +101,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Section */}
-        <div className="border-t border-gray-200 mt-8 pt-6 sm:pt-8 flex flex-col sm:flex-row justify-end items-center space-y-4 sm:space-y-0">
+        <div className="border-t border-gray-200 mt-12 pt-8 sm:pt-10 flex flex-col sm:flex-row justify-end items-center space-y-4 sm:space-y-0">
           {/* <div className="flex flex-wrap justify-center sm:justify-start space-x-4 sm:space-x-6">
             <Link href="/privacy" className="text-gray-500 hover:text-gray-700 text-xs sm:text-sm transition-colors focus-ring rounded-md px-1 py-1">
               Privacy Policy

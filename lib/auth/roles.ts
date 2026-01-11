@@ -39,11 +39,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'addresses', action: 'read' },
     { resource: 'addresses', action: 'update' },
     { resource: 'addresses', action: 'delete' },
-    // Admin permissions
+    // Admin permissions (NO DELETE PERMISSIONS - only superadmin can delete)
     { resource: 'admin/products', action: 'create' },
     { resource: 'admin/products', action: 'read' },
     { resource: 'admin/products', action: 'update' },
-    { resource: 'admin/products', action: 'delete' },
     { resource: 'admin/orders', action: 'read' },
     { resource: 'admin/orders', action: 'update' },
     { resource: 'admin/inventory', action: 'read' },
@@ -56,7 +55,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'admin/analytics', action: 'read' },
     { resource: 'admin/reviews', action: 'read' },
     { resource: 'admin/reviews', action: 'update' },
-    { resource: 'admin/reviews', action: 'delete' },
   ],
   super_admin: [
     // All admin permissions
@@ -76,21 +74,24 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     { resource: 'admin/products', action: 'create' },
     { resource: 'admin/products', action: 'read' },
     { resource: 'admin/products', action: 'update' },
-    { resource: 'admin/products', action: 'delete' },
+    { resource: 'admin/products', action: 'delete' }, // Only superadmin can delete products
     { resource: 'admin/orders', action: 'read' },
     { resource: 'admin/orders', action: 'update' },
+    { resource: 'admin/orders', action: 'delete' }, // Only superadmin can delete orders
     { resource: 'admin/inventory', action: 'read' },
     { resource: 'admin/inventory', action: 'update' },
+    { resource: 'admin/inventory', action: 'delete' }, // Only superadmin can delete inventory
     { resource: 'admin/customers', action: 'read' },
     { resource: 'admin/customers', action: 'update' },
+    { resource: 'admin/customers', action: 'delete' }, // Only superadmin can delete customers
     { resource: 'admin/coupons', action: 'create' },
     { resource: 'admin/coupons', action: 'read' },
     { resource: 'admin/coupons', action: 'update' },
-    { resource: 'admin/coupons', action: 'delete' },
+    { resource: 'admin/coupons', action: 'delete' }, // Only superadmin can delete coupons
     { resource: 'admin/analytics', action: 'read' },
     { resource: 'admin/reviews', action: 'read' },
     { resource: 'admin/reviews', action: 'update' },
-    { resource: 'admin/reviews', action: 'delete' },
+    { resource: 'admin/reviews', action: 'delete' }, // Only superadmin can delete reviews
     // Super admin exclusive permissions
     { resource: 'admin/users', action: 'create' },
     { resource: 'admin/users', action: 'read' },

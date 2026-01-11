@@ -6,18 +6,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ProductService } from '@/lib/services/product-service';
 import ProductGridCard from './ProductGridCard';
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  images: string[];
-  isActive: boolean | null;
-  availableQuantity?: number;
-  averageRating?: number | null;
-  totalReviews?: number | null;
-}
+import type { Product } from '@/types';
 
 interface ProductGridProps {
   title?: string;
@@ -42,6 +31,20 @@ export default function ProductGrid({
         setLoading(true);
         const result = await ProductService.getProducts({}, limit);
         setProducts(result.products);
+        
+        // Debug logging for actualPrice
+        if (process.env.NODE_ENV === 'development') {
+          const silverRing = result.products.find(p => p.name === 'Silver Ring');
+          if (silverRing) {
+            console.log('ProductGrid - Silver Ring received:', {
+              id: silverRing.id,
+              name: silverRing.name,
+              price: silverRing.price,
+              actualPrice: silverRing.actualPrice,
+              actualPriceType: typeof silverRing.actualPrice
+            });
+          }
+        }
         
         // No need to batch check wishlist - the context handles this automatically
       } catch (err) {
