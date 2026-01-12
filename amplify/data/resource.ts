@@ -128,7 +128,7 @@ const schema = a.schema({
       userCoupons: a.hasMany('UserCoupon', 'couponId'),
     })
     .authorization((allow) => [
-      allow.guest().to(['read']),
+      allow.guest().to(['read']), // Allow guest users to read coupons
       allow.authenticated().to(['read']),
       allow.group('admin').to(['create', 'read', 'update']),
       allow.group('super_admin').to(['create', 'read', 'update', 'delete']),

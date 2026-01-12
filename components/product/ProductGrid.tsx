@@ -31,21 +31,6 @@ export default function ProductGrid({
         setLoading(true);
         const result = await ProductService.getProducts({}, limit);
         setProducts(result.products);
-        
-        // Debug logging for actualPrice
-        if (process.env.NODE_ENV === 'development') {
-          const silverRing = result.products.find(p => p.name === 'Silver Ring');
-          if (silverRing) {
-            console.log('ProductGrid - Silver Ring received:', {
-              id: silverRing.id,
-              name: silverRing.name,
-              price: silverRing.price,
-              actualPrice: silverRing.actualPrice,
-              actualPriceType: typeof silverRing.actualPrice
-            });
-          }
-        }
-        
         // No need to batch check wishlist - the context handles this automatically
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load products');
