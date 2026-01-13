@@ -1,6 +1,11 @@
 export { default as ProductCatalog } from './ProductCatalog';
-export { default as ProductCard } from './ProductCard';
+// export { default as ProductCard } from './ProductCard';
 export { default as ProductDetail } from './ProductDetail';
 export { default as ProductFilters } from './ProductFilters';
-export { default as SearchBar } from './SearchBar';
+// export { default as SearchBar } from './SearchBar';
 export { default as PriceRangeCards } from './PriceRangeCards';
+export { default as ProductImageGallery } from './ProductImageGallery';
+export { default as ProductInfo } from './ProductInfo';
+export { default as WhyChooseUs } from './WhyChooseUs';
+export { default as ProductDescription } from './ProductDescription';
+export { default as ProductActions } from './ProductActions';

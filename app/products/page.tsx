@@ -1,31 +1,14 @@
-'use client';
-
-import { Suspense } from 'react';
 import { ProductCatalog } from '@/components/product';
-
-function ProductsContent() {
-  return (
-    <div className="pt-50 sm:pt-44 lg:pt-28 pb-4 sm:pb-8">
-      <ProductCatalog 
-        limit={24}
-      />
-    </div>
-  );
+interface ProductsPageProps {
+  searchParams: { [key: string]: string | string[] | undefined };
 }
 
-export default function ProductsPage() {
+export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   return (
-    <Suspense fallback={
-      <div className="pt-50 sm:pt-44 lg:pt-28 pb-4 sm:pb-8">
-        <div className="container mx-auto px-4">
-          <div className="text-center py-16">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading products...</p>
-          </div>
-        </div>
-      </div>
-    }>
-      <ProductsContent />
-    </Suspense>
+    <div className="pt-50 sm:pt-44 lg:pt-28 pb-4 sm:pb-8">
+      <ProductCatalog
+        searchParams={searchParams}
+      />
+    </div>
   );
 }

@@ -1,5 +1,4 @@
-// Review cache utility to optimize performance when fetching multiple product ratings
-import { ReviewService } from '@/lib/services/review-service';
+import { getProductReviews } from '@/lib/services/review-service';
 import type { ReviewStats } from '@/types';
 
 // Cache for review stats to avoid duplicate API calls
@@ -21,7 +20,7 @@ export class ReviewCache {
     
     try {
       // Fetch fresh data
-      const { stats } = await ReviewService.getProductReviews(productId);
+      const { stats } = await getProductReviews(productId);
       
       // Cache the result
       reviewStatsCache.set(productId, {
@@ -74,7 +73,7 @@ export class ReviewCache {
   }
 
   /**
-   * Clear cache for a specific product (useful after new reviews)
+   * Clear cache for a specific product
    */
   static clearProductCache(productId: string): void {
     reviewStatsCache.delete(productId);
@@ -88,7 +87,7 @@ export class ReviewCache {
   }
 
   /**
-   * Get cache size (for debugging)
+   * Get cache size
    */
   static getCacheSize(): number {
     return reviewStatsCache.size;

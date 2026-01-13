@@ -1,7 +1,6 @@
-// Wishlist toggle button component
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useWishlist } from '@/components/providers/wishlist-provider';
 
 interface WishlistButtonProps {

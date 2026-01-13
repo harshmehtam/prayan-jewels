@@ -1,51 +1,42 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { LoginButton } from '@/components/auth';
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { CartModal } from '@/components/cart';
 import { useAuth } from '@/components/providers/auth-provider';
-// import { useCart } from '@/components/providers/cart-provider';
 import { useWishlist } from '@/components/providers/wishlist-provider';
-import { useHeaderSpacing } from '@/hooks/use-header-spacing';
 import PromotionalBanner from './PromotionalBanner';
+import { SearchBar, UserAccountMenu, HeaderActions, MobileMenu } from './header/index';
 
-export default function Header() {
+interface HeaderProps {
+  promotionalCoupon?: any | null;
+}
+
+export default function Header({ promotionalCoupon = null }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const { isAuthenticated, userProfile, signOut } = useAuth();
-  // const { itemCount } = useCart();
   const { wishlistCount } = useWishlist();
-  const { headerTopPosition } = useHeaderSpacing();
   const pathname = usePathname();
-  const router = useRouter();
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
-  
-  // Check if we're on the home page
   const isHomePage = pathname === '/';
 
   // Scroll detection with over-scroll prevention
   useEffect(() => {
     let ticking = false;
-    
+
     const handleScroll = () => {
       if (!ticking) {
         requestAnimationFrame(() => {
           const scrollTop = window.scrollY;
-          
+
           // Prevent over-scrolling at the top
           if (scrollTop < 0) {
             window.scrollTo(0, 0);
             return;
           }
-          
+
           setIsScrolled(scrollTop > 100);
           ticking = false;
         });
@@ -55,7 +46,7 @@ export default function Header() {
 
     // Add scroll listener
     window.addEventListener('scroll', handleScroll, { passive: true });
-    
+
     // Prevent touch-based over-scrolling on mobile
     const preventOverScroll = (e: TouchEvent) => {
       const scrollTop = window.scrollY;
@@ -63,12 +54,12 @@ export default function Header() {
         e.preventDefault();
       }
     };
-    
+
     // Only add touch prevention on mobile devices
     if ('ontouchstart' in window) {
       document.addEventListener('touchmove', preventOverScroll, { passive: false });
     }
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       if ('ontouchstart' in window) {
@@ -77,218 +68,9 @@ export default function Header() {
     };
   }, []);
 
-  // Fetch search suggestions with debouncing
-  useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    if (searchQuery.trim().length >= 2) {
-      debounceRef.current = setTimeout(async () => {
-        try {
-          // Call dedicated search suggestions API
-          const response = await fetch(`/api/products/search?q=${encodeURIComponent(searchQuery.trim())}&limit=5`);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
-          if (data.success) {
-            setSuggestions(data.data.suggestions);
-            setShowSuggestions(data.data.suggestions.length > 0);
-          } else {
-            setSuggestions([]);
-            setShowSuggestions(false);
-          }
-        } catch (error) {
-          console.error('Failed to fetch suggestions:', error);
-          setSuggestions([]);
-          setShowSuggestions(false);
-        }
-      }, 300); // 300ms debounce
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [searchQuery]);
-
-  // Clear search when navigating to products page
-  useEffect(() => {
-    if (pathname === '/products') {
-      setSearchQuery('');
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  }, [pathname]);
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-        setSelectedSuggestionIndex(-1);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Search functionality
-  const handleSearch = (query: string = searchQuery) => {
-    const trimmedQuery = query.trim();
-    const currentPath = window.location.pathname;
-    const currentSearch = new URLSearchParams(window.location.search).get('search');
-    
-    if (trimmedQuery) {
-      const newUrl = `/products?search=${encodeURIComponent(trimmedQuery)}`;
-      
-      // If we're already on products page with a different search, use replace to force update
-      if (currentPath === '/products' && currentSearch !== trimmedQuery) {
-        router.replace(newUrl);
-      } else {
-        router.push(newUrl);
-      }
-      
-      // Clear search input after a short delay to allow navigation to start
-      setTimeout(() => {
-        setSearchQuery('');
-      }, 100);
-    } else {
-      // Navigate to products page without search
-      if (currentPath === '/products' && currentSearch) {
-        router.replace('/products');
-      } else {
-        router.push('/products');
-      }
-    }
-    // Close suggestions and mobile menu
-    setShowSuggestions(false);
-    setSelectedSuggestionIndex(-1);
-    setIsMenuOpen(false);
-  };
-
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || suggestions.length === 0) {
-      if (e.key === 'Enter') {
-        handleSearch();
-      }
-      return;
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => 
-          prev < suggestions.length - 1 ? prev + 1 : prev
-        );
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedSuggestionIndex >= 0) {
-          const selectedSuggestion = suggestions[selectedSuggestionIndex];
-          handleSearch(selectedSuggestion);
-        } else {
-          handleSearch();
-        }
-        break;
-      case 'Escape':
-        setShowSuggestions(false);
-        setSelectedSuggestionIndex(-1);
-        break;
-    }
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setSelectedSuggestionIndex(-1);
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    handleSearch(suggestion);
-  };
-
-  // Prevent body scroll when mobile menu is open and add blur effect
-  useEffect(() => {
-    const mainContent = document.querySelector('main');
-    const headerElement = document.querySelector('header');
-    const bodyElement = document.body;
-    const htmlElement = document.documentElement;
-    
-    if (isMenuOpen) {
-      // Prevent scrolling on multiple elements
-      bodyElement.style.overflow = 'hidden';
-      htmlElement.style.overflow = 'hidden';
-      bodyElement.style.position = 'fixed';
-      bodyElement.style.top = `-${window.scrollY}px`;
-      bodyElement.style.width = '100%';
-      
-      // Add blur effect to both main content and header
-      if (mainContent) {
-        mainContent.style.filter = 'blur(4px)';
-        mainContent.style.transition = 'filter 0.3s ease-in-out';
-      }
-      
-      if (headerElement) {
-        headerElement.style.filter = 'blur(4px)';
-        headerElement.style.transition = 'filter 0.3s ease-in-out';
-      }
-    } else {
-      // Restore scrolling
-      const scrollY = bodyElement.style.top;
-      bodyElement.style.overflow = '';
-      htmlElement.style.overflow = '';
-      bodyElement.style.position = '';
-      bodyElement.style.top = '';
-      bodyElement.style.width = '';
-      
-      // Restore scroll position
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-      }
-      
-      // Remove blur effect from both elements
-      if (mainContent) {
-        mainContent.style.filter = 'none';
-      }
-      
-      if (headerElement) {
-        headerElement.style.filter = 'none';
-      }
-    }
-
-    // Cleanup on unmount
-    return () => {
-      bodyElement.style.overflow = '';
-      htmlElement.style.overflow = '';
-      bodyElement.style.position = '';
-      bodyElement.style.top = '';
-      bodyElement.style.width = '';
-      if (mainContent) {
-        mainContent.style.filter = 'none';
-      }
-      if (headerElement) {
-        headerElement.style.filter = 'none';
-      }
-    };
-  }, [isMenuOpen]);
-
   const handleSignOut = async () => {
     try {
       await signOut();
-      // Refresh the page to update auth state
       window.location.reload();
     } catch (error) {
       console.error('Sign out error:', error);
@@ -298,532 +80,85 @@ export default function Header() {
   return (
     <>
       {/* Dynamic Promotional Banner */}
-      <PromotionalBanner />
+      <PromotionalBanner coupon={promotionalCoupon} />
 
-      {/* Main Header - Dynamic background based on scroll and route */}
-      <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${headerTopPosition} ${
-        isScrolled || !isHomePage
-          ? 'bg-white shadow-md text-black' 
+      {/* Main Header */}
+      <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isScrolled || !isHomePage
+          ? 'bg-white shadow-md text-black'
           : 'bg-transparent backdrop-blur-sm text-black'
-      }`}>
+        }`}>
         <div className="container mx-auto container-mobile">
-          {/* Main header row - Logo and icons with better mobile spacing */}
+          {/* Main header row */}
           <div className="flex items-center justify-between h-20 lg:h-24 px-3 sm:px-4">
-            {/* Logo - Responsive sizing */}
-            <Link 
-              href="/" 
-              className={`text-xl sm:text-2xl lg:text-3xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${
-                isScrolled || !isHomePage
-                  ? 'text-black hover:text-gray-700' 
+            {/* Logo */}
+            <Link
+              href="/"
+              className={`text-xl sm:text-2xl lg:text-3xl font-normal transition-colors rounded-md py-2 tracking-[0.15em] whitespace-nowrap flex-shrink-0 outline-none focus:outline-none ${isScrolled || !isHomePage
+                  ? 'text-black hover:text-gray-700'
                   : 'text-black hover:text-gray-700'
-              }`}
+                }`}
               style={{ outline: 'none', boxShadow: 'none' }}
             >
               PRAYAN JEWELS
             </Link>
 
-            {/* Desktop Navigation - Hidden on mobile */}
-            {/* <nav className="hidden lg:flex items-center space-x-8">
-              <Link 
-                href="/products" 
-                className={`transition-colors rounded-md px-3 py-2 text-lg font-normal relative group outline-none focus:outline-none ${
-                  isScrolled || !isHomePage
-                    ? 'text-black hover:text-gray-700' 
-                    : 'text-black hover:text-gray-700'
-                }`}
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                Products
-                <span className={`absolute bottom-0 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                  isScrolled || !isHomePage ? 'bg-black' : 'bg-black'
-                }`}></span>
-              </Link>
-            </nav> */}
-
-            {/* Right Side Actions - Optimized for very small screens */}
+            {/* Right Side Actions */}
             <div className="flex items-center space-x-1 sm:space-x-2 lg:space-x-4 flex-shrink-0">
-              {/* Desktop Search - Hidden on mobile */}
+              {/* Desktop Search */}
               <div className="hidden lg:flex items-center">
-                <div ref={searchRef} className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleSearchKeyDown}
-                    onFocus={() => {
-                      if (suggestions.length > 0) {
-                        setShowSuggestions(true);
-                      }
-                    }}
-                    placeholder="Search for a product or finish"
-                    className={`w-72 pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
-                      isScrolled || !isHomePage
-                        ? 'bg-gray-100 border border-gray-300 placeholder-gray-500 text-black focus:ring-gray-500 focus:border-gray-500'
-                        : 'bg-white bg-opacity-20 border border-gray-400 border-opacity-30 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
-                    }`}
-                  />
-                  <button 
-                    onClick={() => handleSearch()}
-                    className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                      isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-                    }`} 
-                    style={{ outline: 'none', boxShadow: 'none' }}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </button>
-
-                  {/* Desktop Suggestions Dropdown */}
-                  {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {suggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleSuggestionClick(suggestion)}
-                          className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors ${
-                            index === selectedSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            <svg className="h-4 w-4 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <span className="truncate">{suggestion}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <SearchBar
+                  isScrolled={isScrolled}
+                  isHomePage={isHomePage}
+                  onSearchStart={() => setIsMenuOpen(false)}
+                />
               </div>
 
-              {/* Track Order - Desktop and Tablet */}
-              <Link 
-                href="/track-order"
-                className={`hidden md:block relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`} 
-                style={{ outline: 'none', boxShadow: 'none' }}
-                title="Track Order"
-              >
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="sr-only">Track Order</span>
-              </Link>
+              {/* Header Action Icons */}
+              <HeaderActions
+                isScrolled={isScrolled}
+                isHomePage={isHomePage}
+                wishlistCount={wishlistCount}
+                isAuthenticated={isAuthenticated}
+                onCartClick={() => setIsCartModalOpen(true)}
+                onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
+                isMenuOpen={isMenuOpen}
+              />
 
-              {/* Wishlist - Hidden on very small screens, visible on sm+ */}
-              <Link 
-                href="/account/wishlist"
-                className={`hidden sm:block relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`} 
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                    {wishlistCount}
-                  </span>
-                )}
-                <span className="sr-only">Wishlist ({wishlistCount})</span>
-              </Link>
-
-              {/* User Account - Role-based UI after login */}
-              {isAuthenticated ? (
-                <div className="relative group hidden sm:block">
-                  <button className={`flex items-center space-x-2 p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                    isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                  }`} style={{ outline: 'none', boxShadow: 'none' }}>
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    {/* User indicator */}
-                    {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    ) : (
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    )}
-                    <span className="sr-only">Account menu</span>
-                  </button>
-                  
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
-                    {/* User info header */}
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-medium text-gray-900">
-                        {userProfile?.firstName && userProfile?.lastName 
-                          ? `${userProfile.firstName} ${userProfile.lastName}`
-                          : 'User'
-                        }
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">
-                        {userProfile?.role === 'super_admin' ? 'Super Admin' : userProfile?.role || 'Customer'}
-                      </p>
-                    </div>
-                    
-                    {/* Role-based menu items */}
-                    {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
-                      <>
-                        <Link href="/admin" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                            Admin Dashboard
-                          </div>
-                        </Link>
-                        <Link href="/admin/products" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Products</Link>
-                        <Link href="/admin/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Orders</Link>
-                        <hr className="my-1" />
-                      </>
-                    ) : null}
-                    
-                    {/* Customer menu items */}
-                    <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>
-                    <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        Order History
-                      </div>
-                    </Link>
-                    <Link href="/track-order" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Track Order
-                      </div>
-                    </Link>
-                    <Link href="/account/wishlist" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Wishlist</Link>
-                    <hr className="my-1" />
-                    <button onClick={handleSignOut} className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Sign Out</button>
-                  </div>
-                </div>
-              ) : (
-                <LoginButton 
-                  className={`hidden sm:block p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                    isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                  }`}
-                  variant="icon"
-                  redirectTo="/account"
-                >
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span className="sr-only">Sign In</span>
-                </LoginButton>
-              )}
-
-              {/* Cart - Always visible, essential for e-commerce */}
-              <button 
-                onClick={() => setIsCartModalOpen(true)}
-                className={`relative p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`} 
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119.993z" />
-                </svg>
-                {/* <span className="absolute -top-1 -right-1 bg-black text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold text-xs">
-                  {itemCount}
-                </span> */}
-                <span className="sr-only">Shopping cart</span>
-              </button>
-
-              {/* Mobile Menu Button - Always visible, essential for navigation */}
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className={`lg:hidden touch-friendly p-1.5 sm:p-2 transition-colors rounded-md cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-                }`}
-                style={{ outline: 'none', boxShadow: 'none' }}
-                aria-expanded={isMenuOpen}
-                aria-label="Toggle navigation menu"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {isMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  )}
-                </svg>
-              </button>
+              {/* User Account Menu (Desktop only) */}
+              <UserAccountMenu
+                isScrolled={isScrolled}
+                isHomePage={isHomePage}
+                onSignOut={handleSignOut}
+              />
             </div>
           </div>
 
-          {/* Mobile Search Bar - Below main header on mobile/tablet with better spacing */}
+          {/* Mobile Search Bar */}
           <div className="lg:hidden px-3 sm:px-4 pb-4 pt-1">
-            <div ref={searchRef} className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                onKeyDown={handleSearchKeyDown}
-                onFocus={() => {
-                  if (suggestions.length > 0) {
-                    setShowSuggestions(true);
-                  }
-                }}
-                placeholder="Search for a product or finish"
-                className={`w-full pl-5 pr-12 py-3 text-base rounded-full focus:outline-none focus:ring-1 backdrop-blur-sm transition-all duration-300 ${
-                  isScrolled || !isHomePage
-                    ? 'bg-gray-100 border border-gray-300 placeholder-gray-500 text-black focus:ring-gray-500 focus:border-gray-500'
-                    : 'bg-white bg-opacity-90 border border-gray-300 border-opacity-50 placeholder-gray-600 text-black focus:ring-gray-500 focus:border-gray-500'
-                }`}
-              />
-              <button 
-                onClick={() => handleSearch()}
-                className={`absolute right-4 top-1/2 transform -translate-y-1/2 transition-colors cursor-pointer outline-none focus:outline-none ${
-                  isScrolled || !isHomePage ? 'text-gray-500 hover:text-black' : 'text-gray-600 hover:text-black'
-                }`} 
-                style={{ outline: 'none', boxShadow: 'none' }}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-
-              {/* Mobile Suggestions Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 transition-colors ${
-                        index === selectedSuggestionIndex ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <svg className="h-4 w-4 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <span className="truncate">{suggestion}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SearchBar
+              isScrolled={isScrolled}
+              isHomePage={isHomePage}
+              isMobile={true}
+              onSearchStart={() => setIsMenuOpen(false)}
+            />
           </div>
         </div>
       </header>
 
-      {/* Mobile Navigation - Moved completely outside header to avoid blur inheritance */}
-      {isMenuOpen && (
-        <>
-          {/* Invisible backdrop for click-to-close */}
-          <div 
-            className="lg:hidden fixed inset-0 z-[100]" 
-            onClick={() => setIsMenuOpen(false)}
-          />
-          
-          {/* Sidebar drawer - Enhanced with gradients and beautiful styling */}
-          <div className="lg:hidden fixed top-0 right-0 w-80 h-screen z-[101] shadow-2xl">
-            {/* Beautiful gradient background similar to hero section */}
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-pink-50">
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-100/40 via-orange-100/30 to-pink-100/40"></div>
-              
-              {/* Subtle decorative elements */}
-              <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-yellow-200/20 rounded-full blur-2xl"></div>
-              <div className="absolute bottom-1/3 right-1/3 w-24 h-24 bg-pink-200/25 rounded-full blur-xl"></div>
-            </div>
-
-            {/* Content overlay - Flex layout for proper scrolling */}
-            <div className="relative z-10 h-full flex flex-col">
-              {/* Close button header */}
-              <div className="flex justify-end items-center p-6 border-b border-white/20 backdrop-blur-sm">
-                <button
-                  onClick={() => setIsMenuOpen(false)}
-                  className="p-3 text-gray-600 hover:text-gray-800 hover:bg-white/30 rounded-full transition-all duration-200 backdrop-blur-sm cursor-pointer"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Navigation menu - Scrollable if needed */}
-              <div className="px-6 py-8 overflow-y-auto flex-1">
-                <nav>
-                  <div className="space-y-2">
-                    {/* <Link
-                      href="/products"
-                      className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Products</span>
-                      <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link> */}
-
-                    {/* Mobile-only links for hidden icons */}
-                    <div className="sm:hidden">
-                      <Link
-                        href="/account/wishlist"
-                        className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                        style={{ outline: 'none', boxShadow: 'none' }}
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <div className="flex items-center">
-                          <svg className="w-5 h-5 mr-3 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
-                          <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">
-                            Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
-                          </span>
-                        </div>
-                        <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-
-                      {isAuthenticated ? (
-                        <>
-                          {/* Admin links for mobile */}
-                          {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
-                            <>
-                              <Link
-                                href="/admin"
-                                className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                                style={{ outline: 'none', boxShadow: 'none' }}
-                                onClick={() => setIsMenuOpen(false)}
-                              >
-                                <div className="flex items-center">
-                                  <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                  </svg>
-                                  <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Admin Dashboard</span>
-                                </div>
-                                <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </Link>
-                              <Link
-                                href="/admin/products"
-                                className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                                style={{ outline: 'none', boxShadow: 'none' }}
-                                onClick={() => setIsMenuOpen(false)}
-                              >
-                                <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Manage Products</span>
-                                <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                              </Link>
-                            </>
-                          ) : null}
-                          
-                          {/* Customer account link */}
-                          <Link
-                            href="/account"
-                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                            style={{ outline: 'none', boxShadow: 'none' }}
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">My Account</span>
-                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-
-                          {/* Order History - Prominent placement */}
-                          <Link
-                            href="/account/orders"
-                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                            style={{ outline: 'none', boxShadow: 'none' }}
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <div className="flex items-center">
-                              <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                              </svg>
-                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Order History</span>
-                            </div>
-                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-
-                          {/* Track Order - For guest users */}
-                          <Link
-                            href="/track-order"
-                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                            style={{ outline: 'none', boxShadow: 'none' }}
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <div className="flex items-center">
-                              <svg className="w-5 h-5 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Track Order</span>
-                            </div>
-                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <LoginButton 
-                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm w-full text-left cursor-pointer outline-none focus:outline-none"
-                            variant="icon"
-                            redirectTo="/account"
-                            onModalOpen={() => setIsMenuOpen(false)}
-                          >
-                            <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Sign In</span>
-                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </LoginButton>
-
-                          {/* Track Order for guest users */}
-                          <Link
-                            href="/track-order"
-                            className="group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-white/40 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
-                            style={{ outline: 'none', boxShadow: 'none' }}
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <div className="flex items-center">
-                              <svg className="w-5 h-5 mr-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <span className="text-xl font-light tracking-wide group-hover:text-gray-900 transition-colors">Track Order</span>
-                            </div>
-                            <svg className="w-5 h-5 text-gray-500 group-hover:text-gray-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </Link>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Elegant bottom decoration */}
-                  <div className="mt-16">
-                    <div className="h-px bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
-                    <div className="mt-4 text-center">
-                      <p className="text-sm font-light text-gray-600 tracking-wider">PRAYAN JEWELS</p>
-                    </div>
-                  </div>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Mobile Navigation Menu */}
+      <MobileMenu
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        isAuthenticated={isAuthenticated}
+        userProfile={userProfile}
+        wishlistCount={wishlistCount}
+      />
 
       {/* Cart Modal */}
-      {/* <CartModal
+      <CartModal
         isOpen={isCartModalOpen}
         onClose={() => setIsCartModalOpen(false)}
-      /> */}
+      />
     </>
   );
 }

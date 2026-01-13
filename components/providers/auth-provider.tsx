@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { getCurrentUser, signOut, type AuthUser, fetchUserAttributes, updateUserAttributes } from 'aws-amplify/auth';
+import { getCurrentUser, signOut, type AuthUser, fetchUserAttributes } from 'aws-amplify/auth';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
 // Define user profile type based on Cognito attributes
@@ -23,7 +23,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   refreshAuthState: () => Promise<void>;
-  updateUserProfile: (updates: Partial<AuthUserProfile>) => Promise<void>;
+  // updateUserProfile: (updates: Partial<AuthUserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {
       userId: user.userId,
       email: attributes.email,
-      phone: attributes.phone_number || user.username,
+      phone: attributes.phone_number,
       firstName: attributes.given_name,
       lastName: attributes.family_name,
       groups,
@@ -94,20 +94,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const updateUserProfile = async (updates: Partial<AuthUserProfile>) => {
-    try {
-      const attributeUpdates: Record<string, string> = {};
-      if (updates.firstName !== undefined) attributeUpdates.given_name = updates.firstName || '';
-      if (updates.lastName !== undefined) attributeUpdates.family_name = updates.lastName || '';
-      if (updates.role !== undefined) attributeUpdates['custom:role'] = updates.role || 'customer';
-      await updateUserAttributes({ userAttributes: attributeUpdates });
+  // const updateUserProfile = async (updates: Partial<AuthUserProfile>) => {
+  //   try {
+  //     const attributeUpdates: Record<string, string> = {};
+  //     if (updates.firstName !== undefined) attributeUpdates.given_name = updates.firstName || '';
+  //     if (updates.lastName !== undefined) attributeUpdates.family_name = updates.lastName || '';
+  //     await updateUserAttributes({ userAttributes: attributeUpdates });
       
-      // Refresh the profile to get updated data
-      await refreshUserProfile();
-    } catch (error) {
-      throw error;
-    }
-  };
+  //     // Refresh the profile to get updated data
+  //     await refreshUserProfile();
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // };
 
   const handleSignOut = async () => {
     try {
@@ -123,13 +122,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-      
-      // Fetch user profile from Cognito attributes
       if (currentUser?.userId) {
         await refreshUserProfile();
       }
     } catch (error) {
-      console.log('❌ User not authenticated:', error);
+      console.log('User not authenticated:', error);
       setUser(null);
       setUserProfile(null);
     }
@@ -140,8 +137,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
-        
-        // Fetch user profile from Cognito attributes
         if (currentUser?.userId) {
           await refreshUserProfile();
         }
@@ -172,7 +167,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signOut: handleSignOut,
     refreshUserProfile,
     refreshAuthState,
-    updateUserProfile,
+    // updateUserProfile,
   };
 
   return (

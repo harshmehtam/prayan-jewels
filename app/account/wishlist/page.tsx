@@ -82,27 +82,27 @@ export default function WishlistPage() {
     window.open(shareUrl, '_blank', 'width=600,height=400');
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">My Wishlist</h1>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <svg className="w-12 h-12 text-yellow-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Please Log In</h3>
-            <p className="text-gray-600 mb-4">You need to be logged in to view your wishlist.</p>
-            <LoginButton 
-              redirectTo="/account/wishlist"
-            >
-              Log In
-            </LoginButton>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (!isAuthenticated) {
+  //   return (
+  //     <div className="container mx-auto px-4 py-8">
+  //       <div className="max-w-2xl mx-auto text-center">
+  //         <h1 className="text-2xl font-bold text-gray-900 mb-4">My Wishlist</h1>
+  //         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+  //           <svg className="w-12 h-12 text-yellow-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  //             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+  //           </svg>
+  //           <h3 className="text-lg font-medium text-gray-900 mb-2">Please Log In</h3>
+  //           <p className="text-gray-600 mb-4">You need to be logged in to view your wishlist.</p>
+  //           <LoginButton 
+  //             redirectTo="/account/wishlist"
+  //           >
+  //             Log In
+  //           </LoginButton>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   if (loading) {
     return (
@@ -202,7 +202,7 @@ export default function WishlistPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
             </svg>
             <h3 className="text-xl font-medium text-gray-900 mb-2">Your wishlist is empty</h3>
-            <p className="text-gray-600 mb-6">Save your favorite mangalsutra designs to view them here</p>
+            <p className="text-gray-600 mb-6">Save your favorite designs to view them here</p>
             <Link
               href="/products"
               className="inline-flex items-center px-6 py-3 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-400"

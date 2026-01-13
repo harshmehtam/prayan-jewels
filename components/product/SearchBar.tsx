@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { ProductService } from '@/lib/services/product-service';
+// import { ProductService } from '@/lib/services/product-service';
 import { SearchService } from '@/lib/services/search';
 import type { SearchHistory, SavedSearch } from '@/types';
 

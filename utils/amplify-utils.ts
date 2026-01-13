@@ -22,7 +22,7 @@ export async function AuthGetCurrentUserServer() {
       nextServerContext: { cookies },
       operation: (contextSpec) => getCurrentUser(contextSpec),
     });
-  } catch (error) {
-    console.error(error);
+  } catch {
+    return null;
   }
-} 
+}

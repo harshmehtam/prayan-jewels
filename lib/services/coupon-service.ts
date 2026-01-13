@@ -1,383 +1,322 @@
-// import { getClient } from '@/lib/amplify-client';
-// import type { Schema } from '@/amplify/data/resource';
+import { cookiesClient } from '@/utils/amplify-utils';
 
-// export interface CouponValidationResult {
-//   isValid: boolean;
-//   coupon?: any;
-//   error?: string;
-//   discountAmount?: number;
-// }
+export interface CouponValidationResult {
+  isValid: boolean;
+  coupon?: any;
+  error?: string;
+  discountAmount?: number;
+}
 
-// export interface ApplyCouponInput {
-//   code: string;
-//   userId?: string;
-//   subtotal: number;
-//   productIds: string[];
-// }
+export interface ApplyCouponInput {
+  code: string;
+  userId?: string;
+  subtotal: number;
+  productIds: string[];
+}
 
-// // Simple cache to prevent duplicate API calls
-// interface CacheEntry {
-//   data: any[];
-//   timestamp: number;
-//   userId?: string;
-// }
+const CACHE_DURATION = 30000; // 30 seconds
+const couponCache = new Map<string, { data: any; timestamp: number; userId?: string }>();
 
-// const CACHE_DURATION = 30000; // 30 seconds
-// const couponCache = new Map<string, CacheEntry>();
+export const validateAndApplyCoupon = async (input: ApplyCouponInput): Promise<CouponValidationResult> => {
+  try {
+    const { code, userId, subtotal, productIds } = input;
+    const client = await cookiesClient;
 
-// export class CouponService {
-//   static async validateAndApplyCoupon(input: ApplyCouponInput): Promise<CouponValidationResult> {
-//     try {
-//       const { code, userId, subtotal, productIds } = input;
+    const { data: coupons, errors } = await client.models.Coupon.list({
+      filter: { code: { eq: code } },
+    });
 
-//       // Get appropriate client
-//       const client = await getClient();
+    if (errors) {
+      return { isValid: false, error: 'Failed to validate coupon' };
+    }
 
-//       // Get coupon by code
-//       const { data: coupons, errors } = await client.models.Coupon.list({
-//         filter: { code: { eq: code } }
-//       });
+    const coupon = coupons?.[0];
+    if (!coupon) {
+      return { isValid: false, error: 'Invalid coupon code' };
+    }
 
-//       if (errors) {
-//         return { isValid: false, error: 'Failed to validate coupon' };
-//       }
+    if (!coupon.isActive) {
+      return { isValid: false, error: 'This coupon is no longer active' };
+    }
 
-//       const coupon = coupons?.[0];
-//       if (!coupon) {
-//         return { isValid: false, error: 'Invalid coupon code' };
-//       }
+    const now = new Date();
+    const validFrom = new Date(coupon.validFrom);
+    const validUntil = new Date(coupon.validUntil);
 
-//       // Check if coupon is active
-//       if (!coupon.isActive) {
-//         return { isValid: false, error: 'This coupon is no longer active' };
-//       }
+    if (now < validFrom) {
+      return { isValid: false, error: 'This coupon is not yet valid' };
+    }
 
-//       // Check validity dates
-//       const now = new Date();
-//       const validFrom = new Date(coupon.validFrom);
-//       const validUntil = new Date(coupon.validUntil);
+    if (now > validUntil) {
+      return { isValid: false, error: 'This coupon has expired' };
+    }
 
-//       if (now < validFrom) {
-//         return { isValid: false, error: 'This coupon is not yet valid' };
-//       }
+    if (coupon.minimumOrderAmount && subtotal < coupon.minimumOrderAmount) {
+      return {
+        isValid: false,
+        error: `Minimum order amount of ₹${coupon.minimumOrderAmount} required`,
+      };
+    }
 
-//       if (now > validUntil) {
-//         return { isValid: false, error: 'This coupon has expired' };
-//       }
+    if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
+      return { isValid: false, error: 'This coupon has reached its usage limit' };
+    }
 
-//       // Check minimum order amount
-//       if (coupon.minimumOrderAmount && subtotal < coupon.minimumOrderAmount) {
-//         return { 
-//           isValid: false, 
-//           error: `Minimum order amount of ₹${coupon.minimumOrderAmount} required` 
-//         };
-//       }
+    if (userId && coupon.userUsageLimit) {
+      const userUsage = await getUserCouponUsage(userId, coupon.id);
+      if (userUsage >= coupon.userUsageLimit) {
+        return {
+          isValid: false,
+          error: 'You have already used this coupon the maximum number of times',
+        };
+      }
+    }
 
-//       // Check usage limits
-//       if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
-//         return { isValid: false, error: 'This coupon has reached its usage limit' };
-//       }
+    if (userId) {
+      if (coupon.allowedUsers && coupon.allowedUsers.length > 0 && !coupon.allowedUsers.includes(userId)) {
+        return { isValid: false, error: 'This coupon is not available for your account' };
+      }
 
-//       // Check user-specific usage limit if user is logged in
-//       if (userId && coupon.userUsageLimit) {
-//         const userUsage = await this.getUserCouponUsage(userId, coupon.id);
-//         if (userUsage >= coupon.userUsageLimit) {
-//           return { 
-//             isValid: false, 
-//             error: 'You have already used this coupon the maximum number of times' 
-//           };
-//         }
-//       }
+      if (coupon.excludedUsers && coupon.excludedUsers.length > 0 && coupon.excludedUsers.includes(userId)) {
+        return { isValid: false, error: 'This coupon is not available for your account' };
+      }
+    } else {
+      if (
+        (coupon.allowedUsers && coupon.allowedUsers.length > 0) ||
+        (coupon.excludedUsers && coupon.excludedUsers.length > 0)
+      ) {
+        return { isValid: false, error: 'Please sign in to use this coupon' };
+      }
+    }
 
-//       // Check user restrictions
-//       if (userId) {
-//         // Check if user is in allowed users list (if specified)
-//         if (coupon.allowedUsers && coupon.allowedUsers.length > 0) {
-//           if (!coupon.allowedUsers.includes(userId)) {
-//             return {
-//               isValid: false,
-//               error: 'This coupon is not available for your account'
-//             };
-//           }
-//         }
+    if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
+      const hasApplicableProduct = productIds.some((id) => coupon.applicableProducts!.includes(id));
+      if (!hasApplicableProduct) {
+        return { isValid: false, error: 'This coupon is not applicable to items in your cart' };
+      }
+    }
 
-//         // Check if user is in excluded users list
-//         if (coupon.excludedUsers && coupon.excludedUsers.length > 0) {
-//           if (coupon.excludedUsers.includes(userId)) {
-//             return {
-//               isValid: false,
-//               error: 'This coupon is not available for your account'
-//             };
-//           }
-//         }
-//       } else {
-//         // If user is not logged in but coupon has user restrictions, deny access
-//         if ((coupon.allowedUsers && coupon.allowedUsers.length > 0) || 
-//             (coupon.excludedUsers && coupon.excludedUsers.length > 0)) {
-//           return {
-//             isValid: false,
-//             error: 'Please sign in to use this coupon'
-//           };
-//         }
-//       }
+    if (coupon.excludedProducts && coupon.excludedProducts.length > 0) {
+      const hasExcludedProduct = productIds.some((id) => coupon.excludedProducts!.includes(id));
+      if (hasExcludedProduct) {
+        return { isValid: false, error: 'This coupon cannot be applied to some items in your cart' };
+      }
+    }
 
-//       // Check product applicability
-//       if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
-//         const hasApplicableProduct = productIds.some(id => 
-//           coupon.applicableProducts!.includes(id)
-//         );
-//         if (!hasApplicableProduct) {
-//           return { 
-//             isValid: false, 
-//             error: 'This coupon is not applicable to items in your cart' 
-//           };
-//         }
-//       }
+    let discountAmount = 0;
+    if (coupon.type === 'percentage') {
+      discountAmount = (subtotal * coupon.value) / 100;
+      if (coupon.maximumDiscountAmount && discountAmount > coupon.maximumDiscountAmount) {
+        discountAmount = coupon.maximumDiscountAmount;
+      }
+    } else if (coupon.type === 'fixed_amount') {
+      discountAmount = Math.min(coupon.value, subtotal);
+    }
 
-//       // Check excluded products
-//       if (coupon.excludedProducts && coupon.excludedProducts.length > 0) {
-//         const hasExcludedProduct = productIds.some(id => 
-//           coupon.excludedProducts!.includes(id)
-//         );
-//         if (hasExcludedProduct) {
-//           return { 
-//             isValid: false, 
-//             error: 'This coupon cannot be applied to some items in your cart' 
-//           };
-//         }
-//       }
+    return {
+      isValid: true,
+      coupon,
+      discountAmount: Math.round(discountAmount * 100) / 100,
+    };
+  } catch (error) {
+    console.error('Error validating coupon:', error);
+    return { isValid: false, error: 'Failed to validate coupon' };
+  }
+};
 
-//       // Calculate discount amount
-//       let discountAmount = 0;
-//       if (coupon.type === 'percentage') {
-//         discountAmount = (subtotal * coupon.value) / 100;
-//         if (coupon.maximumDiscountAmount && discountAmount > coupon.maximumDiscountAmount) {
-//           discountAmount = coupon.maximumDiscountAmount;
-//         }
-//       } else if (coupon.type === 'fixed_amount') {
-//         discountAmount = Math.min(coupon.value, subtotal);
-//       }
+export const getUserCouponUsage = async (userId: string, couponId: string): Promise<number> => {
+  try {
+    const client = await cookiesClient;
+    const { data, errors } = await client.models.UserCoupon.list({
+      filter: {
+        userId: { eq: userId },
+        couponId: { eq: couponId },
+      },
+    });
 
-//       return {
-//         isValid: true,
-//         coupon,
-//         discountAmount: Math.round(discountAmount * 100) / 100, // Round to 2 decimal places
-//       };
-//     } catch (error) {
-//       console.error('Error validating coupon:', error);
-//       return { isValid: false, error: 'Failed to validate coupon' };
-//     }
-//   }
+    if (errors) {
+      console.error('Error fetching user coupon usage:', errors);
+      return 0;
+    }
 
-//   static async getUserCouponUsage(userId: string, couponId: string): Promise<number> {
-//     try {
-//       const client = await getClient();
-//       const { data, errors } = await client.models.UserCoupon.list({
-//         filter: {
-//           userId: { eq: userId },
-//           couponId: { eq: couponId },
-//         }
-//       });
+    return data?.[0]?.usageCount || 0;
+  } catch (error) {
+    console.error('Error fetching user coupon usage:', error);
+    return 0;
+  }
+};
 
-//       if (errors) {
-//         console.error('Error fetching user coupon usage:', errors);
-//         return 0;
-//       }
+export const recordCouponUsage = async (userId: string, couponId: string) => {
+  try {
+    const client = await cookiesClient;
+    const { data: existingRecords } = await client.models.UserCoupon.list({
+      filter: {
+        userId: { eq: userId },
+        couponId: { eq: couponId },
+      },
+    });
 
-//       return data?.[0]?.usageCount || 0;
-//     } catch (error) {
-//       console.error('Error fetching user coupon usage:', error);
-//       return 0;
-//     }
-//   }
+    const existingRecord = existingRecords?.[0];
 
-//   static async recordCouponUsage(userId: string, couponId: string) {
-//     try {
-//       const client = await getClient();
-      
-//       // Check if user coupon record exists
-//       const { data: existingRecords } = await client.models.UserCoupon.list({
-//         filter: {
-//           userId: { eq: userId },
-//           couponId: { eq: couponId },
-//         }
-//       });
+    if (existingRecord) {
+      await client.models.UserCoupon.update({
+        id: existingRecord.id,
+        usageCount: (existingRecord.usageCount || 0) + 1,
+        lastUsedAt: new Date().toISOString(),
+      });
+    } else {
+      await client.models.UserCoupon.create({
+        userId,
+        couponId,
+        usageCount: 1,
+        lastUsedAt: new Date().toISOString(),
+      });
+    }
+  } catch (error) {
+    console.error('Error recording coupon usage:', error);
+    throw error;
+  }
+};
 
-//       const existingRecord = existingRecords?.[0];
+export const getHeaderPromotionalCoupons = async () => {
+  const cacheKey = 'header-promotional';
+  const cached = couponCache.get(cacheKey);
 
-//       if (existingRecord) {
-//         // Update existing record
-//         await client.models.UserCoupon.update({
-//           id: existingRecord.id,
-//           usageCount: (existingRecord.usageCount || 0) + 1,
-//           lastUsedAt: new Date().toISOString(),
-//         });
-//       } else {
-//         // Create new record
-//         await client.models.UserCoupon.create({
-//           userId,
-//           couponId,
-//           usageCount: 1,
-//           lastUsedAt: new Date().toISOString(),
-//         });
-//       }
-//     } catch (error) {
-//       console.error('Error recording coupon usage:', error);
-//       throw error;
-//     }
-//   }
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
 
-//   static async getHeaderPromotionalCoupons() {
-//     const cacheKey = 'header-promotional';
-//     const cached = couponCache.get(cacheKey);
+  try {
+    const now = new Date().toISOString();
+    const response = await cookiesClient.models.Coupon.list({
+      filter: {
+        isActive: { eq: true },
+        showOnHeader: { eq: true },
+        validFrom: { le: now },
+        validUntil: { ge: now },
+      },
+      authMode: 'iam',
+      limit: 1,
+    });
+
+    const { data, errors } = response;
+
+    if (errors) {
+      console.error('Error fetching header promotional coupon:', errors);
+      return null;
+    }
+
+    // Get the first coupon if it exists
+    const coupon = data?.[0];
     
-//     // Return cached data if still valid
-//     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-//       return cached.data;
-//     }
+    // Check if coupon is within usage limit
+    if (coupon && (!coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit)) {
+      couponCache.set(cacheKey, {
+        data: coupon,
+        timestamp: Date.now(),
+      });
+      return coupon;
+    }
 
-//     try {
-//       const client = await getClient();
-//       const now = new Date().toISOString();
-//       const { data, errors } = await client.models.Coupon.list({
-//         filter: {
-//           isActive: { eq: true },
-//           showOnHeader: { eq: true },
-//           validFrom: { le: now },
-//           validUntil: { ge: now },
-//         }
-//       });
+    return null;
+  } catch (error) {
+    console.error('Error fetching header promotional coupon:', error);
+    return null;
+  }
+};
 
-//       if (errors) {
-//         console.error('Error fetching header promotional coupons:', errors);
-//         return [];
-//       }
+export const getAvailableCoupons = async (userId?: string) => {
+  const cacheKey = `available-coupons-${userId || 'guest'}`;
+  const cached = couponCache.get(cacheKey);
 
-//       // Filter out coupons that have reached their usage limit
-//       const availableCoupons = (data || []).filter(coupon => 
-//         !coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit
-//       );
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION && cached.userId === userId) {
+    return cached.data;
+  }
 
-//       // Cache the result
-//       couponCache.set(cacheKey, {
-//         data: availableCoupons,
-//         timestamp: Date.now()
-//       });
+  try {
+    const client = await cookiesClient;
+    const now = new Date().toISOString();
 
-//       return availableCoupons;
-//     } catch (error) {
-//       console.error('Error fetching header promotional coupons:', error);
-//       return [];
-//     }
-//   }
+    const { data, errors } = await client.models.Coupon.list({
+      filter: {
+        isActive: { eq: true },
+        validFrom: { le: now },
+        validUntil: { ge: now },
+      },
+    });
 
-//   static async getAvailableCoupons(userId?: string) {
-//     const cacheKey = `available-coupons-${userId || 'guest'}`;
-//     const cached = couponCache.get(cacheKey);
-    
-//     // Return cached data if still valid and for the same user
-//     if (cached && Date.now() - cached.timestamp < CACHE_DURATION && cached.userId === userId) {
-//       return cached.data;
-//     }
+    if (errors) {
+      throw new Error(`Failed to fetch available coupons: ${errors.map((e) => e.message).join(', ')}`);
+    }
 
-//     try {
-//       const client = await getClient();
-//       const now = new Date().toISOString();
-      
-//       const { data, errors } = await client.models.Coupon.list({
-//         filter: {
-//           isActive: { eq: true },
-//           validFrom: { le: now },
-//           validUntil: { ge: now },
-//         }
-//       });
+    let availableCoupons = data || [];
 
-//       if (errors) {
-//         throw new Error(`Failed to fetch available coupons: ${errors.map(e => e.message).join(', ')}`);
-//       }
+    availableCoupons = availableCoupons.filter(
+      (coupon) => !coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit
+    );
 
-//       let availableCoupons = data || [];
+    if (userId) {
+      availableCoupons = availableCoupons.filter((coupon) => {
+        if (coupon.allowedUsers && coupon.allowedUsers.length > 0 && !coupon.allowedUsers.includes(userId)) {
+          return false;
+        }
 
-//       // Filter out coupons that have reached their usage limit
-//       availableCoupons = availableCoupons.filter(coupon => 
-//         !coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit
-//       );
+        if (coupon.excludedUsers && coupon.excludedUsers.length > 0 && coupon.excludedUsers.includes(userId)) {
+          return false;
+        }
 
-//       // If user is provided, apply user-specific filters
-//       if (userId) {
-//         // Filter out coupons with user restrictions
-//         availableCoupons = availableCoupons.filter(coupon => {
-//           // Check if user is in allowed users list (if specified)
-//           if (coupon.allowedUsers && coupon.allowedUsers.length > 0) {
-//             if (!coupon.allowedUsers.includes(userId)) {
-//               return false; // User not in allowed list
-//             }
-//           }
+        return true;
+      });
 
-//           // Check if user is in excluded users list
-//           if (coupon.excludedUsers && coupon.excludedUsers.length > 0) {
-//             if (coupon.excludedUsers.includes(userId)) {
-//               return false; // User is excluded
-//             }
-//           }
+      const userCouponsPromises = availableCoupons.map(async (coupon) => {
+        if (coupon.userUsageLimit) {
+          const usage = await getUserCouponUsage(userId, coupon.id);
+          return usage < coupon.userUsageLimit ? coupon : null;
+        }
+        return coupon;
+      });
 
-//           return true; // User can access this coupon
-//         });
+      const results = await Promise.all(userCouponsPromises);
+      availableCoupons = results.filter(Boolean) as any[];
+    } else {
+      availableCoupons = availableCoupons.filter(
+        (coupon) =>
+          (!coupon.allowedUsers || coupon.allowedUsers.length === 0) &&
+          (!coupon.excludedUsers || coupon.excludedUsers.length === 0)
+      );
+    }
 
-//         // Filter out coupons they've used up based on per-user limits
-//         const userCouponsPromises = availableCoupons.map(async (coupon) => {
-//           if (coupon.userUsageLimit) {
-//             const usage = await this.getUserCouponUsage(userId, coupon.id);
-//             return usage < coupon.userUsageLimit ? coupon : null;
-//           }
-//           return coupon;
-//         });
+    couponCache.set(cacheKey, {
+      data: availableCoupons,
+      timestamp: Date.now(),
+      userId,
+    });
 
-//         const results = await Promise.all(userCouponsPromises);
-//         availableCoupons = results.filter(Boolean) as any[];
-//       } else {
-//         // If no user is provided, filter out coupons that have user restrictions
-//         availableCoupons = availableCoupons.filter(coupon => {
-//           // Only show coupons that don't have user restrictions when no user is logged in
-//           return (!coupon.allowedUsers || coupon.allowedUsers.length === 0) &&
-//                  (!coupon.excludedUsers || coupon.excludedUsers.length === 0);
-//         });
-//       }
+    return availableCoupons;
+  } catch (error) {
+    console.error('Error fetching available coupons:', error);
+    throw error;
+  }
+};
 
-//       // Cache the result
-//       couponCache.set(cacheKey, {
-//         data: availableCoupons,
-//         timestamp: Date.now(),
-//         userId
-//       });
+export const formatCouponForDisplay = (coupon: any) => {
+  const discount =
+    coupon.type === 'percentage' ? `${coupon.value}% OFF` : `₹${coupon.value} OFF`;
 
-//       return availableCoupons;
-//     } catch (error) {
-//       console.error('Error fetching available coupons:', error);
-//       throw error;
-//     }
-//   }
+  const conditions = [];
+  if (coupon.minimumOrderAmount > 0) {
+    conditions.push(`Min order ₹${coupon.minimumOrderAmount}`);
+  }
+  if (coupon.maximumDiscountAmount && coupon.type === 'percentage') {
+    conditions.push(`Max discount ₹${coupon.maximumDiscountAmount}`);
+  }
 
-//   static formatCouponForDisplay(coupon: any) {
-//     const discount = coupon.type === 'percentage' 
-//       ? `${coupon.value}% OFF`
-//       : `₹${coupon.value} OFF`;
-
-//     let conditions = [];
-//     if (coupon.minimumOrderAmount > 0) {
-//       conditions.push(`Min order ₹${coupon.minimumOrderAmount}`);
-//     }
-//     if (coupon.maximumDiscountAmount && coupon.type === 'percentage') {
-//       conditions.push(`Max discount ₹${coupon.maximumDiscountAmount}`);
-//     }
-
-//     return {
-//       code: coupon.code,
-//       name: coupon.name,
-//       description: coupon.description,
-//       discount,
-//       conditions: conditions.join(' • '),
-//       validUntil: new Date(coupon.validUntil).toLocaleDateString(),
-//     };
-//   }
-// }
+  return {
+    code: coupon.code,
+    name: coupon.name,
+    description: coupon.description,
+    discount,
+    conditions: conditions.join(' • '),
+    validUntil: new Date(coupon.validUntil).toLocaleDateString(),
+  };
+};

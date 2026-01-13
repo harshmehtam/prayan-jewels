@@ -5,9 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tag, Copy, ChevronDown, ChevronUp } from 'lucide-react';
-import { CouponService } from '@/lib/services/coupon-service';
+import { generateClient } from 'aws-amplify/data';
+import type { Schema } from '@/amplify/data/resource';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { useAuth } from '@/components/providers/auth-provider';
+
+const client = generateClient<Schema>();
 
 interface AvailableCouponsProps {
   productId: string;
@@ -18,28 +21,80 @@ export default function AvailableCoupons({ productId, productPrice }: AvailableC
   const [coupons, setCoupons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const [userId, setUserId] = useState<string | undefined>();
+  const { userProfile } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    loadUserAndCoupons();
-  }, [productId]);
+    loadCoupons();
+  }, [productId, userProfile?.userId]);
 
-  const loadUserAndCoupons = async () => {
+  const loadCoupons = async () => {
     try {
       setLoading(true);
       
-      // Get current user if logged in
-      try {
-        const user = await getCurrentUser();
-        setUserId(user.userId);
-      } catch (error) {
-        // User not logged in, continue without userId
-        setUserId(undefined);
-      }
+      const now = new Date().toISOString();
+      const userId = userProfile?.userId;
 
       // Load available coupons
-      const availableCoupons = await CouponService.getAvailableCoupons(userId);
+      const { data: allCoupons, errors } = await client.models.Coupon.list({
+        filter: {
+          isActive: { eq: true },
+          validFrom: { le: now },
+          validUntil: { ge: now },
+        },
+      });
+
+      if (errors) {
+        console.error('Error fetching coupons:', errors);
+        return;
+      }
+
+      let availableCoupons = allCoupons || [];
+
+      // Filter out coupons that have reached usage limit
+      availableCoupons = availableCoupons.filter(
+        (coupon) => !coupon.usageLimit || (coupon.usageCount || 0) < coupon.usageLimit
+      );
+
+      // Filter by user restrictions
+      if (userId) {
+        availableCoupons = availableCoupons.filter((coupon) => {
+          if (coupon.allowedUsers && coupon.allowedUsers.length > 0 && !coupon.allowedUsers.includes(userId)) {
+            return false;
+          }
+
+          if (coupon.excludedUsers && coupon.excludedUsers.length > 0 && coupon.excludedUsers.includes(userId)) {
+            return false;
+          }
+
+          return true;
+        });
+
+        // Check user usage limits
+        const userCouponsPromises = availableCoupons.map(async (coupon) => {
+          if (coupon.userUsageLimit) {
+            const { data: userCoupons } = await client.models.UserCoupon.list({
+              filter: {
+                userId: { eq: userId },
+                couponId: { eq: coupon.id },
+              },
+            });
+            const usage = userCoupons?.[0]?.usageCount || 0;
+            return usage < coupon.userUsageLimit ? coupon : null;
+          }
+          return coupon;
+        });
+
+        const results = await Promise.all(userCouponsPromises);
+        availableCoupons = results.filter(Boolean) as any[];
+      } else {
+        // For guests, only show coupons without user restrictions
+        availableCoupons = availableCoupons.filter(
+          (coupon) =>
+            (!coupon.allowedUsers || coupon.allowedUsers.length === 0) &&
+            (!coupon.excludedUsers || coupon.excludedUsers.length === 0)
+        );
+      }
       
       // Filter coupons applicable to this product
       const applicableCoupons = availableCoupons.filter(coupon => {

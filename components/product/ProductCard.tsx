@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/components/providers/cart-provider';
-import { ProductCardImage } from '@/components/ui/OptimizedImage';
+// import { ProductCardImage } from '@/components/ui/OptimizedImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 
@@ -13,19 +13,19 @@ interface QuickAddButtonProps {
     name: string;
     price: number;
   };
-  isOutOfStock: boolean;
+  // isOutOfStock: boolean;
 }
 
-function QuickAddButton({ product, isOutOfStock }: QuickAddButtonProps) {
+function QuickAddButton({ product }: QuickAddButtonProps) {
   const { addItem } = useCart();
   const [isAdding, setIsAdding] = useState(false);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (isOutOfStock || isAdding) return;
-    
+
+    if (isAdding) return;
+
     setIsAdding(true);
     try {
       await addItem(product.id, 1, product.price);
@@ -39,14 +39,13 @@ function QuickAddButton({ product, isOutOfStock }: QuickAddButtonProps) {
   return (
     <button
       onClick={handleAddToCart}
-      disabled={isOutOfStock || isAdding}
-      className={`touch-friendly p-2 rounded-full transition-all duration-200 ${
-        isOutOfStock || isAdding
+      disabled={isAdding}
+      className={`touch-friendly p-2 rounded-full transition-all duration-200 ${isAdding
           ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
           : 'bg-blue-600 text-white hover:bg-blue-700 group-hover:scale-110 focus-ring'
-      }`}
-      title={isOutOfStock ? 'Out of stock' : isAdding ? 'Adding...' : 'Add to cart'}
-      aria-label={isOutOfStock ? 'Out of stock' : isAdding ? 'Adding to cart...' : 'Add to cart'}
+        }`}
+      title={isAdding ? 'Adding...' : 'Add to cart'}
+      aria-label={isAdding ? 'Adding to cart...' : 'Add to cart'}
     >
       {isAdding ? (
         <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -90,34 +89,22 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const priceInfo = calculatePriceInfo(product.price, product.actualPrice);
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(price);
-  };
-
   const handleImageHover = () => {
     if (product.images.length > 1) {
       setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
     }
   };
 
-  const isOutOfStock = product.availableQuantity !== undefined && product.availableQuantity <= 0;
-
   return (
     <div className="group relative bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
       <Link href={`/products/${product.id}`} className="focus-ring rounded-lg">
         {/* Product Image */}
-        <div 
+        <div
           className="relative aspect-square overflow-hidden bg-gray-100"
           onMouseEnter={handleImageHover}
           onMouseLeave={() => setCurrentImageIndex(0)}
         >
-          {product.images.length > 0 ? (
+          {/* {product.images.length > 0 ? (
             <ProductCardImage
               src={product.images[currentImageIndex] || product.images[0]}
               alt={product.name}
@@ -141,7 +128,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 />
               </svg>
             </div>
-          )}
+          )} */}
 
           {/* Image indicators for multiple images */}
           {product.images.length > 1 && (
@@ -149,18 +136,10 @@ export default function ProductCard({ product }: ProductCardProps) {
               {product.images.map((_, index) => (
                 <div
                   key={index}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                    index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                  }`}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors ${index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                    }`}
                 />
               ))}
-            </div>
-          )}
-
-          {/* Stock Status Badge */}
-          {isOutOfStock && (
-            <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-medium px-2 py-1 rounded">
-              Out of Stock
             </div>
           )}
 
@@ -177,8 +156,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-medium text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors text-sm sm:text-base">
             {product.name}
           </h3>
-          
-          <div 
+
+          <div
             className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2 product-description"
             dangerouslySetInnerHTML={{ __html: product.description }}
           />
@@ -186,8 +165,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           {/* Rating */}
           {product.averageRating && product.totalReviews && (
             <div className="mb-2">
-              <CompactStarRating 
-                rating={product.averageRating} 
+              <CompactStarRating
+                rating={product.averageRating}
                 totalReviews={product.totalReviews}
                 size="sm"
               />
@@ -206,29 +185,25 @@ export default function ProductCard({ product }: ProductCardProps) {
                   </span>
                 )}
               </div>
-              {product.availableQuantity !== undefined && (
+              {/* {product.availableQuantity !== undefined && (
                 <span className={`text-xs ${
-                  isOutOfStock 
-                    ? 'text-red-600' 
-                    : product.availableQuantity < 5 
+                  product.availableQuantity < 5 
                       ? 'text-orange-600' 
                       : 'text-green-600'
                 } truncate`}>
-                  {isOutOfStock 
-                    ? 'Out of stock' 
-                    : product.availableQuantity < 5 
+                  {product.availableQuantity < 5 
                       ? `Only ${product.availableQuantity} left` 
                       : 'In stock'
                   }
                 </span>
-              )}
+              )} */}
             </div>
 
             {/* Quick Add to Cart Button */}
             <div className="ml-2 flex-shrink-0">
-              <QuickAddButton 
+              <QuickAddButton
                 product={product}
-                isOutOfStock={isOutOfStock}
+              // isOutOfStock={isOutOfStock}
               />
             </div>
           </div>

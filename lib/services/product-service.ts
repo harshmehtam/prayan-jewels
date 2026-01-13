@@ -1,252 +1,244 @@
-// // Real product service using Amplify API
-// import { getClient } from '@/lib/amplify-client';
-// import { ReviewCache } from '@/lib/utils/review-cache';
-// import type { Product, ProductSearchResult, ProductFilters } from '@/types';
+import { cookiesClient } from '@/utils/amplify-utils';
+import { ReviewCache } from '@/lib/utils/review-cache';
+import type { Product, ProductSearchResult, ProductFilters } from '@/types';
 
-// // Simple cache to prevent duplicate requests
-// const requestCache = new Map<string, Promise<ProductSearchResult>>();
-// const productCache = new Map<string, Promise<Product | null>>();
-// const CACHE_DURATION = 30000; // 30 seconds
+// Simple cache to prevent duplicate requests
+const requestCache = new Map<string, { data: ProductSearchResult; timestamp: number }>();
+const productCache = new Map<string, { data: Product | null; timestamp: number }>();
+const CACHE_DURATION = 30000; // 30 seconds
 
-// // Helper function to create cache key
-// function createCacheKey(filters: ProductFilters, limit: number): string {
-//   return JSON.stringify({ filters, limit });
-// }
+// Helper function to create cache key
+function createCacheKey(filters: ProductFilters, limit: number, nextToken?: string): string {
+  return JSON.stringify({ filters, limit, nextToken });
+}
 
-// export class ProductService {
-//   // Get products with filtering and search
-//   static async getProducts(
-//     filters: ProductFilters = {},
-//     limit: number = 20
-//   ): Promise<ProductSearchResult> {
-//     const cacheKey = createCacheKey(filters, limit);
-    
-//     // Check if request is already in progress
-//     if (requestCache.has(cacheKey)) {
-//       return requestCache.get(cacheKey)!;
-//     }
+// Helper function to transform product data
+const transformProduct = (product: any, stats: any): Product => {
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    actualPrice: product.actualPrice,
+    images: product.images?.filter((img: string | null): img is string => img !== null) || [],
+    isActive: product.isActive,
+    viewCount: product.viewCount,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+    averageRating: stats.averageRating > 0 ? stats.averageRating : null,
+    totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
+    purchaseCount: Math.floor((product.viewCount || 0) * 0.1),
+  };
+};
 
-//     // Create new request
-//     const requestPromise = this._fetchProducts(filters, limit);
-    
-//     // Cache the promise
-//     requestCache.set(cacheKey, requestPromise);
-    
-//     // Remove from cache after duration
-//     setTimeout(() => {
-//       requestCache.delete(cacheKey);
-//     }, CACHE_DURATION);
-    
-//     return requestPromise;
-//   }
+// Get products with filtering and pagination using Amplify Gen2 nextToken approach
+export const getProducts = async (
+  filters: ProductFilters = {},
+  limit: number = 20,
+  nextToken?: string
+): Promise<ProductSearchResult> => {
+  const cacheKey = createCacheKey(filters, limit, nextToken);
+  const cached = requestCache.get(cacheKey);
 
-//   // Internal method to actually fetch products
-//   private static async _fetchProducts(
-//     filters: ProductFilters = {},
-//     limit: number = 20
-//   ): Promise<ProductSearchResult> {
-//     try {
-//       const client = await getClient();
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
 
-//       // Build the GraphQL filter
-//       let graphqlFilter: any = {
-//         isActive: { eq: true } // Only show active products
-//       };
+  try {
+    const client = await cookiesClient;
 
-//       // Add price range filters
-//       if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-//         graphqlFilter.price = {};
-//         if (filters.minPrice !== undefined) {
-//           graphqlFilter.price.ge = filters.minPrice;
-//         }
-//         if (filters.maxPrice !== undefined) {
-//           graphqlFilter.price.le = filters.maxPrice;
-//         }
-//       }
+    // Build the GraphQL filter
+    let graphqlFilter: any = {
+      isActive: { eq: true }
+    };
 
-//       // Add search query filter (search in name and description)
-//       if (filters.searchQuery) {
-//         graphqlFilter.or = [
-//           { name: { contains: filters.searchQuery } },
-//           { description: { contains: filters.searchQuery } }
-//         ];
-//       }
+    // Add price range filters
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+      graphqlFilter.price = {};
+      if (filters.minPrice !== undefined) {
+        graphqlFilter.price.ge = filters.minPrice;
+      }
+      if (filters.maxPrice !== undefined) {
+        graphqlFilter.price.le = filters.maxPrice;
+      }
+    }
 
-//       // Execute the query
-//       const result = await client.models.Product.list({
-//         filter: graphqlFilter,
-//         limit
-//       });
+    // Add search query filter (search in name and description)
+    if (filters.searchQuery) {
+      graphqlFilter.or = [
+        { name: { contains: filters.searchQuery } },
+        { description: { contains: filters.searchQuery } }
+      ];
+    }
 
-//       if (!result.data) {
-//         return {
-//           products: [],
-//           totalCount: 0,
-//           hasNextPage: false,
-//           nextToken: undefined,
-//           suggestions: []
-//         };
-//       }
+    // Fetch products with nextToken pagination
+    const { data, errors, nextToken: newNextToken } = await client.models.Product.list({
+      filter: graphqlFilter,
+      limit,
+      nextToken,
+      authMode: 'iam'
+    });
 
-//       // Transform products to match expected interface and fetch real ratings
-//       const productIds = result.data.map(p => p.id);
-//       const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
-      
-//       const transformedProducts: Product[] = result.data.map((product) => {
-//         const stats = reviewStatsMap.get(product.id) || {
-//           averageRating: 0,
-//           totalReviews: 0,
-//           ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-//         };
-        
-//         return {
-//           id: product.id,
-//           name: product.name,
-//           description: product.description,
-//           price: product.price,
-//           actualPrice: product.actualPrice, // Add actualPrice field
-//           images: product.images?.filter((img): img is string => img !== null) || [],
-//           isActive: product.isActive,
-//           viewCount: product.viewCount,
-//           createdAt: product.createdAt,
-//           updatedAt: product.updatedAt,
-//           // Use real review data instead of static values
-//           averageRating: stats.averageRating > 0 ? stats.averageRating : null,
-//           totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
-//           purchaseCount: Math.floor((product.viewCount || 0) * 0.1), // Estimate based on views
-//         };
-//       });
+    if (errors) {
+      console.error('Error fetching products:', errors);
+      return {
+        products: [],
+        totalCount: 0,
+        hasNextPage: false,
+        nextToken: undefined,
+      };
+    }
 
-//       // Apply sorting if specified
-//       if (filters.sortBy) {
-//         transformedProducts.sort((a, b) => {
-//           switch (filters.sortBy) {
-//             case 'price-asc':
-//               return a.price - b.price;
-//             case 'price-desc':
-//               return b.price - a.price;
-//             case 'name':
-//               return a.name.localeCompare(b.name);
-//             case 'newest':
-//               return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-//             case 'popularity':
-//               return (b.viewCount || 0) - (a.viewCount || 0);
-//             case 'rating':
-//               return (b.averageRating || 0) - (a.averageRating || 0);
-//             case 'most-relevant':
-//             default:
-//               return 0;
-//           }
-//         });
-//       }
+    if (!data || data.length === 0) {
+      return {
+        products: [],
+        totalCount: 0,
+        hasNextPage: false,
+        nextToken: undefined,
+      };
+    }
 
-//       return {
-//         products: transformedProducts,
-//         totalCount: transformedProducts.length,
-//         hasNextPage: false,
-//         nextToken: undefined,
-//       };
-//     } catch (error) {
-//       return {
-//         products: [],
-//         totalCount: 0,
-//         hasNextPage: false,
-//         nextToken: undefined,
-//       };
-//     }
-//   }
+    // Transform products to match expected interface and fetch real ratings
+    const productIds = data.map(p => p.id);
+    const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
 
-//   // Get multiple products by IDs in a single call
-//   static async getProductsByIds(ids: string[]): Promise<Product[]> {
-//     if (!ids.length) return [];
+    let transformedProducts: Product[] = data.map((product) => {
+      const stats = reviewStatsMap.get(product.id) || {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      };
 
-//     try {
-//       // Since Amplify doesn't support "in" filter directly, we'll make individual calls
-//       // but batch them together for better performance
-//       const productPromises = ids.map(id => this.getProductById(id));
-//       const products = await Promise.all(productPromises);
-      
-//       // Filter out null results
-//       return products.filter((product): product is Product => product !== null);
-//     } catch (error) {
-//       console.error('Error fetching products by IDs:', error);
-//       return [];
-//     }
-//   }
+      return transformProduct(product, stats);
+    });
 
-//   // Get a single product by ID
-//   static async getProductById(id: string): Promise<Product | null> {
-//     // Check if request is already in progress
-//     if (productCache.has(id)) {
-//       return productCache.get(id)!;
-//     }
+    // Client-side sorting (since Amplify doesn't support complex sorting natively)
+    if (filters.sortBy) {
+      switch (filters.sortBy) {
+        case 'price-asc':
+          transformedProducts.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-desc':
+          transformedProducts.sort((a, b) => b.price - a.price);
+          break;
+        case 'rating':
+          transformedProducts.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
+          break;
+        case 'newest':
+          transformedProducts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          break;
+        case 'popularity':
+          transformedProducts.sort((a, b) => {
+            const scoreA = (a.purchaseCount || 0) * 2 + (a.viewCount || 0) + (a.averageRating || 0) * 10;
+            const scoreB = (b.purchaseCount || 0) * 2 + (b.viewCount || 0) + (b.averageRating || 0) * 10;
+            return scoreB - scoreA;
+          });
+          break;
+        case 'most-relevant':
+        default:
+          transformedProducts.sort((a, b) => {
+            const scoreA = (a.purchaseCount || 0) * 2 + (a.viewCount || 0) + (a.averageRating || 0) * 10;
+            const scoreB = (b.purchaseCount || 0) * 2 + (b.viewCount || 0) + (b.averageRating || 0) * 10;
+            return scoreB - scoreA;
+          });
+          break;
+      }
+    }
 
-//     // Create new request
-//     const requestPromise = this._fetchProductById(id);
-    
-//     // Cache the promise
-//     productCache.set(id, requestPromise);
-    
-//     // Remove from cache after duration
-//     setTimeout(() => {
-//       productCache.delete(id);
-//     }, CACHE_DURATION);
-    
-//     return requestPromise;
-//   }
+    const result = {
+      products: transformedProducts,
+      totalCount: transformedProducts.length, // Only count current page
+      hasNextPage: !!newNextToken,
+      nextToken: newNextToken || undefined,
+    };
 
-//   // Internal method to actually fetch product by ID
-//   private static async _fetchProductById(id: string): Promise<Product | null> {
-//     try {
-//       const client = await getClient();
-//       const result = await client.models.Product.get({ id });
+    // Cache the result
+    requestCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now(),
+    });
 
-//       if (!result.data) {
-//         return null;
-//       }
+    return result;
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return {
+      products: [],
+      totalCount: 0,
+      hasNextPage: false,
+      nextToken: undefined,
+    };
+  }
+};
 
-//       const product = result.data;
+// Get a single product by ID
+export const getProductById = async (id: string): Promise<Product | null> => {
+  const cached = productCache.get(id);
 
-//       // Get real review stats for this product
-//       const stats = await ReviewCache.getProductReviewStats(id);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
 
-//       // Transform to match expected Product interface
-//       const transformedProduct: Product = {
-//         id: product.id,
-//         name: product.name,
-//         description: product.description,
-//         price: product.price,
-//         actualPrice: product.actualPrice, // Add actualPrice field
-//         images: product.images?.filter((img): img is string => img !== null) || [],
-//         isActive: product.isActive,
-//         viewCount: product.viewCount,
-//         createdAt: product.createdAt,
-//         updatedAt: product.updatedAt,
-//         // Use real review data instead of static values
-//         averageRating: stats.averageRating > 0 ? stats.averageRating : null,
-//         totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
-//         purchaseCount: Math.floor((product.viewCount || 0) * 0.1), // Estimate based on views
-//       };
+  try {
+    const client = await cookiesClient;
+    const { data, errors } = await client.models.Product.get({ id });
 
-//       return transformedProduct;
-//     } catch (error) {
-//       console.error('Error fetching product:', error);
-//       return null;
-//     }
-//   }
+    if (errors) {
+      console.error('Error fetching product:', errors);
+      return null;
+    }
 
-//   // Get products by price range (specific method for price range cards)
-//   static async getProductsByPriceRange(maxPrice: number, limit: number = 12): Promise<Product[]> {
-//     try {
-//       const result = await this.getProducts({
-//         maxPrice,
-//         sortBy: 'price-asc'
-//       }, limit);
+    if (!data) {
+      return null;
+    }
 
-//       return result.products;
-//     } catch (error) {
-//       console.error('Error fetching products by price range:', error);
-//       return [];
-//     }
-//   }
-// }
+    // Get real review stats for this product
+    const stats = await ReviewCache.getProductReviewStats(id);
+
+    // Transform to match expected Product interface
+    const transformedProduct = transformProduct(data, stats);
+
+    // Cache the result
+    productCache.set(id, {
+      data: transformedProduct,
+      timestamp: Date.now(),
+    });
+
+    return transformedProduct;
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    return null;
+  }
+};
+
+// Get multiple products by IDs in a single call
+export const getProductsByIds = async (ids: string[]): Promise<Product[]> => {
+  if (!ids.length) return [];
+
+  try {
+    // Since Amplify doesn't support "in" filter directly, we'll make individual calls
+    // but batch them together for better performance
+    const productPromises = ids.map(id => getProductById(id));
+    const products = await Promise.all(productPromises);
+
+    // Filter out null results
+    return products.filter((product): product is Product => product !== null);
+  } catch (error) {
+    console.error('Error fetching products by IDs:', error);
+    return [];
+  }
+};
+
+// Get products by price range (specific method for price range cards)
+export const getProductsByPriceRange = async (maxPrice: number, limit: number = 12): Promise<Product[]> => {
+  try {
+    const result = await getProducts({
+      maxPrice,
+      sortBy: 'price-asc'
+    }, limit);
+
+    return result.products;
+  } catch (error) {
+    console.error('Error fetching products by price range:', error);
+    return [];
+  }
+};

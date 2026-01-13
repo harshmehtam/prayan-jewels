@@ -1,4 +1,3 @@
-// Hook for role-based access control
 'use client';
 
 import { useAuth } from '@/components/providers/auth-provider';

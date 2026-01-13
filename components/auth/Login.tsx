@@ -36,7 +36,7 @@ export default function PhoneLoginModal({
   const [signUpUsername, setSignUpUsername] = useState(''); // Store username for OTP verification
   const [resetUsername, setResetUsername] = useState(''); // Store username for password reset
   
-  const { refreshAuthState, updateUserProfile } = useAuth();
+  const { refreshAuthState } = useAuth();
   const router = useRouter();
 
   // Countdown timer for resend OTP

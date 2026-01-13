@@ -1,4 +1,3 @@
-// Admin product management service with Amplify Storage integration
 import { getClient } from '@/lib/amplify-client';
 import { uploadData, getUrl, remove } from 'aws-amplify/storage';
 import type { Schema } from '@/amplify/data/resource';

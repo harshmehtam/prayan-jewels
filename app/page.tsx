@@ -2,34 +2,13 @@ import Link from 'next/link';
 import PriceRangeCards from '@/components/product/PriceRangeCards';
 import ProductGrid from '@/components/product/ProductGrid';
 import FeaturesSection from '@/components/layout/FeaturesSection';
-import { cookiesClient, AuthGetCurrentUserServer } from '@/utils/amplify-utils';
 
 export default async function Home() {
-  // Fetch promotional state on the server
-  const now = new Date().toISOString();
-  const user = await AuthGetCurrentUserServer();
-  const promotions = await cookiesClient.models.Coupon.list({
-    filter: {
-      isActive: { eq: true },
-      showOnHeader: { eq: true },
-      validFrom: { le: now },
-      validUntil: { ge: now },
-    },
-    authMode: user ? "userPool" : "iam",
-  });
-  console.log('Promotions fetched on server:', promotions);
-  const hasPromotions = promotions?.data?.length > 0;
-
-  // Determine header spacing classes based on promotional state
-  const headerPaddingClasses = hasPromotions
-    ? 'pt-28 sm:pt-32 lg:pt-36'
-    : 'pt-20 sm:pt-24 lg:pt-28';
-
   return (
     <div>
       {/* Hero Section - Mobile optimized */}
       <section
-        className={`relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden ${headerPaddingClasses}`}
+        className={`relative min-h-[70vh] sm:min-h-[80vh] lg:min-h-[90vh] overflow-hidden pt-20 sm:pt-24 pt-32`}
       >
         {/* Large Background Image Area */}
         <div className="absolute inset-0 top-0">

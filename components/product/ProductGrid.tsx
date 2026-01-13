@@ -1,12 +1,6 @@
-'use client';
-
-// TEMPORARY: Using mock data for design testing - REMOVE IN PRODUCTION
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ProductService } from '@/lib/services/product-service';
+import { getProducts } from '@/lib/services/product-service';
 import ProductGridCard from './ProductGridCard';
-import type { Product } from '@/types';
 
 interface ProductGridProps {
   title?: string;
@@ -15,62 +9,16 @@ interface ProductGridProps {
   showViewAll?: boolean;
 }
 
-export default function ProductGrid({ 
+export default async function ProductGrid({ 
   title = "Discover Our Collection",
   subtitle,
   limit = 15,
   showViewAll = true
 }: ProductGridProps) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const result = await getProducts({}, limit);
+  const products = result.products;
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const result = await ProductService.getProducts({}, limit);
-        setProducts(result.products);
-        // No need to batch check wishlist - the context handles this automatically
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load products');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, [limit]);
-
-  if (loading) {
-    return (
-      <section className="pt-6 sm:pt-8 lg:pt-10 pb-12 sm:pb-16 lg:pb-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-2xl sm:text-3xl font-light text-gray-900 mb-2 tracking-wide">
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-gray-600 text-sm sm:text-base">{subtitle}</p>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <div key={index} className="animate-pulse">
-                <div className="bg-gray-200 aspect-square rounded-lg mb-3"></div>
-                <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-2/3 mb-1"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (error || products.length === 0) {
+  if (products.length === 0) {
     return (
       <section className="pt-6 sm:pt-8 lg:pt-10 pb-12 sm:pb-16 lg:pb-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -79,7 +27,7 @@ export default function ProductGrid({
               {title}
             </h2>
             <p className="text-gray-600">
-              {error || 'No products available at the moment'}
+              No products available at the moment
             </p>
           </div>
         </div>
@@ -100,7 +48,7 @@ export default function ProductGrid({
           )}
         </div>
 
-        {/* Products Grid - Using ProductGridCard design */}
+        {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8 sm:mb-12 max-w-7xl mx-auto">
           {products.map((product) => (
             <ProductGridCard 

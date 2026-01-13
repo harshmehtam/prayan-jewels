@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import PhoneLoginModal from './PhoneLoginModal';
+import PhoneLoginModal from './Login';
 
 interface LoginButtonProps {
   className?: string;

@@ -356,6 +356,7 @@ export const data = defineData({
   schema,
   authorizationModes: {
     defaultAuthorizationMode: 'userPool',
+    // IAM authorization allows unauthenticated (guest) access
     apiKeyAuthorizationMode: {
       expiresInDays: 30,
     },
