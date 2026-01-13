@@ -1,4 +1,3 @@
-// Higher-order component for protecting admin routes
 'use client';
 
 import React, { useEffect } from 'react';

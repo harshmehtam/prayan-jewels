@@ -111,15 +111,6 @@ export function CartProvider({ children }: CartProviderProps) {
 
       return cart;
     } catch (error) {
-      // Suppress auth errors after logout
-      if (error && typeof error === 'object' && 'message' in error) {
-        const errorMessage = (error as any).message;
-        if (errorMessage?.includes('NoValidAuthTokens') || errorMessage?.includes('federated jwt')) {
-          console.log('Auth token expired, user needs to re-authenticate');
-          return null;
-        }
-      }
-      console.error('Error getting/creating cart:', error);
       return null;
     }
   }, [isAuthenticated, user?.userId, sessionId]);

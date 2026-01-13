@@ -12,7 +12,7 @@ interface ProductGridProps {
 export default async function ProductGrid({ 
   title = "Discover Our Collection",
   subtitle,
-  limit = 15,
+  limit = 4,
   showViewAll = true
 }: ProductGridProps) {
   const result = await getProducts({}, limit);
