@@ -1,9 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import "@aws-amplify/ui-react/styles.css";
 import { ConditionalLayout } from "@/components/layout";
 import { Providers } from "@/components/providers";
 import type { Metadata } from "next";
+import "./globals.css";
+import "@aws-amplify/ui-react/styles.css";
 import { getHeaderPromotionalCoupons } from '@/lib/services/coupon-service';
 
 const geistSans = Geist({

@@ -1,6 +1,4 @@
-'use client';
-
-import { useProduct } from '@/lib/hooks/use-product';
+import { getProductById } from '@/lib/services/product-service';
 import ProductImageGallery from './ProductImageGallery';
 import ProductInfo from './ProductInfo';
 import WhyChooseUs from './WhyChooseUs';
@@ -12,33 +10,6 @@ import { DELIVERY_CONFIG } from '@/lib/config/delivery';
 
 interface ProductDetailProps {
   productId: string;
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Image Gallery Skeleton */}
-        <div className="space-y-4">
-          <div className="aspect-square bg-gray-200 animate-pulse md:hidden"></div>
-          <div className="hidden md:flex gap-0">
-            {Array.from({ length: 2 }).map((_, index) => (
-              <div key={index} className="flex-1 aspect-square bg-gray-200 animate-pulse"></div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Product Info Skeleton */}
-        <div className="space-y-4 p-4 md:p-8">
-          <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-6 bg-gray-200 rounded w-3/4 animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse"></div>
-          <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function ErrorState({ error }: { error: string }) {
@@ -75,15 +46,11 @@ function DeliveryInfo() {
   );
 }
 
-export default function ProductDetail({ productId }: ProductDetailProps) {
-  const { product, loading, error } = useProduct(productId);
+export default async function ProductDetail({ productId }: ProductDetailProps) {
+  const product = await getProductById(productId);
 
-  if (loading) {
-    return <LoadingSkeleton />;
-  }
-
-  if (error || !product) {
-    return <ErrorState error={error || 'Product not found'} />;
+  if (!product) {
+    return <ErrorState error="Product not found" />;
   }
 
   return (

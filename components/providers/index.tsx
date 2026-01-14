@@ -6,7 +6,7 @@ import { CartProvider } from './cart-provider';
 import { WishlistProvider } from './wishlist-provider';
 import outputs from '@/amplify_outputs.json';
 
-// Configure Amplify for client-side use
+// Configure Amplify
 Amplify.configure(outputs, { ssr: true });
 
 interface ProvidersProps {
@@ -17,9 +17,9 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <AuthProvider>
       <CartProvider>
-      <WishlistProvider>
-        {children}
-      </WishlistProvider>
+        <WishlistProvider>
+          {children}
+        </WishlistProvider>
       </CartProvider>
     </AuthProvider>
   );

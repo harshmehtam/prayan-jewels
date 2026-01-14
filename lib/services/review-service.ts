@@ -146,12 +146,6 @@ export const createReview = async (customerId: string, reviewData: CreateReviewI
       return { errors: result.errors.map(e => e.message) };
     }
 
-    // Clear cache for this product so ratings update immediately
-    if (reviewData.productId) {
-      const { ReviewCache } = await import('@/lib/utils/review-cache');
-      ReviewCache.clearProductCache(reviewData.productId);
-    }
-
     return { review: result.data as unknown as ProductReview };
 
   } catch (error) {
@@ -167,8 +161,6 @@ export const updateReview = async (customerId: string, reviewData: UpdateReviewI
   review?: ProductReview;
   errors?: string[];
 }> => {
-  let existingReview: any = null;
-  
   try {
     const client = await cookiesClient;
     
@@ -179,7 +171,7 @@ export const updateReview = async (customerId: string, reviewData: UpdateReviewI
       return { errors: existingResult.errors.map(e => e.message) };
     }
 
-    existingReview = existingResult.data;
+    const existingReview = existingResult.data;
     if (!existingReview) {
       return { errors: ['Review not found'] };
     }
@@ -199,12 +191,6 @@ export const updateReview = async (customerId: string, reviewData: UpdateReviewI
 
     if (result.errors) {
       return { errors: result.errors.map(e => e.message) };
-    }
-
-    // Clear cache for this product so ratings update immediately
-    if (existingReview?.productId) {
-      const { ReviewCache } = await import('@/lib/utils/review-cache');
-      ReviewCache.clearProductCache(existingReview.productId);
     }
 
     return { review: result.data as unknown as ProductReview };
@@ -439,8 +425,6 @@ export const deleteReview = async (customerId: string, reviewId: string): Promis
   success: boolean;
   errors?: string[];
 }> => {
-  let existingReview: any = null;
-  
   try {
     const client = await cookiesClient;
     
@@ -451,7 +435,7 @@ export const deleteReview = async (customerId: string, reviewId: string): Promis
       return { success: false, errors: existingResult.errors.map(e => e.message) };
     }
 
-    existingReview = existingResult.data;
+    const existingReview = existingResult.data;
     if (!existingReview) {
       return { success: false, errors: ['Review not found'] };
     }
@@ -465,12 +449,6 @@ export const deleteReview = async (customerId: string, reviewId: string): Promis
 
     if (result.errors) {
       return { success: false, errors: result.errors.map(e => e.message) };
-    }
-
-    // Clear cache for this product so ratings update immediately
-    if (existingReview?.productId) {
-      const { ReviewCache } = await import('@/lib/utils/review-cache');
-      ReviewCache.clearProductCache(existingReview.productId);
     }
 
     return { success: true };

@@ -1,6 +1,6 @@
 import { cookiesClient } from '@/utils/amplify-utils';
-import { ReviewCache } from '@/lib/utils/review-cache';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
+import { getProductReviews } from './review-service';
 
 // Simple cache to prevent duplicate requests
 const requestCache = new Map<string, { data: ProductSearchResult; timestamp: number }>();
@@ -29,6 +29,30 @@ const transformProduct = (product: any, stats: any): Product => {
     totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
     purchaseCount: Math.floor((product.viewCount || 0) * 0.1),
   };
+};
+
+// Helper function to batch fetch review stats for multiple products
+const batchGetProductReviewStats = async (productIds: string[]): Promise<Map<string, any>> => {
+  const results = new Map();
+  
+  // Process in batches to avoid overwhelming the API
+  const batchSize = 10;
+  for (let i = 0; i < productIds.length; i += batchSize) {
+    const batch = productIds.slice(i, i + batchSize);
+    
+    const batchPromises = batch.map(async (productId) => {
+      const { stats } = await getProductReviews(productId);
+      return { productId, stats };
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    
+    batchResults.forEach(({ productId, stats }) => {
+      results.set(productId, stats);
+    });
+  }
+  
+  return results;
 };
 
 // Get products with filtering and pagination using Amplify Gen2 nextToken approach
@@ -100,7 +124,7 @@ export const getProducts = async (
 
     // Transform products to match expected interface and fetch real ratings
     const productIds = data.map(p => p.id);
-    const reviewStatsMap = await ReviewCache.batchGetProductReviewStats(productIds);
+    const reviewStatsMap = await batchGetProductReviewStats(productIds);
 
     let transformedProducts: Product[] = data.map((product) => {
       const stats = reviewStatsMap.get(product.id) || {
@@ -191,8 +215,8 @@ export const getProductById = async (id: string): Promise<Product | null> => {
       return null;
     }
 
-    // Get real review stats for this product
-    const stats = await ReviewCache.getProductReviewStats(id);
+    // Get real review stats for this product directly from review service
+    const { stats } = await getProductReviews(id);
 
     // Transform to match expected Product interface
     const transformedProduct = transformProduct(data, stats);

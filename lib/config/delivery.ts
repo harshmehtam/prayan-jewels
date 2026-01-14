@@ -1,4 +1,3 @@
-// Delivery configuration - centralized place to manage delivery settings
 const ESTIMATED_DELIVERY_DAYS = 7;
 
 interface DeliveryConfig {
@@ -28,7 +27,7 @@ export const DELIVERY_CONFIG: DeliveryConfig = {
     return `Estimated delivery by ${deliveryDate.toLocaleDateString('en-US', options)}`;
   },
   
-  // Express delivery options (if needed in future)
+  // Express delivery options
   expressDeliveryDays: 3,
   
   // Free shipping threshold

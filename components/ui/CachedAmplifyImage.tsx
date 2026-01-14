@@ -60,7 +60,7 @@ export default function CachedAmplifyImage({
           path: memoizedPath,
           options: {
             expiresIn: 3600, // 1 hour
-            validateObjectExistence: false, // Don't make HEAD request
+            validateObjectExistence: false,
           }
         });
         
