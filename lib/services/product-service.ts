@@ -34,24 +34,24 @@ const transformProduct = (product: any, stats: any): Product => {
 // Helper function to batch fetch review stats for multiple products
 const batchGetProductReviewStats = async (productIds: string[]): Promise<Map<string, any>> => {
   const results = new Map();
-  
+
   // Process in batches to avoid overwhelming the API
   const batchSize = 10;
   for (let i = 0; i < productIds.length; i += batchSize) {
     const batch = productIds.slice(i, i + batchSize);
-    
+
     const batchPromises = batch.map(async (productId) => {
       const { stats } = await getProductReviews(productId);
       return { productId, stats };
     });
-    
+
     const batchResults = await Promise.all(batchPromises);
-    
+
     batchResults.forEach(({ productId, stats }) => {
       results.set(productId, stats);
     });
   }
-  
+
   return results;
 };
 
@@ -204,7 +204,9 @@ export const getProductById = async (id: string): Promise<Product | null> => {
 
   try {
     const client = await cookiesClient;
-    const { data, errors } = await client.models.Product.get({ id });
+    const { data, errors } = await client.models.Product.get({ id }, {
+      authMode: 'iam'
+    });
 
     if (errors) {
       console.error('Error fetching product:', errors);

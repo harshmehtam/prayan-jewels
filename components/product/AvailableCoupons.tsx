@@ -42,6 +42,7 @@ export default function AvailableCoupons({ productId, productPrice }: AvailableC
           validFrom: { le: now },
           validUntil: { ge: now },
         },
+        authMode: 'iam',
       });
 
       if (errors) {

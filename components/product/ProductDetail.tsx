@@ -27,7 +27,7 @@ function ErrorState({ error }: { error: string }) {
     </div>
   );
 }
-
+  
 function DeliveryInfo() {
   return (
     <div className="mb-6 md:mb-8 p-4 md:p-6 bg-gray-50 rounded-lg border border-gray-200">

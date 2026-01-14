@@ -3,7 +3,6 @@ import type {
   ProductReview, 
   CreateReviewInput, 
   UpdateReviewInput, 
-  ReviewFilters, 
   ReviewStats
 } from '@/types';
 
@@ -203,9 +202,8 @@ export const updateReview = async (customerId: string, reviewData: UpdateReviewI
 
 /**
  * Get reviews for a product (only approved reviews for public view)
- * This method works for both authenticated and guest users
  */
-export const getProductReviews = async (productId: string, filters: ReviewFilters = {}): Promise<{
+export const getProductReviews = async (productId: string): Promise<{
   reviews: ProductReview[];
   stats: ReviewStats;
   errors?: string[];
@@ -220,7 +218,8 @@ export const getProductReviews = async (productId: string, filters: ReviewFilter
           { productId: { eq: productId } },
           { isApproved: { eq: true } }
         ]
-      }
+      },
+      authMode: 'iam'
     });
 
     if (reviewsResult.errors) {
@@ -231,32 +230,7 @@ export const getProductReviews = async (productId: string, filters: ReviewFilter
       };
     }
 
-    let reviews = reviewsResult.data || [];
-
-    // Apply rating filter
-    if (filters.rating) {
-      reviews = reviews.filter(review => review.rating === filters.rating);
-    }
-
-    // Sort reviews
-    switch (filters.sortBy) {
-      case 'oldest':
-        reviews.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        break;
-      case 'rating-high':
-        reviews.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'rating-low':
-        reviews.sort((a, b) => a.rating - b.rating);
-        break;
-      case 'helpful':
-        reviews.sort((a, b) => (b.helpfulCount || 0) - (a.helpfulCount || 0));
-        break;
-      case 'newest':
-      default:
-        reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        break;
-    }
+    const reviews = reviewsResult.data || [];
 
     // Calculate stats
     const stats = calculateReviewStats(reviews as unknown as ProductReview[]);
@@ -300,96 +274,6 @@ const calculateReviewStats = (reviews: ProductReview[]): ReviewStats => {
     totalReviews: reviews.length,
     ratingDistribution
   };
-};
-
-/**
- * Vote on review helpfulness
- */
-export const voteReviewHelpful = async (customerId: string, reviewId: string, isHelpful: boolean): Promise<{
-  success: boolean;
-  errors?: string[];
-}> => {
-  try {
-    const client = await cookiesClient;
-    
-    // Check if user already voted on this review
-    const existingVoteResult = await client.models.ReviewHelpfulVote.list({
-      filter: {
-        and: [
-          { reviewId: { eq: reviewId } },
-          { customerId: { eq: customerId } }
-        ]
-      }
-    });
-
-    if (existingVoteResult.errors) {
-      return { success: false, errors: existingVoteResult.errors.map(e => e.message) };
-    }
-
-    const existingVote = existingVoteResult.data?.[0];
-
-    if (existingVote) {
-      // Update existing vote
-      const updateResult = await client.models.ReviewHelpfulVote.update({
-        id: existingVote.id,
-        isHelpful
-      });
-
-      if (updateResult.errors) {
-        return { success: false, errors: updateResult.errors.map(e => e.message) };
-      }
-    } else {
-      // Create new vote
-      const createResult = await client.models.ReviewHelpfulVote.create({
-        reviewId,
-        customerId,
-        isHelpful
-      });
-
-      if (createResult.errors) {
-        return { success: false, errors: createResult.errors.map(e => e.message) };
-      }
-    }
-
-    // Update helpful count on the review
-    await updateReviewHelpfulCount(reviewId);
-
-    return { success: true };
-
-  } catch (error) {
-    console.error('Error voting on review:', error);
-    return { success: false, errors: [error instanceof Error ? error.message : 'Failed to vote on review'] };
-  }
-};
-
-/**
- * Update helpful count for a review
- */
-const updateReviewHelpfulCount = async (reviewId: string): Promise<void> => {
-  try {
-    const client = await cookiesClient;
-    
-    // Get all helpful votes for this review
-    const votesResult = await client.models.ReviewHelpfulVote.list({
-      filter: { reviewId: { eq: reviewId } }
-    });
-
-    if (votesResult.errors) {
-      throw new Error(votesResult.errors[0].message);
-    }
-
-    const votes = votesResult.data || [];
-    const helpfulCount = votes.filter(vote => vote.isHelpful).length;
-
-    // Update the review
-    await client.models.ProductReview.update({
-      id: reviewId,
-      helpfulCount
-    });
-
-  } catch (error) {
-    console.error('Error updating helpful count:', error);
-  }
 };
 
 /**
