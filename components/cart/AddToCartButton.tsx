@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { useCart } from '@/components/providers/cart-provider';
+import { useState, useTransition } from 'react';
 import { CartModal } from './CartModal';
+import { addToCart } from '@/app/actions/cart-actions';
 import type { Product } from '@/types';
 
 interface AddToCartButtonProps {
@@ -20,25 +20,28 @@ export function AddToCartButton({
   disabled = false,
   buttonText = 'Add to Cart'
 }: AddToCartButtonProps) {
-  const { addItem } = useCart();
-  const [isAdding, setIsAdding] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const handleAddToCart = async () => {
-    if (disabled || isAdding) return;
+    if (disabled || isPending) return;
 
-    setIsAdding(true);
-    try {
-      await addItem(product.id, quantity, product.price);
-      
-      // Show cart modal after adding item
-      setShowCartModal(true);
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-      // You could add toast notification here
-    } finally {
-      setIsAdding(false);
-    }
+    startTransition(async () => {
+      try {
+        const result = await addToCart(product.id, quantity, product.price);
+        
+        if (result.success) {
+          // Show cart modal after adding item
+          setShowCartModal(true);
+        } else {
+          console.error('Error adding to cart:', result.error);
+          // You could add toast notification here
+        }
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        // You could add toast notification here
+      }
+    });
   };
 
   const baseClasses = `
@@ -55,11 +58,11 @@ export function AddToCartButton({
     <>
       <button
         onClick={handleAddToCart}
-        disabled={disabled || isAdding}
+        disabled={disabled || isPending}
         className={buttonClasses}
         aria-label={`Add ${product.name} to cart`}
       >
-        {isAdding ? (
+        {isPending ? (
           <span className="flex items-center justify-center">
             <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

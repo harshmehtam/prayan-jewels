@@ -1,19 +1,12 @@
 import { useState, useCallback } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
 import { useRouter } from 'next/navigation';
-import {
-  handleSignUp,
-  handleConfirmSignUp,
-  handleSignIn,
-  handleResetPassword,
-  handleConfirmResetPassword,
-  handleResendCode,
-  formatPhoneForCognito,
-  type SignUpParams,
-  type SignInParams,
-  type ConfirmSignUpParams,
-  type ResetPasswordParams,
-  type ConfirmResetPasswordParams,
+import * as authActions from '@/app/actions/auth-actions';
+import type {
+  SignUpParams,
+  SignInParams,
+  ConfirmSignUpParams,
+  ResetPasswordParams,
+  ConfirmResetPasswordParams,
 } from '@/lib/services/auth-service';
 
 type AuthStep = 'login' | 'signup' | 'otp' | 'forgot-password' | 'reset-otp' | 'new-password';
@@ -31,7 +24,7 @@ interface UseAuthFlowReturn {
   
   // Auth operations
   signUp: (params: SignUpParams) => Promise<{ success: boolean; username?: string }>;
-  confirmSignUp: (params: ConfirmSignUpParams) => Promise<boolean>;
+  confirmSignUp: (params: ConfirmSignUpParams & { password: string }) => Promise<boolean>;
   signIn: (params: SignInParams) => Promise<boolean>;
   resetPassword: (params: ResetPasswordParams) => Promise<{ success: boolean; username?: string }>;
   confirmPasswordReset: (params: ConfirmResetPasswordParams) => Promise<boolean>;
@@ -53,22 +46,21 @@ export const useAuthFlow = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { refreshAuthState } = useAuth();
   const router = useRouter();
 
   const clearError = useCallback(() => setError(''), []);
 
   const handleSuccess = useCallback(async () => {
-    await refreshAuthState();
     onClose?.();
     router.push(isAdminLogin ? '/admin' : redirectTo);
-  }, [refreshAuthState, onClose, router, isAdminLogin, redirectTo]);
+    router.refresh(); // Refresh to get new auth state
+  }, [onClose, router, isAdminLogin, redirectTo]);
 
   const signUp = useCallback(async (params: SignUpParams) => {
     setIsLoading(true);
     setError('');
 
-    const result = await handleSignUp(params);
+    const result = await authActions.signUp(params);
     
     setIsLoading(false);
     
@@ -80,11 +72,14 @@ export const useAuthFlow = ({
     }
   }, []);
 
-  const confirmSignUp = useCallback(async (params: ConfirmSignUpParams) => {
+  const confirmSignUp = useCallback(async (params: ConfirmSignUpParams & { password: string }) => {
     setIsLoading(true);
     setError('');
 
-    const confirmResult = await handleConfirmSignUp(params);
+    const confirmResult = await authActions.confirmSignUp({
+      phoneNumber: params.phoneNumber,
+      code: params.code,
+    });
     
     if (!confirmResult.success) {
       setIsLoading(false);
@@ -93,9 +88,9 @@ export const useAuthFlow = ({
     }
 
     // Auto sign in after confirmation
-    const signInResult = await handleSignIn({
+    const signInResult = await authActions.signIn({
       phoneNumber: params.phoneNumber,
-      password: '', // Password should be passed from the signup form
+      password: params.password,
     });
 
     setIsLoading(false);
@@ -104,7 +99,8 @@ export const useAuthFlow = ({
       await handleSuccess();
       return true;
     } else {
-      setError(signInResult.error || 'Auto sign-in failed. Please log in manually.');
+      setError('Account verified! Please log in manually.');
+      setStep('login');
       return false;
     }
   }, [handleSuccess]);
@@ -113,7 +109,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await handleSignIn(params);
+    const result = await authActions.signIn(params);
     
     setIsLoading(false);
 
@@ -130,7 +126,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await handleResetPassword(params);
+    const result = await authActions.resetPassword(params);
     
     setIsLoading(false);
 
@@ -146,7 +142,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const confirmResult = await handleConfirmResetPassword(params);
+    const confirmResult = await authActions.confirmResetPassword(params);
     
     if (!confirmResult.success) {
       setIsLoading(false);
@@ -155,7 +151,7 @@ export const useAuthFlow = ({
     }
 
     // Auto sign in after password reset
-    const signInResult = await handleSignIn({
+    const signInResult = await authActions.signIn({
       phoneNumber: params.phoneNumber,
       password: params.newPassword,
     });
@@ -166,7 +162,8 @@ export const useAuthFlow = ({
       await handleSuccess();
       return true;
     } else {
-      setError(signInResult.error || 'Auto sign-in failed. Please log in manually.');
+      setError('Password reset successful! Please log in.');
+      setStep('login');
       return false;
     }
   }, [handleSuccess]);
@@ -175,7 +172,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await handleResendCode(phoneNumber);
+    const result = await authActions.resendCode(phoneNumber);
     
     setIsLoading(false);
 

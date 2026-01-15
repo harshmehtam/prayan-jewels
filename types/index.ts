@@ -1,6 +1,3 @@
-// Core TypeScript interfaces for Silver Mangalsutra Ecommerce Platform
-// These interfaces align with the GraphQL schema and provide type safety
-
 export interface Product {
   id: string;
   name: string;
@@ -18,25 +15,6 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
 }
-
-// COMMENTED OUT - InventoryItem interface - Not needed for now
-/*
-export interface InventoryItem {
-  id: string;
-  productId: string;
-  stockQuantity: number;
-  reservedQuantity: number;
-  availableQuantity: number; // computed: stock - reserved
-  reorderPoint: number;
-  supplierName?: string;
-  supplierContact?: string;
-  leadTime?: number; // in days
-  lastRestocked?: string;
-  product?: Product;
-  createdAt: string;
-  updatedAt: string;
-}
-*/
 
 export interface Address {
   id: string;
@@ -148,12 +126,6 @@ export interface CreateProductInput {
   actualPrice?: number; // Original/MRP price (optional)
   images: string[]; // Local image paths
   isActive?: boolean;
-  // COMMENTED OUT - Additional fields for inventory setup - Not needed for now
-  // initialStock?: number;
-  // reorderPoint?: number;
-  // supplierName?: string;
-  // supplierContact?: string;
-  // leadTime?: number;
 }
 
 export interface UpdateProductInput extends Partial<Omit<CreateProductInput, 'initialStock' | 'reorderPoint' | 'supplierName' | 'supplierContact' | 'leadTime'>> {
@@ -227,20 +199,8 @@ export interface SavedSearch {
 export interface AdminDashboardStats {
   totalOrders: number;
   totalRevenue: number;
-  // lowStockItems: number; // COMMENTED OUT - Not needed for now
   pendingOrders: number;
 }
-
-// COMMENTED OUT - InventoryAlert interface - Not needed for now
-/*
-export interface InventoryAlert {
-  productId: string;
-  productName: string;
-  currentStock: number;
-  reorderPoint: number;
-  alertType: 'low_stock' | 'out_of_stock';
-}
-*/
 
 // Wishlist types
 export interface WishlistItem {

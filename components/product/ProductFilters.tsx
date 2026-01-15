@@ -139,7 +139,7 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
               />
               <span className="ml-2 text-sm text-gray-700">All Products</span>
             </label>
-            <label className="flex items-center">
+            {/* <label className="flex items-center">
               <input
                 type="radio"
                 name="availability"
@@ -148,7 +148,7 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
               />
               <span className="ml-2 text-sm text-gray-700">In Stock Only</span>
-            </label>
+            </label> */}
           </div>
         </div>
 
@@ -175,7 +175,7 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
                   </button>
                 </span>
               )}
-              {filters.inStock && (
+              {/* {filters.inStock && (
                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                   In Stock
                   <button
@@ -185,7 +185,7 @@ export default function ProductFilters({ filters, onFilterChange }: ProductFilte
                     ×
                   </button>
                 </span>
-              )}
+              )} */}
             </div>
           </div>
         )}

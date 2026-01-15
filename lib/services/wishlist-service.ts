@@ -9,436 +9,232 @@ export interface WishlistItem {
   addedAt: string;
 }
 
-const GUEST_WISHLIST_KEY = 'guest_wishlist';
-const CACHE_DURATION = 30000; // 30 seconds
+// Generate a unique session ID for guest users
+export function generateSessionId(): string {
+  return `guest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+}
 
-// Cache for wishlist status to avoid repeated API calls
-const wishlistCache = new Map<string, { status: boolean; timestamp: number }>();
-
-// Get wishlist for authenticated user
-export const getAuthenticatedWishlistLightweight = async (customerId: string): Promise<{ productId: string; id: string; addedAt: string }[]> => {
+// Get or create wishlist for a session
+export async function getOrCreateWishlist(sessionId: string) {
   try {
     const client = await cookiesClient;
-    const wishlistResult = await client.models.Wishlist.list({
-      filter: { customerId: { eq: customerId } }
+    
+    // Try to find existing wishlist
+    const wishlistResponse = await client.models.Wishlist.list({
+      filter: { customerId: { eq: sessionId } },
+      authMode: 'iam'
     });
 
-    if (!wishlistResult.data || wishlistResult.data.length === 0) return [];
-
-    // Return lightweight wishlist items
-    return wishlistResult.data.map(item => ({
-      id: item.id,
-      productId: item.productId,
-      addedAt: item.createdAt
-    }));
+    return wishlistResponse.data || [];
   } catch (error) {
-    console.error('Error fetching authenticated wishlist (lightweight):', error);
+    console.error('Error getting wishlist:', error);
     return [];
   }
-};
+}
 
-// Get wishlist for authenticated
-export const getAuthenticatedWishlist = async (customerId: string): Promise<WishlistItem[]> => {
+// Get wishlist items with product details
+export async function getWishlistItems(sessionId: string): Promise<WishlistItem[]> {
   try {
+    const wishlistItems = await getOrCreateWishlist(sessionId);
+    
+    if (wishlistItems.length === 0) return [];
+
     const client = await cookiesClient;
-    // First, get the wishlist items
-    const wishlistResult = await client.models.Wishlist.list({
-      filter: { customerId: { eq: customerId } }
-    });
+    const enrichedItems: WishlistItem[] = [];
 
-    if (!wishlistResult.data || wishlistResult.data.length === 0) return [];
+    // Get product details for each item
+    for (const item of wishlistItems) {
+      const productResponse = await client.models.Product.get(
+        { id: item.productId },
+        { authMode: 'iam' }
+      );
 
-    // Extract unique product IDs
-    const productIds = [...new Set(wishlistResult.data.map(item => item.productId))];
-
-    // Batch fetch all products in one query using filter
-    const productsResult = await client.models.Product.list({
-      filter: {
-        or: productIds.map(id => ({ id: { eq: id } }))
-      }
-    });
-
-    // Create a map of products for quick lookup
-    const productsMap = new Map();
-    if (productsResult.data) {
-      productsResult.data.forEach(product => {
-        productsMap.set(product.id, product);
-      });
-    }
-
-    // Transform to our interface using the products map
-    const wishlistItems: WishlistItem[] = [];
-    for (const item of wishlistResult.data) {
-      const product = productsMap.get(item.productId);
-      if (product) {
-        wishlistItems.push({
+      if (productResponse.data) {
+        enrichedItems.push({
           id: item.id,
           productId: item.productId,
-          productName: product.name,
-          productPrice: product.price,
-          productImage: product.images?.[0] || '',
+          productName: productResponse.data.name,
+          productPrice: productResponse.data.price,
+          productImage: productResponse.data.images?.[0] || '',
           addedAt: item.createdAt
         });
       }
     }
 
-    return wishlistItems;
+    return enrichedItems;
   } catch (error) {
-    console.error('Error fetching authenticated wishlist:', error);
+    console.error('Error loading wishlist items:', error);
     return [];
   }
-};
+}
 
-// Get wishlist for guest user from localStorage
-export const getGuestWishlist = (): WishlistItem[] => {
-  try {
-    const stored = localStorage.getItem(GUEST_WISHLIST_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch (error) {
-    console.error('Error reading guest wishlist:', error);
-    return [];
-  }
-};
-
-// Add item to authenticated user's wishlist
-export const addToAuthenticatedWishlistDirect = async (customerId: string, productId: string): Promise<boolean> => {
+// Add item to wishlist
+export async function addToWishlist(
+  sessionId: string,
+  productId: string,
+  productName: string,
+  productPrice: number,
+  productImage: string
+) {
   try {
     const client = await cookiesClient;
-    const result = await client.models.Wishlist.create({
-      customerId,
-      productId
-    });
 
-    // Clear cache for this user
-    clearCache(customerId);
-
-    return !!result.data;
-  } catch (error) {
-    console.error('Error adding to authenticated wishlist:', error);
-    return false;
-  }
-};
-
-// Add item to authenticated user's wishlist
-export const addToAuthenticatedWishlist = async (customerId: string, productId: string): Promise<boolean> => {
-  try {
-    const client = await cookiesClient;
     // Check if already exists
-    const existing = await client.models.Wishlist.list({
-      filter: { 
-        customerId: { eq: customerId },
-        productId: { eq: productId }
-      }
+    const existingItems = await client.models.Wishlist.list({
+      filter: {
+        and: [
+          { customerId: { eq: sessionId } },
+          { productId: { eq: productId } }
+        ]
+      },
+      authMode: 'iam'
     });
 
-    if (existing.data && existing.data.length > 0) {
-      return false;
+    if (existingItems.data && existingItems.data.length > 0) {
+      return { success: false, error: 'Item already in wishlist' };
     }
 
     // Add to wishlist
-    const result = await client.models.Wishlist.create({
-      customerId,
+    await client.models.Wishlist.create({
+      customerId: sessionId,
       productId
+    }, {
+      authMode: 'iam'
     });
 
-    // Clear cache for this user
-    clearCache(customerId);
-
-    return !!result.data;
+    return { success: true };
   } catch (error) {
-    console.error('Error adding to authenticated wishlist:', error);
-    return false;
-  }
-};
-
-// Add item to guest wishlist (localStorage)
-export const addToGuestWishlist = (item: Omit<WishlistItem, 'id' | 'addedAt'>): boolean => {
-  try {
-    const wishlist = getGuestWishlist();
-    
-    // Check if already exists
-    if (wishlist.some(w => w.productId === item.productId)) {
-      return false; // Already in wishlist
-    }
-
-    // Add new item
-    const newItem: WishlistItem = {
-      ...item,
-      id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      addedAt: new Date().toISOString()
+    console.error('Error adding to wishlist:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to add to wishlist'
     };
-
-    wishlist.push(newItem);
-    localStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(wishlist));
-    
-    // Clear guest cache
-    clearCache();
-    
-    return true;
-  } catch (error) {
-    console.error('Error adding to guest wishlist:', error);
-    return false;
   }
-};
+}
 
-// Remove item from authenticated user's wishlist
-export const removeFromAuthenticatedWishlistDirect = async (wishlistItemId: string): Promise<boolean> => {
+// Remove item from wishlist
+export async function removeFromWishlist(sessionId: string, productId: string) {
   try {
     const client = await cookiesClient;
-    const result = await client.models.Wishlist.delete({
-      id: wishlistItemId
+
+    // Find the item
+    const existingItems = await client.models.Wishlist.list({
+      filter: {
+        and: [
+          { customerId: { eq: sessionId } },
+          { productId: { eq: productId } }
+        ]
+      },
+      authMode: 'iam'
     });
 
-    return !!result.data;
-  } catch (error) {
-    console.error('Error removing from authenticated wishlist:', error);
-    return false;
-  }
-};
+    if (!existingItems.data || existingItems.data.length === 0) {
+      return { success: false, error: 'Item not found in wishlist' };
+    }
 
-// Remove item from authenticated user's wishlist (with lookup - for backward compatibility)
-export const removeFromAuthenticatedWishlist = async (customerId: string, productId: string): Promise<boolean> => {
+    // Delete the item
+    await client.models.Wishlist.delete(
+      { id: existingItems.data[0].id },
+      { authMode: 'iam' }
+    );
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing from wishlist:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to remove from wishlist'
+    };
+  }
+}
+
+// Check if item is in wishlist
+export async function isInWishlist(sessionId: string, productId: string): Promise<boolean> {
   try {
     const client = await cookiesClient;
-    const existing = await client.models.Wishlist.list({
-      filter: { 
-        customerId: { eq: customerId },
-        productId: { eq: productId }
-      }
+    
+    const result = await client.models.Wishlist.list({
+      filter: {
+        and: [
+          { customerId: { eq: sessionId } },
+          { productId: { eq: productId } }
+        ]
+      },
+      authMode: 'iam'
     });
 
-    if (!existing.data || existing.data.length === 0) {
-      return false; // Not in wishlist
-    }
-
-    // Remove from wishlist
-    const result = await client.models.Wishlist.delete({
-      id: existing.data[0].id
-    });
-
-    // Clear cache for this user
-    clearCache(customerId);
-
-    return !!result.data;
+    return !!(result.data && result.data.length > 0);
   } catch (error) {
-    console.error('Error removing from authenticated wishlist:', error);
+    console.error('Error checking wishlist:', error);
     return false;
   }
-};
+}
 
-// Remove item from guest wishlist
-export const removeFromGuestWishlist = (productId: string): boolean => {
-  try {
-    const wishlist = getGuestWishlist();
-    const filtered = wishlist.filter(item => item.productId !== productId);
-    
-    if (filtered.length === wishlist.length) {
-      return false; // Item not found
-    }
-
-    localStorage.setItem(GUEST_WISHLIST_KEY, JSON.stringify(filtered));
-    
-    // Clear guest cache
-    clearCache();
-    
-    return true;
-  } catch (error) {
-    console.error('Error removing from guest wishlist:', error);
-    return false;
-  }
-};
-
-// Check if item is in wishlist (works for both authenticated and guest)
-export const isInWishlist = async (productId: string, customerId?: string): Promise<boolean> => {
-  const cacheKey = `${customerId || 'guest'}_${productId}`;
-  const cached = wishlistCache.get(cacheKey);
-  
-  // Return cached result if still valid
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.status;
-  }
-
-  let isInWishlistResult = false;
-
-  if (customerId) {
-    // Check authenticated wishlist
-    try {
-      const client = await cookiesClient;
-      const result = await client.models.Wishlist.list({
-        filter: { 
-          customerId: { eq: customerId },
-          productId: { eq: productId }
-        }
-      });
-      isInWishlistResult = !!(result.data && result.data.length > 0);
-    } catch (error) {
-      console.error('Error checking authenticated wishlist:', error);
-      isInWishlistResult = false;
-    }
-  } else {
-    // Check guest wishlist
-    const guestWishlist = getGuestWishlist();
-    isInWishlistResult = guestWishlist.some(item => item.productId === productId);
-  }
-
-  // Cache the result
-  wishlistCache.set(cacheKey, { status: isInWishlistResult, timestamp: Date.now() });
-  return isInWishlistResult;
-};
-
-// Batch check multiple products at once (for authenticated users)
-export const batchCheckWishlist = async (productIds: string[], customerId?: string): Promise<Record<string, boolean>> => {
+// Batch check multiple products
+export async function batchCheckWishlist(sessionId: string, productIds: string[]): Promise<Record<string, boolean>> {
   const result: Record<string, boolean> = {};
 
-  if (!customerId) {
-    // For guest users, check localStorage
-    const guestWishlist = getGuestWishlist();
-    const guestProductIds = new Set(guestWishlist.map(item => item.productId));
-    
-    productIds.forEach(productId => {
-      result[productId] = guestProductIds.has(productId);
-      // Cache the results
-      const cacheKey = `guest_${productId}`;
-      wishlistCache.set(cacheKey, { status: result[productId], timestamp: Date.now() });
-    });
-    
-    return result;
-  }
-
   try {
     const client = await cookiesClient;
-    // Single API call to get all wishlist items for the user
+    
+    // Get all wishlist items for this session
     const wishlistResult = await client.models.Wishlist.list({
-      filter: { customerId: { eq: customerId } }
+      filter: { customerId: { eq: sessionId } },
+      authMode: 'iam'
     });
 
     const wishlistProductIds = new Set(
       wishlistResult.data?.map(item => item.productId) || []
     );
 
-    // Check each product and cache results
+    // Check each product
     productIds.forEach(productId => {
-      const isInWishlistStatus = wishlistProductIds.has(productId);
-      result[productId] = isInWishlistStatus;
-      
-      // Cache the result
-      const cacheKey = `${customerId}_${productId}`;
-      wishlistCache.set(cacheKey, { status: isInWishlistStatus, timestamp: Date.now() });
+      result[productId] = wishlistProductIds.has(productId);
     });
 
     return result;
   } catch (error) {
     console.error('Error batch checking wishlist:', error);
-    // Return false for all products on error
     productIds.forEach(productId => {
       result[productId] = false;
     });
     return result;
   }
-};
+}
 
-// Clear cache when wishlist is modified
-export const clearCache = (customerId?: string): void => {
-  if (customerId) {
-    // Clear cache for specific user
-    for (const [key] of wishlistCache) {
-      if (key.startsWith(`${customerId}_`)) {
-        wishlistCache.delete(key);
-      }
-    }
-  } else {
-    // Clear guest cache
-    for (const [key] of wishlistCache) {
-      if (key.startsWith('guest_')) {
-        wishlistCache.delete(key);
-      }
-    }
-  }
-};
-
-// Migrate guest wishlist to authenticated user (called after login)
-export const migrateGuestWishlist = async (customerId: string): Promise<{ migrated: number; failed: number }> => {
-  const guestWishlist = getGuestWishlist();
-  
+// Get wishlist count
+export async function getWishlistCount(sessionId: string): Promise<number> {
   try {
-    if (guestWishlist.length === 0) {
-      return { migrated: 0, failed: 0 };
-    }
-
-    let migrated = 0;
-    let failed = 0;
-
-    // Add each guest item to authenticated wishlist
-    for (const item of guestWishlist) {
-      const success = await addToAuthenticatedWishlist(customerId, item.productId);
-      if (success) {
-        migrated++;
-      } else {
-        failed++;
-      }
-    }
-
-    // Clear guest wishlist after migration
-    localStorage.removeItem(GUEST_WISHLIST_KEY);
-
-    return { migrated, failed };
+    const items = await getOrCreateWishlist(sessionId);
+    return items.length;
   } catch (error) {
-    console.error('Error migrating guest wishlist:', error);
-    return { migrated: 0, failed: guestWishlist.length };
+    console.error('Error getting wishlist count:', error);
+    return 0;
   }
-};
+}
 
-// Get wishlist count (for header badge)
-export const getWishlistCount = async (customerId?: string): Promise<number> => {
-  if (customerId) {
-    try {
-      const client = await cookiesClient;
-      const result = await client.models.Wishlist.list({
-        filter: { customerId: { eq: customerId } }
-      });
-      return result.data?.length || 0;
-    } catch (error) {
-      console.error('Error getting authenticated wishlist count:', error);
-      return 0;
-    }
-  } else {
-    const guestWishlist = getGuestWishlist();
-    return guestWishlist.length;
-  }
-};
-
-// Clear all wishlist items (for authenticated users)
-export const clearAuthenticatedWishlist = async (customerId: string): Promise<boolean> => {
+// Clear all wishlist items
+export async function clearWishlist(sessionId: string) {
   try {
     const client = await cookiesClient;
-    const result = await client.models.Wishlist.list({
-      filter: { customerId: { eq: customerId } }
-    });
 
-    if (!result.data || result.data.length === 0) {
-      return true; // Already empty
-    }
+    // Get all items
+    const items = await getOrCreateWishlist(sessionId);
 
     // Delete all items
-    const deletePromises = result.data.map(item => 
-      client.models.Wishlist.delete({ id: item.id })
-    );
+    for (const item of items) {
+      await client.models.Wishlist.delete(
+        { id: item.id },
+        { authMode: 'iam' }
+      );
+    }
 
-    await Promise.all(deletePromises);
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error('Error clearing authenticated wishlist:', error);
-    return false;
+    console.error('Error clearing wishlist:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to clear wishlist'
+    };
   }
-};
-
-// Clear guest wishlist
-export const clearGuestWishlist = (): boolean => {
-  try {
-    localStorage.removeItem(GUEST_WISHLIST_KEY);
-    return true;
-  } catch (error) {
-    console.error('Error clearing guest wishlist:', error);
-    return false;
-  }
-};
+}

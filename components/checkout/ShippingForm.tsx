@@ -1,5 +1,3 @@
-'use client';
-
 import { AddressForm } from './AddressForm';
 import type { Address } from '@/types';
 import type { SavedAddress } from '@/lib/services/address-service';

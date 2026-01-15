@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
-import { addressService, type SavedAddress, type AddressInput } from '@/lib/services/address-service';
+import * as addressActions from '@/app/actions/address-actions';
+import type { SavedAddress, AddressInput } from '@/lib/services/address-service';
 import { useRouter } from 'next/navigation';
 import { AddressForm } from '@/components/checkout/AddressForm';
 import type { Address } from '@/types';
@@ -32,7 +33,7 @@ export default function AddressesPage() {
 
     setIsLoading(true);
     try {
-      const userAddresses = await addressService.getUserAddresses(user.userId);
+      const userAddresses = await addressActions.getUserAddresses(user.userId);
       setAddresses(userAddresses);
     } catch (error) {
       console.error('Error loading addresses:', error);
@@ -47,7 +48,7 @@ export default function AddressesPage() {
     }
 
     try {
-      const success = await addressService.deleteAddress(addressId);
+      const success = await addressActions.deleteAddress(addressId);
       if (success) {
         await loadAddresses();
       }
@@ -60,7 +61,7 @@ export default function AddressesPage() {
     if (!user?.userId) return;
 
     try {
-      const success = await addressService.setDefaultAddress(user.userId, addressId, type);
+      const success = await addressActions.setDefaultAddress(user.userId, addressId, type);
       if (success) {
         await loadAddresses();
       }
@@ -92,7 +93,7 @@ export default function AddressesPage() {
         isDefault: addressData.isDefault || undefined,
       };
 
-      const success = await addressService.updateAddress(editingAddress.id, updateData);
+      const success = await addressActions.updateAddress(editingAddress.id, updateData);
       if (success) {
         await loadAddresses();
         setEditingAddress(null);
@@ -128,7 +129,7 @@ export default function AddressesPage() {
         isDefault: addressData.isDefault || false,
       };
 
-      const success = await addressService.saveAddress(user.userId, addressInput);
+      const success = await addressActions.saveAddress(user.userId, addressInput);
       if (success) {
         await loadAddresses();
         setAddingAddressType(null);

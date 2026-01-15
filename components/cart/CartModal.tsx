@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/components/providers/cart-provider';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
 import type { CartItem } from '@/types';
+import {
+  getCart,
+  updateCartQuantity,
+  removeFromCart
+} from '@/app/actions/cart-actions';
+import type { CartWithItems } from '@/lib/services/cart-service';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -13,7 +18,7 @@ interface CartModalProps {
 }
 
 // Cart Item Component
-function CartItem({
+function CartItemComponent({
   item,
   isUpdating,
   onUpdateQuantity,
@@ -50,11 +55,11 @@ function CartItem({
         <div className="flex justify-between items-start mb-2">
           <div>
             <h3 className="font-medium text-gray-900">
-              {item.product?.name || `Product ID: ${item.productId}`}
+              {item.product?.name}
             </h3>
-            <div className="flex items-center mt-1">
+            {/* <div className="flex items-center mt-1">
               <span className="text-sm text-green-600 font-medium">In Stock</span>
-            </div>
+            </div> */}
           </div>
           <button
             onClick={onRemove}
@@ -209,8 +214,25 @@ function CartSummary({
 // Main Cart Modal Component
 export function CartModal({ isOpen, onClose }: CartModalProps) {
   const router = useRouter();
-  const { cart, items, isLoading, itemCount, updateQuantity, removeItem } = useCart();
+  const [cart, setCart] = useState<CartWithItems | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+
+  // Load cart data
+  const loadCart = async () => {
+    setIsLoading(true);
+    const cartData = await getCart();
+    setCart(cartData);
+    setIsLoading(false);
+  };
+
+  // Load cart when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadCart();
+    }
+  }, [isOpen]);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -243,42 +265,57 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   }, [isOpen]);
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      await handleRemoveItem(itemId);
-      return;
-    }
-
     if (updatingItems.has(itemId)) return;
 
-    try {
-      setUpdatingItems(prev => new Set(prev).add(itemId));
-      await updateQuantity(itemId, newQuantity);
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
+    setUpdatingItems(prev => new Set(prev).add(itemId));
+
+    startTransition(async () => {
+      try {
+        const result = await updateCartQuantity(itemId, newQuantity);
+
+        if (result.success) {
+          // Reload cart data
+          await loadCart();
+        } else {
+          console.error('Error updating quantity:', result.error);
+        }
+      } catch (error) {
+        console.error('Error updating quantity:', error);
+      } finally {
+        setUpdatingItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+      }
+    });
   };
 
   const handleRemoveItem = async (itemId: string) => {
-    if (updatingItems.has(itemId)) {
-      return;
-    }
+    if (updatingItems.has(itemId)) return;
 
-    try {
-      setUpdatingItems(prev => new Set(prev).add(itemId));
-      await removeItem(itemId);
-    } finally {
-      setUpdatingItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
-    }
+    setUpdatingItems(prev => new Set(prev).add(itemId));
+
+    startTransition(async () => {
+      try {
+        const result = await removeFromCart(itemId);
+
+        if (result.success) {
+          // Reload cart data
+          await loadCart();
+        } else {
+          console.error('Error removing item:', result.error);
+        }
+      } catch (error) {
+        console.error('Error removing item:', error);
+      } finally {
+        setUpdatingItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+      }
+    });
   };
 
   const handleContinueToCheckout = () => {
@@ -286,6 +323,8 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     router.push('/checkout');
   };
 
+  const items = cart?.items || [];
+  const itemCount = items.reduce((total: number, item: CartItem) => total + item.quantity, 0);
   const subtotal = cart?.subtotal || 0;
   const estimatedTax = cart?.estimatedTax || 0;
   const estimatedTotal = cart?.estimatedTotal || 0;
@@ -343,10 +382,10 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
             {!isLoading && items.length > 0 && (
               <div className="p-6 space-y-6">
                 {items.map((item) => (
-                  <CartItem
+                  <CartItemComponent
                     key={item.id}
                     item={item}
-                    isUpdating={updatingItems.has(item.id)}
+                    isUpdating={updatingItems.has(item.id) || isPending}
                     onUpdateQuantity={(qty) => handleUpdateQuantity(item.id, qty)}
                     onRemove={() => handleRemoveItem(item.id)}
                   />
@@ -367,7 +406,8 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               <div className="px-6 pb-6">
                 <button
                   onClick={handleContinueToCheckout}
-                  className="w-full bg-black text-white py-4 text-sm font-medium uppercase tracking-wider hover:bg-gray-800 transition-colors flex items-center justify-center"
+                  disabled={isPending}
+                  className="w-full bg-black text-white py-4 text-sm font-medium uppercase tracking-wider hover:bg-gray-800 transition-colors flex items-center justify-center disabled:opacity-50"
                 >
                   CONTINUE TO CHECKOUT
                   <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
-import { useCart } from '@/components/providers/cart-provider';
-import { useWishlist } from '@/components/providers/wishlist-provider';
+import { addToCart } from '@/app/actions/cart-actions';
+import { addToWishlist, removeFromWishlist, isInWishlist } from '@/app/actions/wishlist-actions';
 import { formatPrice as formatPriceUtil } from '@/lib/utils/price-utils';
 import type { Product } from '@/types';
 
@@ -18,17 +18,17 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addToCartSuccess, setAddToCartSuccess] = useState(false);
-  const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isInWishlistState, setIsInWishlistState] = useState(false);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
-  const { addItem } = useCart();
-  const { toggleWishlist, wishlistStatus } = useWishlist();
 
-  // Use cached wishlist status from the hook
+  // Check wishlist status on mount
   useEffect(() => {
-    setIsInWishlist(wishlistStatus[product.id] || false);
-  }, [product.id, wishlistStatus]);
-
-  // Removed badge and out-of-stock functionality
+    const checkWishlistStatus = async () => {
+      const inWishlist = await isInWishlist(product.id);
+      setIsInWishlistState(inWishlist);
+    };
+    checkWishlistStatus();
+  }, [product.id]);
 
   // Handle image scroll for mobile
   const handleImageScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -57,20 +57,24 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
     setCurrentImageIndex(0);
   };
 
-  // Add to cart functionality
+  // Add to cart functionality using server action
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsAddingToCart(true);
     setAddToCartSuccess(false);
+    setIsAddingToCart(true);
     
     try {
-      await addItem(product.id, 1, product.price);
-      setAddToCartSuccess(true);
-      // Reset success state after 2 seconds
-      setTimeout(() => {
-        setAddToCartSuccess(false);
-      }, 2000);
+      const result = await addToCart(product.id, 1, product.price);
+      
+      if (result.success) {
+        setAddToCartSuccess(true);
+        setTimeout(() => {
+          setAddToCartSuccess(false);
+        }, 2000);
+      } else {
+        console.error('Failed to add to cart:', result.error);
+      }
     } catch (error) {
       console.error('Failed to add to cart:', error);
     } finally {
@@ -85,15 +89,24 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
     setIsTogglingWishlist(true);
     
     try {
-      // Pass product details to avoid unnecessary API calls
-      const productDetails = {
-        name: product.name,
-        price: product.price,
-        image: product.images[0] || ''
-      };
-      
-      const result = await toggleWishlist(product.id, productDetails);
-      setIsInWishlist(result.isInWishlist);
+      if (isInWishlistState) {
+        const result = await removeFromWishlist(product.id);
+        if (result.success) {
+          setIsInWishlistState(false);
+        }
+      } else {
+        const result = await addToWishlist(
+          product.id,
+          product.name,
+          product.price,
+          product.images[0] || ''
+        );
+        if (result.success) {
+          setIsInWishlistState(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
     } finally {
       setIsTogglingWishlist(false);
     }
@@ -177,7 +190,7 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
             onClick={handleWishlistToggle}
             disabled={isTogglingWishlist}
             className="absolute top-3 right-3 z-20 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:shadow-xl transition-all duration-300 group disabled:opacity-50"
-            aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+            aria-label={isInWishlistState ? "Remove from wishlist" : "Add to wishlist"}
           >
             {isTogglingWishlist ? (
               <svg className="w-4 h-4 animate-spin text-gray-600" fill="none" viewBox="0 0 24 24">
@@ -187,11 +200,11 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
             ) : (
               <svg 
                 className={`w-4 h-4 transition-all duration-300 group-hover:scale-110 ${
-                  isInWishlist 
+                  isInWishlistState 
                     ? 'text-red-500 fill-red-500' 
                     : 'text-gray-600 hover:text-rose-500'
                 }`}
-                fill={isInWishlist ? "currentColor" : "none"}
+                fill={isInWishlistState ? "currentColor" : "none"}
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
                 strokeWidth={1.5}
@@ -211,13 +224,6 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
               {Math.round(((Number(product.actualPrice) - Number(product.price)) / Number(product.actualPrice)) * 100)}% OFF
             </div>
           )}
-
-          {/* Guest User Wishlist Prompt - Show only for non-authenticated users */}
-          {/* {!isAuthenticated && isInWishlist && (
-            <div className="absolute top-16 right-3 z-30 bg-blue-600 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap">
-              Sign in to save across devices
-            </div>
-          )} */}
 
           {/* Add to Cart Icon - Always visible */}
           <button

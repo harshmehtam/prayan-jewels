@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/components/providers/cart-provider';
+import { getCart } from '@/app/actions/cart-actions';
+import { getProductsByIds } from '@/app/actions/product-actions';
 import { CheckoutSteps } from '@/components/checkout/CheckoutSteps';
 import { ShippingForm } from '@/components/checkout/ShippingForm';
 import { BillingForm } from '@/components/checkout/BillingForm';
@@ -10,16 +11,17 @@ import { OrderReview } from '@/components/checkout/OrderReview';
 import CheckoutHeader from '@/components/layout/CheckoutHeader';
 import PageLoading from '@/components/ui/PageLoading';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
-import { ProductService } from '@/lib/services/product-service';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
-import type { Address, Product } from '@/types';
+import type { Address, Product, ShoppingCart, CartItem } from '@/types';
 import type { SavedAddress } from '@/lib/services/address-service';
 
 export type CheckoutStep = 'shipping' | 'billing' | 'review';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, items, isLoading: cartLoading, itemCount } = useCart();
+  const [cart, setCart] = useState<ShoppingCart | null>(null);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping');
   const [shippingAddress, setShippingAddress] = useState<Partial<Address> | null>(null);
@@ -28,7 +30,6 @@ export default function CheckoutPage() {
   const [editingShippingAddress, setEditingShippingAddress] = useState<SavedAddress | null>(null);
   const [editingBillingAddress, setEditingBillingAddress] = useState<SavedAddress | null>(null);
   const [products, setProducts] = useState<Map<string, Product>>(new Map());
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [appliedCoupon, setAppliedCoupon] = useState<{
     id: string;
     code: string;
@@ -44,6 +45,26 @@ export default function CheckoutPage() {
     paymentMethod?: string;
   } | null>(null);
 
+  // Load cart data
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        setIsLoading(true);
+        const cartData = await getCart();
+        if (cartData) {
+          setCart(cartData);
+          setItems(cartData.items || []);
+        }
+      } catch (error) {
+        console.error('Error loading cart:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCart();
+  }, []);
+
   // Update final total when cart or coupon changes
   useEffect(() => {
     if (cart) {
@@ -56,13 +77,12 @@ export default function CheckoutPage() {
   useEffect(() => {
     const loadProducts = async () => {
       if (!items.length) {
-        setIsLoadingProducts(false);
         return;
       }
 
       try {
         const productIds = [...new Set(items.map(item => item.productId))];
-        const productList = await ProductService.getProductsByIds(productIds);
+        const productList = await getProductsByIds(productIds);
         
         const productMap = new Map<string, Product>();
         productList.forEach(product => {
@@ -72,8 +92,6 @@ export default function CheckoutPage() {
         setProducts(productMap);
       } catch (error) {
         console.error('Error loading products:', error);
-      } finally {
-        setIsLoadingProducts(false);
       }
     };
 
@@ -93,12 +111,12 @@ export default function CheckoutPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentStep, shippingAddress]);
 
-  if (cartLoading) {
+  if (isLoading) {
     return <PageLoading />;
   }
 
   // Show order result when cart is empty (after order attempt)
-  if ((!cart || itemCount === 0) && orderResult) {
+  if ((!cart || items.length === 0) && orderResult) {
     if (orderResult.success) {
       // Success Screen
       return (
@@ -326,7 +344,7 @@ export default function CheckoutPage() {
   }
 
   // Show empty cart message if no order result
-  if (!cart || itemCount === 0) {
+  if (!cart || items.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
         <CheckoutHeader />
@@ -421,7 +439,7 @@ export default function CheckoutPage() {
     });
   };
 
-  if (cartLoading || isLoadingProducts) {
+  if (isLoading) {
     return <PageLoading />;
   }
 
@@ -435,7 +453,7 @@ export default function CheckoutPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
           <p className="mt-2 text-gray-600">
-            Complete your purchase of {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            Complete your purchase of {items.length} {items.length === 1 ? 'item' : 'items'}
           </p>
           {/* <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center">

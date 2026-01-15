@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Tag, X, Check } from 'lucide-react';
-import { CouponService, CouponValidationResult } from '@/lib/services/coupon-service';
+import * as couponActions from '@/app/actions/coupon-actions';
+import type { CouponValidationResult } from '@/lib/services/coupon-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface CouponSectionProps {
@@ -50,7 +51,7 @@ export default function CouponSection({
     setValidationError('');
 
     try {
-      const result: CouponValidationResult = await CouponService.validateAndApplyCoupon({
+      const result: CouponValidationResult = await couponActions.validateAndApplyCoupon({
         code: couponCode.trim().toUpperCase(),
         userId,
         subtotal,
@@ -85,7 +86,7 @@ export default function CouponSection({
 
   const loadAvailableCoupons = async () => {
     try {
-      const coupons = await CouponService.getAvailableCoupons(userId);
+      const coupons = await couponActions.getAvailableCoupons(userId);
       setAvailableCoupons(coupons);
       setShowAvailableCoupons(true);
     } catch (error) {
@@ -198,39 +199,36 @@ export default function CouponSection({
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Available Coupons:</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {availableCoupons.map((coupon) => {
-                const formatted = CouponService.formatCouponForDisplay(coupon);
-                return (
-                  <div
-                    key={coupon.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                    onClick={() => handleQuickApply(coupon.code)}
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="font-mono text-xs">
-                          {formatted.code}
-                        </Badge>
-                        <span className="font-medium text-sm">{formatted.discount}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatted.name}
-                      </p>
-                      {formatted.conditions && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatted.conditions}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Valid until {formatted.validUntil}
-                      </p>
+              {availableCoupons.map((coupon) => (
+                <div
+                  key={coupon.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                  onClick={() => handleQuickApply(coupon.code)}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="font-mono text-xs">
+                        {coupon.formatted.code}
+                      </Badge>
+                      <span className="font-medium text-sm">{coupon.formatted.discount}</span>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Apply
-                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {coupon.formatted.name}
+                    </p>
+                    {coupon.formatted.conditions && (
+                      <p className="text-xs text-muted-foreground">
+                        {coupon.formatted.conditions}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Valid until {coupon.formatted.validUntil}
+                    </p>
                   </div>
-                );
-              })}
+                  <Button variant="outline" size="sm">
+                    Apply
+                  </Button>
+                </div>
+              ))}
             </div>
             <Button
               variant="ghost"

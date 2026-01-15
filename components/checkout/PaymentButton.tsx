@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
-import { useCart } from '@/components/providers/cart-provider';
+import { useUser } from '@/hooks/use-user';
+import { clearCartAction } from '@/app/actions/cart-actions';
 import { RazorpayService } from '@/lib/services/razorpay';
-import type { Address } from '@/types';
+import type { Address, ShoppingCart, CartItem } from '@/types';
 
 interface PaymentButtonProps {
   shippingAddress: Partial<Address>;
@@ -21,6 +21,8 @@ interface PaymentButtonProps {
     discountAmount: number;
   } | null;
   finalTotal: number;
+  cart: ShoppingCart;
+  items: CartItem[];
 }
 
 export function PaymentButton({
@@ -33,9 +35,10 @@ export function PaymentButton({
   selectedPaymentMethod,
   appliedCoupon,
   finalTotal,
+  cart,
+  items,
 }: PaymentButtonProps) {
-  const { user, userProfile } = useAuth();
-  const { cart, items, clearCart } = useCart();
+  const { user } = useUser();
   const [paymentError, setPaymentError] = useState<string | null>(null);
 
   const handlePayment = async () => {
@@ -49,8 +52,8 @@ export function PaymentButton({
 
     try {
       // Get customer information
-      const customerName = user && userProfile 
-        ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim() || user.username
+      const customerName = user 
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.userId
         : `${shippingAddress.firstName} ${shippingAddress.lastName}`;
       
       // Get customer email - it should always be in the shipping address
@@ -108,7 +111,7 @@ export function PaymentButton({
 
         console.log('✅ COD Order created successfully:', orderResult.orderId, orderResult.confirmationNumber);
         
-        await clearCart();
+        await clearCartAction();
         onSuccess(orderResult.orderId!, 'COD_' + Date.now(), orderResult.confirmationNumber, 'cash_on_delivery');
         
         console.log('🧹 Cart cleared after successful COD order');
@@ -158,7 +161,7 @@ export function PaymentButton({
           customerPhone,
           onSuccess: async (orderId: string, paymentId: string, confirmationNumber?: string) => {
             try {
-              await clearCart();
+              await clearCartAction();
               onSuccess(orderId, paymentId, confirmationNumber, 'razorpay');
             } catch (error) {
               onError('Payment successful but failed to complete order. Please contact support.');

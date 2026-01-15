@@ -10,7 +10,6 @@ import { CouponService } from '@/lib/services/coupon-service';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from 'aws-amplify/auth';
 
 const client = generateClient<Schema>();
 

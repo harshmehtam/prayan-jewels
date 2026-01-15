@@ -8,7 +8,7 @@ import { Tag, Copy, ChevronDown, ChevronUp } from 'lucide-react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 
 const client = generateClient<Schema>();
 
@@ -21,19 +21,19 @@ export default function AvailableCoupons({ productId, productPrice }: AvailableC
   const [coupons, setCoupons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const { userProfile } = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
 
   useEffect(() => {
     loadCoupons();
-  }, [productId, userProfile?.userId]);
+  }, [productId, user?.userId]);
 
   const loadCoupons = async () => {
     try {
       setLoading(true);
       
       const now = new Date().toISOString();
-      const userId = userProfile?.userId;
+      const userId = user?.userId;
 
       // Load available coupons
       const { data: allCoupons, errors } = await client.models.Coupon.list({

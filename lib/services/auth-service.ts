@@ -1,4 +1,7 @@
 import { signUp, confirmSignUp, signIn, resetPassword, confirmResetPassword, resendSignUpCode } from 'aws-amplify/auth';
+import { getCurrentUser, fetchUserAttributes, fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { runWithAmplifyServerContext } from '@/utils/amplify-utils';
+import { cookies } from 'next/headers';
 
 // Types
 export interface AuthResponse {
@@ -33,6 +36,17 @@ export interface ConfirmResetPasswordParams {
   phoneNumber: string;
   code: string;
   newPassword: string;
+}
+
+// Define user profile type based on Cognito attributes
+export interface AuthUserProfile {
+  userId: string;
+  email?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+  groups?: string[];
+  role?: 'customer' | 'admin' | 'super_admin';
 }
 
 // Phone number utilities
@@ -252,3 +266,116 @@ export const handleResendCode = async (phoneNumber: string): Promise<AuthRespons
     };
   }
 };
+
+/**
+ * Get current authenticated user from server
+ */
+export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
+  try {
+    const user = await runWithAmplifyServerContext({
+      nextServerContext: { cookies },
+      operation: () => getCurrentUser(),
+    });
+
+    if (!user?.userId) {
+      return null;
+    }
+
+    // Get user attributes
+    const attributes = await runWithAmplifyServerContext({
+      nextServerContext: { cookies },
+      operation: () => fetchUserAttributes(),
+    });
+
+    // Get user groups from session
+    let groups: string[] = [];
+    let role: 'customer' | 'admin' | 'super_admin' = 'customer';
+
+    try {
+      const session = await runWithAmplifyServerContext({
+        nextServerContext: { cookies },
+        operation: () => fetchAuthSession(),
+      });
+
+      const accessToken = session.tokens?.accessToken;
+      if (accessToken) {
+        groups = (accessToken.payload['cognito:groups'] as string[]) || [];
+
+        // Determine role based on groups
+        if (groups.includes('super_admin')) {
+          role = 'super_admin';
+        } else if (groups.includes('admin')) {
+          role = 'admin';
+        } else {
+          role = 'customer';
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user groups:', error);
+    }
+
+    return {
+      userId: user.userId,
+      email: attributes.email,
+      phone: attributes.phone_number,
+      firstName: attributes.given_name,
+      lastName: attributes.family_name,
+      groups,
+      role,
+    };
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if user is authenticated
+ */
+export async function isAuthenticated(): Promise<boolean> {
+  try {
+    const user = await getCurrentUserServer();
+    return !!user;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Check if user has admin role
+ */
+export async function isAdmin(): Promise<boolean> {
+  try {
+    const user = await getCurrentUserServer();
+    return user?.role === 'admin' || user?.role === 'super_admin';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Check if user has super admin role
+ */
+export async function isSuperAdmin(): Promise<boolean> {
+  try {
+    const user = await getCurrentUserServer();
+    return user?.role === 'super_admin';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Sign out user
+ */
+export async function signOut(): Promise<void> {
+  try {
+    await runWithAmplifyServerContext({
+      nextServerContext: { cookies },
+      operation: () => amplifySignOut(),
+    });
+  } catch (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
+}

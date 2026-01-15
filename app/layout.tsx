@@ -4,7 +4,7 @@ import { Providers } from "@/components/providers";
 import type { Metadata } from "next";
 import "./globals.css";
 import "@aws-amplify/ui-react/styles.css";
-import { getHeaderPromotionalCoupons } from '@/lib/services/coupon-service';
+import { getHeaderPromotionalCoupon } from '@/app/actions/coupon-actions';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +26,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const promotionalCoupon = await getHeaderPromotionalCoupons();
+  const promotionalCoupon = await getHeaderPromotionalCoupon();
   // const hasPromotion = promotionalCoupon !== null;
 
   // Serialize coupon data to make it safe for client components

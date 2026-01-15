@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useCart } from '@/components/providers/cart-provider';
 import { PaymentButton } from './PaymentButton';
-import { ProductService } from '@/lib/services/product-service';
 import CouponSection from './CouponSection';
 import { getCurrentUser } from 'aws-amplify/auth';
-import type { ShoppingCart, CartItem, Address, Product } from '@/types';
+import type { ShoppingCart, CartItem, Address } from '@/types';
 
 interface OrderReviewProps {
   cart: ShoppingCart;
@@ -39,8 +37,6 @@ export function OrderReview({
   onCouponApplied: onCouponAppliedProp,
   onCouponRemoved: onCouponRemovedProp,
 }: OrderReviewProps) {
-  const [products, setProducts] = useState<Map<string, Product>>(new Map());
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'razorpay' | 'cash_on_delivery'>('razorpay');
   const [userId, setUserId] = useState<string | undefined>();
@@ -52,10 +48,9 @@ export function OrderReview({
   } | null>(initialAppliedCoupon || null);
   const [finalTotal, setFinalTotal] = useState(cart.estimatedTotal);
 
-  // Load product details for cart items and user info
+  // Load user info only
   useEffect(() => {
-    const loadData = async () => {
-      // Load user info
+    const loadUserInfo = async () => {
       try {
         const user = await getCurrentUser();
         setUserId(user.userId);
@@ -63,32 +58,10 @@ export function OrderReview({
         // User not logged in
         setUserId(undefined);
       }
-
-      // Load products
-      if (!items.length) {
-        setIsLoadingProducts(false);
-        return;
-      }
-
-      try {
-        const productIds = [...new Set(items.map(item => item.productId))];
-        const productList = await ProductService.getProductsByIds(productIds);
-        
-        const productMap = new Map<string, Product>();
-        productList.forEach(product => {
-          productMap.set(product.id, product);
-        });
-        
-        setProducts(productMap);
-      } catch (error) {
-        console.error('Error loading products:', error);
-      } finally {
-        setIsLoadingProducts(false);
-      }
     };
 
-    loadData();
-  }, [items]);
+    loadUserInfo();
+  }, []);
 
   const handleCouponApplied = (coupon: any, discountAmount: number) => {
     const couponData = {
@@ -133,17 +106,6 @@ export function OrderReview({
     console.error('Payment error:', error);
     onError?.(error);
   };
-
-  if (isLoadingProducts) {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading order details...</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -267,6 +229,8 @@ export function OrderReview({
           selectedPaymentMethod={selectedPaymentMethod}
           appliedCoupon={appliedCoupon}
           finalTotal={finalTotal}
+          cart={cart}
+          items={items}
         />
       </div>
     </div>

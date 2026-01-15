@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { addressService, type SavedAddress } from '@/lib/services/address-service';
-import { useAuth } from '@/components/providers/auth-provider';
+import * as addressActions from '@/app/actions/address-actions';
+import type { SavedAddress } from '@/lib/services/address-service';
+import { useUser } from '@/hooks/use-user';
 
 interface AddressSelectorProps {
   type: 'shipping' | 'billing';
@@ -19,7 +20,7 @@ export function AddressSelector({
   onEditAddress,
   selectedAddressId 
 }: AddressSelectorProps) {
-  const { user } = useAuth();
+  const { user } = useUser();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(selectedAddressId || null);
@@ -33,7 +34,7 @@ export function AddressSelector({
     setIsLoading(true);
     
     try {
-      const userAddresses = await addressService.getUserAddressesByType(user.userId, type);
+      const userAddresses = await addressActions.getUserAddressesByType(user.userId, type);
       setAddresses(userAddresses);
 
       // Auto-select default address if no address is currently selected
@@ -76,7 +77,7 @@ export function AddressSelector({
     }
 
     try {
-      const success = await addressService.deleteAddress(addressId);
+      const success = await addressActions.deleteAddress(addressId);
       if (success) {
         await loadAddresses();
         
@@ -96,7 +97,7 @@ export function AddressSelector({
     if (!user?.userId) return;
 
     try {
-      const success = await addressService.setDefaultAddress(user.userId, addressId, type);
+      const success = await addressActions.setDefaultAddress(user.userId, addressId, type);
       if (success) {
         await loadAddresses();
       }

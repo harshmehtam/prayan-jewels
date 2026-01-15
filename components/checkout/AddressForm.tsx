@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { validateCityStateWithPincode, type PincodeMatchResult } from '@/lib/services/pincode-service';
-import { addressService, type SavedAddress, type AddressInput } from '@/lib/services/address-service';
-import { useAuth } from '@/components/providers/auth-provider';
+import * as addressActions from '@/app/actions/address-actions';
+import type { SavedAddress, AddressInput } from '@/lib/services/address-service';
+import { useUser } from '@/hooks/use-user';
 import { AddressSelector } from './AddressSelector';
 import type { Address } from '@/types';
 
@@ -57,7 +58,7 @@ const indianStates = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];
 
-export function   AddressForm({ 
+export function AddressForm({ 
   type,
   onSubmit, 
   onBack,
@@ -66,7 +67,7 @@ export function   AddressForm({
   initialData,
   editingAddress
 }: AddressFormProps) {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useUser();
   const [showAddressSelector, setShowAddressSelector] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState<SavedAddress | null>(null);
   const [previouslySelectedAddress, setPreviouslySelectedAddress] = useState<SavedAddress | null>(null);
@@ -243,7 +244,7 @@ export function   AddressForm({
     }
 
     try {
-      const billingAddresses = await addressService.getUserAddressesByType(user.userId, 'billing');
+      const billingAddresses = await addressActions.getUserAddressesByType(user.userId, 'billing');
       
       // Check if any billing address matches this shipping address
       const hasMatch = billingAddresses.some(billingAddr => 
@@ -555,7 +556,7 @@ export function   AddressForm({
         isDefault: false,
       };
 
-      const updatedAddress = await addressService.updateAddress(editingAddressId, addressInput);
+      const updatedAddress = await addressActions.updateAddress(editingAddressId, addressInput);
       
       if (updatedAddress) {
         console.log(`✅ ${type} address updated successfully`);
@@ -641,8 +642,8 @@ export function   AddressForm({
           type: type,
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
-          email: type === 'shipping' ? formData.email.trim() : undefined, // Only save email for shipping addresses
-          phone: type === 'shipping' ? formData.phone.trim() : undefined, // Only save phone for shipping addresses
+          email: type === 'shipping' ? formData.email.trim() : undefined,
+          phone: type === 'shipping' ? formData.phone.trim() : undefined,
           addressLine1: formData.addressLine1.trim(),
           addressLine2: formData.addressLine2.trim() || undefined,
           city: formData.city.trim(),
@@ -653,7 +654,7 @@ export function   AddressForm({
         };
 
         try {
-          const savedAddress = await addressService.saveAddress(user.userId, addressInput);
+          const savedAddress = await addressActions.saveAddress(user.userId, addressInput);
           if (savedAddress) {
             console.log(`${type} address saved successfully`);
           }

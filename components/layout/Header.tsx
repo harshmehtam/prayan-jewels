@@ -4,8 +4,10 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { CartModal } from '@/components/cart';
-import { useAuth } from '@/components/providers/auth-provider';
-import { useWishlist } from '@/components/providers/wishlist-provider';
+import { useUser } from '@/hooks/use-user';
+import { signOut } from '@/app/actions/auth-actions';
+import { getCartItemCount } from '@/app/actions/cart-actions';
+import { getWishlistCount } from '@/app/actions/wishlist-actions';
 import PromotionalBanner from './PromotionalBanner';
 import { SearchBar, UserAccountMenu, HeaderActions, MobileMenu } from './header/index';
 
@@ -17,10 +19,24 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { isAuthenticated, userProfile, signOut } = useAuth();
-  const { wishlistCount } = useWishlist();
+  const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
+  const { isAuthenticated, user } = useUser();
   const pathname = usePathname();
   const isHomePage = pathname === '/';
+
+  // Fetch cart and wishlist counts
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const [cart, wishlist] = await Promise.all([
+        getCartItemCount(),
+        getWishlistCount()
+      ]);
+      setCartCount(cart);
+      setWishlistCount(wishlist);
+    };
+    fetchCounts();
+  }, [isCartModalOpen]); // Refetch when cart modal closes
 
   // Scroll detection with over-scroll prevention
   useEffect(() => {
@@ -71,7 +87,7 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
   const handleSignOut = async () => {
     try {
       await signOut();
-      window.location.reload();
+      window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -118,6 +134,7 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
                 isScrolled={isScrolled}
                 isHomePage={isHomePage}
                 wishlistCount={wishlistCount}
+                cartCount={cartCount}
                 isAuthenticated={isAuthenticated}
                 onCartClick={() => setIsCartModalOpen(true)}
                 onMenuClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -150,8 +167,9 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         isAuthenticated={isAuthenticated}
-        userProfile={userProfile}
+        user={user}
         wishlistCount={wishlistCount}
+        onSignOut={handleSignOut}
       />
 
       {/* Cart Modal */}

@@ -8,11 +8,12 @@ interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   isAuthenticated: boolean;
-  userProfile: any;
+  user: any;
   wishlistCount: number;
+  onSignOut: () => void;
 }
 
-export default function MobileMenu({ isOpen, onClose, isAuthenticated, userProfile, wishlistCount }: MobileMenuProps) {
+export default function MobileMenu({ isOpen, onClose, isAuthenticated, user, wishlistCount, onSignOut }: MobileMenuProps) {
   // Prevent body scroll when mobile menu is open and add blur effect
   useEffect(() => {
     if (!isOpen) return;
@@ -56,6 +57,11 @@ export default function MobileMenu({ isOpen, onClose, isAuthenticated, userProfi
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const handleSignOut = () => {
+    onClose();
+    onSignOut();
+  };
 
   return (
     <>
@@ -118,7 +124,7 @@ export default function MobileMenu({ isOpen, onClose, isAuthenticated, userProfi
                   {isAuthenticated ? (
                     <>
                       {/* Admin links for mobile */}
-                      {(userProfile?.role === 'admin' || userProfile?.role === 'super_admin') && (
+                      {(user?.role === 'admin' || user?.role === 'super_admin') && (
                         <>
                           <Link
                             href="/admin"
@@ -196,6 +202,23 @@ export default function MobileMenu({ isOpen, onClose, isAuthenticated, userProfi
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </Link>
+
+                      {/* Sign Out button */}
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full group flex items-center justify-between py-5 px-4 text-gray-800 hover:bg-red-50 border-b border-white/30 rounded-lg transition-all duration-300 backdrop-blur-sm outline-none focus:outline-none"
+                        style={{ outline: 'none', boxShadow: 'none' }}
+                      >
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                          </svg>
+                          <span className="text-xl font-light tracking-wide group-hover:text-red-700 transition-colors">Sign Out</span>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-500 group-hover:text-red-700 group-hover:translate-x-1 transition-all duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
                     </>
                   ) : (
                     <>

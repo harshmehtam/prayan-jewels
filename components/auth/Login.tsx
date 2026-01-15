@@ -13,19 +13,19 @@ import {
   NewPasswordForm,
 } from './forms';
 
-interface PhoneLoginModalProps {
+interface LoginProps {
   isOpen: boolean;
   onClose: () => void;
   redirectTo?: string;
   isAdminLogin?: boolean;
 }
 
-export default function PhoneLoginModal({ 
+export default function Login({ 
   isOpen, 
   onClose, 
   redirectTo = '/account',
   isAdminLogin = false 
-}: PhoneLoginModalProps) {
+}: LoginProps) {
   // Form state
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
@@ -35,6 +35,7 @@ export default function PhoneLoginModal({
   const [lastName, setLastName] = useState('');
   const [otp, setOtp] = useState('');
   const [signUpUsername, setSignUpUsername] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState(''); // Store password for auto sign-in
   const [resetUsername, setResetUsername] = useState('');
   
   // Custom hooks
@@ -81,6 +82,7 @@ export default function PhoneLoginModal({
     
     if (result.success && result.username) {
       setSignUpUsername(result.username);
+      setSignUpPassword(password); // Store password for auto sign-in after verification
       authFlow.setStep('otp');
       startCountdown(60);
     }
@@ -88,15 +90,11 @@ export default function PhoneLoginModal({
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await authFlow.confirmSignUp({ 
+    await authFlow.confirmSignUp({ 
       phoneNumber: signUpUsername, 
-      code: otp 
+      code: otp,
+      password: signUpPassword // Pass password for auto sign-in
     });
-    
-    if (!success) {
-      // If auto sign-in fails, store password for manual retry
-      // Note: In production, you might want to prompt user to sign in manually
-    }
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
