@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { GuestOrderLookup } from '@/lib/utils/guest-order-lookup';
+import { getOrderByConfirmationNumber } from '@/app/actions/order-actions';
+import { cancelOrderForGuest } from '@/app/actions/order-cancellation-actions';
 import { OrderCancellationService } from '@/lib/services/order-cancellation';
 import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
-import { useHeaderSpacing } from '@/hooks/use-header-spacing';
 
 export default function TrackOrderPage() {
   const [email, setEmail] = useState('');
@@ -36,18 +36,26 @@ export default function TrackOrderPage() {
     setOrders([]);
 
     try {
-      // Search for specific order by confirmation number
-      const order = await GuestOrderLookup.findGuestOrderByConfirmation(
-        confirmationNumber,
-        email,
-        phone
-      );
+      // Get order directly using the action
+      const order = await getOrderByConfirmationNumber(confirmationNumber);
       
-      if (order) {
-        setOrders([order]);
-      } else {
-        setError('Order not found or credentials do not match');
+      if (!order) {
+        setError('Order not found');
+        setLoading(false);
+        return;
       }
+
+      // Validate guest credentials
+      const emailMatch = order.customerEmail.toLowerCase() === email.toLowerCase();
+      const phoneMatch = order.customerPhone.replace(/\D/g, '') === phone.replace(/\D/g, '');
+      
+      if (!emailMatch || !phoneMatch) {
+        setError('Order credentials do not match');
+        setLoading(false);
+        return;
+      }
+
+      setOrders([order]);
     } catch (err) {
       setError('An error occurred while searching for orders');
       console.error('Order search error:', err);
@@ -86,7 +94,11 @@ export default function TrackOrderPage() {
 
     setCancellingOrderId(orderToCancel.id);
     try {
-      const result = await OrderCancellationService.cancelOrderForGuest(orderToCancel.id, email, phone);
+      const result = await cancelOrderForGuest(orderToCancel.id, email, phone);
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
 
       // Update local state
       setOrders(prevOrders => 

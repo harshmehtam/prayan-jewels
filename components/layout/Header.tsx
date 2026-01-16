@@ -105,7 +105,7 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
         }`}>
         <div className="container mx-auto container-mobile">
           {/* Main header row */}
-          <div className="flex items-center justify-between h-20 lg:h-24 px-3 sm:px-4">
+          <div className="flex items-center justify-between h-20 lg:h-28 px-6 sm:px-4">
             {/* Logo */}
             <Link
               href="/"
