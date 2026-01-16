@@ -1,4 +1,5 @@
 import { cookiesClient } from '@/utils/amplify-utils';
+import { getImageUrl } from '@/lib/utils/image-utils';
 import type { CartItem, ShoppingCart } from '@/types';
 
 export interface CartWithItems extends ShoppingCart {
@@ -64,37 +65,53 @@ export async function getCartWithItems(sessionId: string): Promise<CartWithItems
 
     const items = itemsResponse.data || [];
     
-    // Get product details for all items
-    const enrichedItems: CartItem[] = [];
-    for (const item of items) {
+    // Get product details for all items in parallel
+    const enrichedItemsPromises = items.map(async (item) => {
       const productResponse = await client.models.Product.get(
         { id: item.productId },
         { authMode: 'iam' }
       );
       
-      enrichedItems.push({
-        id: item.id,
-        cartId: item.cartId,
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        product: productResponse.data ? {
-          id: productResponse.data.id,
-          name: productResponse.data.name,
-          description: productResponse.data.description,
-          price: productResponse.data.price,
-          actualPrice: productResponse.data.actualPrice,
-          images: productResponse.data.images?.filter((img): img is string => img !== null) || [],
-          isActive: productResponse.data.isActive,
-          viewCount: productResponse.data.viewCount,
-          createdAt: productResponse.data.createdAt,
-          updatedAt: productResponse.data.updatedAt,
-        } : undefined
-      });
-    }
+      if (productResponse.data) {
+        // Resolve image URLs from S3 paths in parallel
+        const imagePaths = productResponse.data.images?.filter((img): img is string => img !== null) || [];
+        
+        // Use Promise.all to resolve all URLs in parallel instead of sequentially
+        const imageUrlPromises = imagePaths.map((imagePath: string) => getImageUrl(imagePath, 7200)); // 2 hour expiry
+        const imageUrls = (await Promise.all(imageUrlPromises)).filter((url): url is string => url !== null);
+        
+        return {
+          id: item.id,
+          cartId: item.cartId,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          product: {
+            id: productResponse.data.id,
+            name: productResponse.data.name,
+            description: productResponse.data.description,
+            price: productResponse.data.price,
+            actualPrice: productResponse.data.actualPrice,
+            images: imageUrls, // Now contains resolved URLs instead of S3 paths
+            isActive: productResponse.data.isActive,
+            viewCount: productResponse.data.viewCount,
+            createdAt: productResponse.data.createdAt,
+            updatedAt: productResponse.data.updatedAt,
+          }
+        };
+      }
+      
+      // Return null if product not found (will be filtered out)
+      return null;
+    });
+
+    const enrichedItems = await Promise.all(enrichedItemsPromises);
+
+    // Filter out null values where products weren't found
+    const validEnrichedItems: CartItem[] = enrichedItems.filter((item): item is NonNullable<typeof item> => item !== null);
 
     return {
       id: cart.id,
@@ -107,7 +124,7 @@ export async function getCartWithItems(sessionId: string): Promise<CartWithItems
       expiresAt: cart.expiresAt || '',
       createdAt: cart.createdAt,
       updatedAt: cart.updatedAt,
-      items: enrichedItems
+      items: validEnrichedItems
     };
   } catch (error) {
     console.error('Error loading cart:', error);
@@ -115,12 +132,12 @@ export async function getCartWithItems(sessionId: string): Promise<CartWithItems
   }
 }
 
-// Add item to cart
+// Add item to cart (fetches product price automatically if not provided)
 export async function addItemToCart(
   sessionId: string,
   productId: string,
   quantity: number,
-  unitPrice: number
+  unitPrice?: number
 ) {
   try {
     const cart = await getOrCreateCart(sessionId);
@@ -129,6 +146,21 @@ export async function addItemToCart(
     }
 
     const client = await cookiesClient;
+
+    // If unitPrice not provided, fetch it from the product
+    let finalUnitPrice = unitPrice;
+    if (finalUnitPrice === undefined) {
+      const productResponse = await client.models.Product.get(
+        { id: productId },
+        { authMode: 'iam' }
+      );
+      
+      if (!productResponse.data) {
+        return { success: false, error: 'Product not found' };
+      }
+      
+      finalUnitPrice = productResponse.data.price;
+    }
 
     // Check if item already exists
     const existingItemsResponse = await client.models.CartItem.list({
@@ -149,7 +181,7 @@ export async function addItemToCart(
       await client.models.CartItem.update({
         id: existingItem.id,
         quantity: newQuantity,
-        totalPrice: newQuantity * unitPrice
+        totalPrice: newQuantity * finalUnitPrice
       }, {
         authMode: 'iam'
       });
@@ -159,8 +191,8 @@ export async function addItemToCart(
         cartId: cart.id,
         productId,
         quantity,
-        unitPrice,
-        totalPrice: quantity * unitPrice
+        unitPrice: finalUnitPrice,
+        totalPrice: quantity * finalUnitPrice
       }, {
         authMode: 'iam'
       });

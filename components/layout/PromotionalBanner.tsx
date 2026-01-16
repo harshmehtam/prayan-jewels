@@ -31,7 +31,7 @@ export default function PromotionalBanner({ coupon }: PromotionalBannerProps) {
   };
 
   return (
-    <div className="bg-gray-100 text-center py-1.5 px-2 sm:py-2 sm:px-4 text-xs sm:text-sm lg:text-base text-gray-800 border-b border-gray-200 fixed top-0 left-0 right-0 z-50">
+    <div className="bg-gray-100 text-center py-3 px-2 fixed top-0 left-0 right-0 z-50">
       <div className="max-w-screen-xl mx-auto">
         {/* Desktop Layout */}
         <div className="hidden sm:flex items-center justify-center">
@@ -48,13 +48,12 @@ export default function PromotionalBanner({ coupon }: PromotionalBannerProps) {
         {/* Mobile Layout */}
         <div className="sm:hidden">
           <div className="flex items-center justify-center space-x-1 px-1">
-            <span className="font-medium text-xs truncate">
+            <span className="font-medium truncate">
               {formatDiscount(coupon)}
               {coupon.minimumOrderAmount && ` on ₹${coupon.minimumOrderAmount}+`}
             </span>
-            <span className="text-xs text-gray-600">•</span>
-            <span className="font-semibold text-xs whitespace-nowrap">
-              {coupon.code}
+            <span className="font-semibold whitespace-nowrap">
+              Code {coupon.code}
             </span>
           </div>
         </div>

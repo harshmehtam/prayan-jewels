@@ -181,20 +181,20 @@ export async function resendCode(phoneNumber: string): Promise<AuthResponse> {
 /**
  * Validate phone number
  */
-export function validatePhoneNumber(phoneNumber: string): boolean {
+export async function validatePhoneNumber(phoneNumber: string): Promise<boolean> {
   return authService.validatePhoneNumber(phoneNumber);
 }
 
 /**
  * Format phone number for display
  */
-export function formatPhoneForDisplay(phoneNumber: string): string {
+export async function formatPhoneForDisplay(phoneNumber: string): Promise<string> {
   return authService.formatPhoneForDisplay(phoneNumber);
 }
 
 /**
  * Format phone number for Cognito
  */
-export function formatPhoneForCognito(phoneNumber: string): string {
+export async function formatPhoneForCognito(phoneNumber: string): Promise<string> {
   return authService.formatPhoneForCognito(phoneNumber);
 }

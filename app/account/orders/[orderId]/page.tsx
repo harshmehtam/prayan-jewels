@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { LoginButton } from '@/components/auth';
-import { useAuth } from '@/components/providers/auth-provider';
-import { OrderService } from '@/lib/services/order-service';
+import { useUser } from '@/hooks/use-user';
+import { getOrder } from '@/app/actions/order-actions';
 import OrderCancellation from '@/components/order/OrderCancellation';
 import type { Schema } from '@/amplify/data/resource';
 
@@ -17,11 +17,11 @@ type OrderWithItems = Schema['Order']['type'] & {
 export default function OrderDetailsPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  
+  const { isAuthenticated, isLoading: authLoading } = useUser();
+
   const orderId = params.orderId as string;
   const paymentSuccess = searchParams.get('payment') === 'success';
-  
+
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +38,8 @@ export default function OrderDetailsPage() {
       setError(null);
 
       // Use the optimized OrderService.getOrder method
-      const orderResult = await OrderService.getOrder(orderId);
-      
+      const orderResult = await getOrder(orderId);
+
       if (orderResult.order) {
         setOrder(orderResult.order as OrderWithItems);
       } else {
@@ -201,7 +201,7 @@ export default function OrderDetailsPage() {
         {/* Order items */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Items</h2>
-          
+
           <div className="space-y-4">
             {order.items && Array.isArray(order.items) && order.items.length > 0 ? (
               order.items.map((item) => (
@@ -302,8 +302,8 @@ export default function OrderDetailsPage() {
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Payment Status</span>
               <span className="text-green-600 font-medium">
-                {order.paymentStatus === 'paid' ? 'Completed' : 
-                 order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Pending'}
+                {order.paymentStatus === 'paid' ? 'Completed' :
+                  order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Pending'}
               </span>
             </div>
           </div>
@@ -317,7 +317,7 @@ export default function OrderDetailsPage() {
           >
             ← Back to Orders
           </Link>
-          
+
           <div className="space-x-4">
             <Link
               href="/products"

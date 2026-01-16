@@ -5,30 +5,27 @@ import Link from 'next/link';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
 import { addToCart } from '@/app/actions/cart-actions';
-import { addToWishlist, removeFromWishlist, isInWishlist } from '@/app/actions/wishlist-actions';
+import { addToWishlist, removeFromWishlist } from '@/app/actions/wishlist-actions';
 import { formatPrice as formatPriceUtil } from '@/lib/utils/price-utils';
 import type { Product } from '@/types';
 
 interface ProductGridCardProps {
   product: Product;
+  isInWishlist?: boolean; // Add prop for wishlist status
 }
 
-export default function ProductGridCard({ product }: ProductGridCardProps) {
+export default function ProductGridCard({ product, isInWishlist: initialIsInWishlist = false }: ProductGridCardProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [addToCartSuccess, setAddToCartSuccess] = useState(false);
-  const [isInWishlistState, setIsInWishlistState] = useState(false);
+  const [isInWishlistState, setIsInWishlistState] = useState(initialIsInWishlist);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
 
-  // Check wishlist status on mount
+  // Update wishlist state when prop changes
   useEffect(() => {
-    const checkWishlistStatus = async () => {
-      const inWishlist = await isInWishlist(product.id);
-      setIsInWishlistState(inWishlist);
-    };
-    checkWishlistStatus();
-  }, [product.id]);
+    setIsInWishlistState(initialIsInWishlist);
+  }, [initialIsInWishlist]);
 
   // Handle image scroll for mobile
   const handleImageScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -95,12 +92,7 @@ export default function ProductGridCard({ product }: ProductGridCardProps) {
           setIsInWishlistState(false);
         }
       } else {
-        const result = await addToWishlist(
-          product.id,
-          product.name,
-          product.price,
-          product.images[0] || ''
-        );
+        const result = await addToWishlist(product.id);
         if (result.success) {
           setIsInWishlistState(true);
         }

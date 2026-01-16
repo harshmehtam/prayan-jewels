@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { clearCartAction } from '@/app/actions/cart-actions';
-import { RazorpayService } from '@/lib/services/razorpay';
+import { createOrder } from '@/app/actions/order-actions';
+import { createRazorpayOrderAction, verifyRazorpayPaymentAction } from '@/app/actions/razorpay-actions';
+import { loadRazorpayScript, openRazorpayCheckout } from '@/lib/services/razorpay';
 import type { Address, ShoppingCart, CartItem } from '@/types';
 
 interface PaymentButtonProps {
@@ -56,24 +58,16 @@ export function PaymentButton({
         ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.userId
         : `${shippingAddress.firstName} ${shippingAddress.lastName}`;
       
-      // Get customer email - it should always be in the shipping address
       const customerEmail = (shippingAddress as any).email;
       
       if (!customerEmail) {
         throw new Error('Email address is required for order placement');
       }
       
-      // Get customer phone - it should be in the shipping address
       const customerPhone = (shippingAddress as any).phone || '';
-
-      console.log('✅ Using customer email from shipping address:', customerEmail);
-      console.log('✅ Using customer phone from shipping address:', customerPhone);
-
-      // Create unique customer ID for guest users
-      // For guests, use email + phone hash to create a unique but consistent ID
       const guestCustomerId = user?.userId || `guest_${btoa(customerEmail + '_' + customerPhone).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}`;
       
-      // Create order data
+      // Prepare order data for server action
       const orderData = {
         customerId: guestCustomerId,
         customerEmail,
@@ -92,98 +86,132 @@ export function PaymentButton({
       };
 
       if (selectedPaymentMethod === 'cash_on_delivery') {
-        // Handle Cash on Delivery via API route
-        console.log('📦 Creating COD order via API...');
-        
-        const response = await fetch('/api/orders/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(orderData),
-        });
-
-        const orderResult = await response.json();
-        
-        if (!orderResult.success) {
-          throw new Error(orderResult.error || 'Failed to create order');
+        // Use Server Action to create COD order
+        try {
+          const orderResult = await createOrder(orderData);
+          
+          if (!orderResult.success) {
+            throw new Error(orderResult.error || 'Failed to create order');
+          }
+          
+          await clearCartAction();
+          onSuccess(orderResult.orderId!, 'COD_' + Date.now(), orderResult.confirmationNumber, 'cash_on_delivery');
+        } catch (codError) {
+          const errorMessage = codError instanceof Error ? codError.message : 'Failed to create order';
+          setPaymentError(errorMessage);
+          onError(errorMessage);
+        } finally {
+          onProcessingChange(false);
         }
-
-        console.log('✅ COD Order created successfully:', orderResult.orderId, orderResult.confirmationNumber);
-        
-        await clearCartAction();
-        onSuccess(orderResult.orderId!, 'COD_' + Date.now(), orderResult.confirmationNumber, 'cash_on_delivery');
-        
-        console.log('🧹 Cart cleared after successful COD order');
       } else {
-        // Handle Razorpay payment using existing service
-        const razorpayService = RazorpayService.getInstance();
-        
-        // Prepare order data for Razorpay service
-        const razorpayOrderData = {
-          customerId: guestCustomerId,
-          customerEmail,
-          customerPhone,
-          items: items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-          })),
-          shippingAddress: {
-            firstName: shippingAddress.firstName!,
-            lastName: shippingAddress.lastName!,
-            addressLine1: shippingAddress.addressLine1!,
-            addressLine2: shippingAddress.addressLine2,
-            city: shippingAddress.city!,
-            state: shippingAddress.state!,
-            postalCode: shippingAddress.postalCode!,
-            country: shippingAddress.country!,
-            isDefault: false,
-          },
-          billingAddress: {
-            firstName: billingAddress.firstName!,
-            lastName: billingAddress.lastName!,
-            addressLine1: billingAddress.addressLine1!,
-            addressLine2: billingAddress.addressLine2,
-            city: billingAddress.city!,
-            state: billingAddress.state!,
-            postalCode: billingAddress.postalCode!,
-            country: billingAddress.country!,
-            isDefault: false,
-          },
-        };
+        // Handle Razorpay payment using server actions
+        try {
+          // Load Razorpay script
+          await loadRazorpayScript();
+          // Prepare order data for Razorpay action
+          const razorpayOrderData = {
+            customerId: guestCustomerId,
+            customerEmail,
+            customerPhone,
+            items: items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+            })),
+            shippingAddress: {
+              firstName: shippingAddress.firstName!,
+              lastName: shippingAddress.lastName!,
+              addressLine1: shippingAddress.addressLine1!,
+              addressLine2: shippingAddress.addressLine2 || undefined,
+              city: shippingAddress.city!,
+              state: shippingAddress.state!,
+              postalCode: shippingAddress.postalCode!,
+              country: shippingAddress.country!,
+            },
+            billingAddress: {
+              firstName: billingAddress.firstName!,
+              lastName: billingAddress.lastName!,
+              addressLine1: billingAddress.addressLine1!,
+              addressLine2: billingAddress.addressLine2 || undefined,
+              city: billingAddress.city!,
+              state: billingAddress.state!,
+              postalCode: billingAddress.postalCode!,
+              country: billingAddress.country!,
+            },
+            couponId: appliedCoupon?.id,
+            couponCode: appliedCoupon?.code,
+            couponDiscount: appliedCoupon?.discountAmount || 0,
+          };
 
-        // Open Razorpay checkout
-        await razorpayService.openCheckout({
-          orderData: razorpayOrderData,
-          customerName,
-          customerEmail,
-          customerPhone,
-          onSuccess: async (orderId: string, paymentId: string, confirmationNumber?: string) => {
-            try {
-              await clearCartAction();
-              onSuccess(orderId, paymentId, confirmationNumber, 'razorpay');
-            } catch (error) {
-              onError('Payment successful but failed to complete order. Please contact support.');
-            } finally {
+          // Create Razorpay order using server action
+          const orderResult = await createRazorpayOrderAction(razorpayOrderData);
+
+          if (!orderResult.success || !orderResult.razorpayOrder || !orderResult.orderId) {
+            throw new Error(orderResult.error || 'Failed to create Razorpay order');
+          }
+
+          // Open Razorpay checkout modal
+          openRazorpayCheckout({
+            orderId: orderResult.razorpayOrder.id,
+            amount: orderResult.razorpayOrder.amount,
+            currency: orderResult.razorpayOrder.currency,
+            customerName,
+            customerEmail,
+            customerPhone,
+            customerId: guestCustomerId,
+            onSuccess: async (response) => {
+              try {
+                // Verify payment using server action
+                const verificationResult = await verifyRazorpayPaymentAction(
+                  response.razorpay_order_id,
+                  response.razorpay_payment_id,
+                  response.razorpay_signature,
+                  orderResult.orderId!
+                );
+
+                if (!verificationResult.success) {
+                  throw new Error(verificationResult.error || 'Payment verification failed');
+                }
+                // Clear cart
+                await clearCartAction();
+
+                // Call success callback
+                onSuccess(
+                  orderResult.orderId!,
+                  response.razorpay_payment_id,
+                  verificationResult.confirmationNumber,
+                  'razorpay'
+                );
+              } catch (verificationError) {
+                const errorMessage = verificationError instanceof Error 
+                  ? verificationError.message 
+                  : 'Payment verification failed';
+                setPaymentError(errorMessage);
+                onError('Payment successful but verification failed. Please contact support.');
+              } finally {
+                onProcessingChange(false);
+              }
+            },
+            onError: (error) => {
+              setPaymentError(error.message);
+              onError(error.message);
               onProcessingChange(false);
-            }
-          },
-          onError: (error) => {
-            console.error('Payment error:', error);
-            setPaymentError(error.message);
-            onError(error.message);
-            onProcessingChange(false);
-          },
-          onDismiss: () => {
-            console.log('Razorpay modal dismissed/cancelled by user');
-            setPaymentError(null); // Clear any previous errors
-            onProcessingChange(false); // Reset loading state
-          },
-        });
+            },
+            onDismiss: () => {
+              setPaymentError(null);
+              onProcessingChange(false);
+            },
+          });
+        } catch (razorpayError) {
+          const errorMessage = razorpayError instanceof Error 
+            ? razorpayError.message 
+            : 'Failed to process payment';
+          setPaymentError(errorMessage);
+          onError(errorMessage);
+          onProcessingChange(false);
+        }
       }
     } catch (error) {
-      console.error('Error processing payment:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to process payment';
       setPaymentError(errorMessage);
       onError(errorMessage);

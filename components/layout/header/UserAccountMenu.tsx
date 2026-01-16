@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 
 interface UserAccountMenuProps {
   isScrolled: boolean;
@@ -10,11 +10,10 @@ interface UserAccountMenuProps {
 }
 
 export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: UserAccountMenuProps) {
-  const { isAuthenticated, userProfile } = useAuth();
+  const { isAuthenticated, user: userProfile } = useUser();
 
-  const iconClasses = `flex items-center space-x-2 p-2 transition-colors cursor-pointer outline-none focus:outline-none ${
-    isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
-  }`;
+  const iconClasses = `flex items-center space-x-2 p-2 transition-colors cursor-pointer outline-none focus:outline-none ${isScrolled || !isHomePage ? 'text-black hover:text-gray-700' : 'text-black hover:text-gray-700'
+    }`;
 
   if (!isAuthenticated) return null;
 
@@ -32,12 +31,12 @@ export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: U
         )}
         <span className="sr-only">Account menu</span>
       </button>
-      
+
       <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200">
         {/* User info header */}
         <div className="px-4 py-3 border-b border-gray-200">
           <p className="text-sm font-medium text-gray-900">
-            {userProfile?.firstName && userProfile?.lastName 
+            {userProfile?.firstName && userProfile?.lastName
               ? `${userProfile.firstName} ${userProfile.lastName}`
               : 'User'
             }
@@ -46,7 +45,7 @@ export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: U
             {userProfile?.role === 'super_admin' ? 'Super Admin' : userProfile?.role || 'Customer'}
           </p>
         </div>
-        
+
         {/* Role-based menu items */}
         {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
           <>
@@ -63,7 +62,7 @@ export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: U
             <hr className="my-1" />
           </>
         ) : null}
-        
+
         {/* Customer menu items */}
         <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>
         <Link href="/account/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>

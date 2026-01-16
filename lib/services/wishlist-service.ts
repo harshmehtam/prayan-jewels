@@ -40,41 +40,42 @@ export async function getWishlistItems(sessionId: string): Promise<WishlistItem[
     if (wishlistItems.length === 0) return [];
 
     const client = await cookiesClient;
-    const enrichedItems: WishlistItem[] = [];
 
-    // Get product details for each item
-    for (const item of wishlistItems) {
-      const productResponse = await client.models.Product.get(
-        { id: item.productId },
-        { authMode: 'iam' }
-      );
+    // Get product details for all items in parallel
+    const enrichedItems = await Promise.all(
+      wishlistItems.map(async (item) => {
+        const productResponse = await client.models.Product.get(
+          { id: item.productId },
+          { authMode: 'iam' }
+        );
 
-      if (productResponse.data) {
-        enrichedItems.push({
-          id: item.id,
-          productId: item.productId,
-          productName: productResponse.data.name,
-          productPrice: productResponse.data.price,
-          productImage: productResponse.data.images?.[0] || '',
-          addedAt: item.createdAt
-        });
-      }
-    }
+        if (productResponse.data) {
+          return {
+            id: item.id,
+            productId: item.productId,
+            productName: productResponse.data.name,
+            productPrice: productResponse.data.price,
+            productImage: productResponse.data.images?.[0] || '',
+            addedAt: item.createdAt
+          };
+        }
+        
+        return null;
+      })
+    );
 
-    return enrichedItems;
+    // Filter out null values where products weren't found
+    return enrichedItems.filter((item): item is WishlistItem => item !== null);
   } catch (error) {
     console.error('Error loading wishlist items:', error);
     return [];
   }
 }
 
-// Add item to wishlist
+// Add item to wishlist (only stores productId, details fetched when displaying)
 export async function addToWishlist(
   sessionId: string,
-  productId: string,
-  productName: string,
-  productPrice: number,
-  productImage: string
+  productId: string
 ) {
   try {
     const client = await cookiesClient;

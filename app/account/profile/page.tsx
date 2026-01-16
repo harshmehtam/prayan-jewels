@@ -1,16 +1,21 @@
 'use client';
 
-import { useAuth } from '@/components/providers/auth-provider';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useUser } from '@/hooks/use-user';
+import { updateUserAttributes, fetchUserAttributes } from 'aws-amplify/auth';
 import Link from 'next/link';
-import { UserService } from '@/lib/data/users';
-import { isValidPhoneNumber } from '@/lib/amplify-client';
+
+// Simple phone validation
+const isValidPhoneNumber = (phone: string): boolean => {
+  const phoneRegex = /^[6-9]\d{9}$/;
+  return phoneRegex.test(phone.replace(/\D/g, ''));
+};
 
 // Prevent SSR for this page
 export const dynamic = 'force-dynamic';
 
 export default function ProfilePage() {
-  const { user, userProfile, refreshUserProfile } = useAuth();
+  const { user, refreshUser } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
@@ -28,18 +33,29 @@ export default function ProfilePage() {
 
   // Initialize form data when userProfile loads
   useEffect(() => {
-    if (userProfile) {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user]);
+
+  const loadUserProfile = async () => {
+    if (!user?.userId) return;
+
+    try {
+      const attributes = await fetchUserAttributes();
       setFormData({
-        firstName: userProfile.firstName || '',
-        lastName: userProfile.lastName || '',
-        phone: userProfile.phone || '',
+        firstName: attributes.firstName || '',
+        lastName: attributes.lastName || '',
+        phone: attributes.phone || '',
         dateOfBirth: '',
         newsletter: false,
         smsUpdates: false,
         preferredCategories: [],
       });
+    } catch (error) {
+      console.error('Error loading user profile:', error);
     }
-  }, [userProfile]);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -97,17 +113,10 @@ export default function ProfilePage() {
         throw new Error('User not found');
       }
 
-      if (userProfile) {
-        // Update existing profile - in mock mode, this is handled by auth provider
-        // Just show success message
-        setSuccess('Profile updated successfully!');
-      } else {
-        // Create new profile - in mock mode, this is handled by auth provider
-        setSuccess('Profile updated successfully!');
-      }
+      await updateUserAttributes(user.userId, formData);
 
       // Refresh user profile
-      await refreshUserProfile();
+      await refreshUser();
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
@@ -330,16 +339,8 @@ export default function ProfilePage() {
                       setError('');
                       setSuccess('');
                       // Reset form data
-                      if (userProfile) {
-                        setFormData({
-                          firstName: userProfile.firstName || '',
-                          lastName: userProfile.lastName || '',
-                          phone: userProfile.phone || '',
-                          dateOfBirth: '',
-                          newsletter: false,
-                          smsUpdates: false,
-                          preferredCategories: [],
-                        });
+                      if (user) {
+                        loadUserProfile();
                       }
                     }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

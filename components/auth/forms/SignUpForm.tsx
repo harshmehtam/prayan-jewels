@@ -1,5 +1,6 @@
+'use client';
 import React from 'react';
-import { formatPhoneInput } from '@/lib/services/auth-service';
+import { formatPhoneInput } from '@/lib/utils/phone-utils';
 
 interface SignUpFormProps {
   firstName: string;

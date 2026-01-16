@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getCart } from '@/app/actions/cart-actions';
-import { getProductsByIds } from '@/app/actions/product-actions';
+import { getCurrentUser } from '@/app/actions/auth-actions';
 import { CheckoutSteps } from '@/components/checkout/CheckoutSteps';
 import { ShippingForm } from '@/components/checkout/ShippingForm';
 import { BillingForm } from '@/components/checkout/BillingForm';
@@ -12,91 +12,83 @@ import CheckoutHeader from '@/components/layout/CheckoutHeader';
 import PageLoading from '@/components/ui/PageLoading';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
-import type { Address, Product, ShoppingCart, CartItem } from '@/types';
-import type { SavedAddress } from '@/lib/services/address-service';
+import type { Address, CartItem, ShoppingCart } from '@/types';
 
 export type CheckoutStep = 'shipping' | 'billing' | 'review';
 
+type CartWithItems = ShoppingCart & {
+  items: CartItem[];
+};
+
+type OrderResultState = {
+  success: boolean;
+  orderId?: string;
+  confirmationNumber?: string;
+  error?: string;
+  paymentMethod?: string;
+} | null;
+
 export default function CheckoutPage() {
   const router = useRouter();
-  const [cart, setCart] = useState<ShoppingCart | null>(null);
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedCart = useRef(false);
+  const isLoadingCart = useRef(false); // Prevent concurrent loads
   
+  // Cart state - single source of truth (items already include product data)
+  const [cart, setCart] = useState<CartWithItems | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | undefined>();
+  
+  // Checkout flow state
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('shipping');
   const [shippingAddress, setShippingAddress] = useState<Partial<Address> | null>(null);
   const [billingAddress, setBillingAddress] = useState<Partial<Address> | null>(null);
   const [sameAsShipping, setSameAsShipping] = useState(true);
-  const [editingShippingAddress, setEditingShippingAddress] = useState<SavedAddress | null>(null);
-  const [editingBillingAddress, setEditingBillingAddress] = useState<SavedAddress | null>(null);
-  const [products, setProducts] = useState<Map<string, Product>>(new Map());
+  
+  // Coupon state
   const [appliedCoupon, setAppliedCoupon] = useState<{
     id: string;
     code: string;
     name: string;
     discountAmount: number;
   } | null>(null);
-  const [finalTotal, setFinalTotal] = useState(0);
-  const [orderResult, setOrderResult] = useState<{
-    success: boolean;
-    orderId?: string;
-    confirmationNumber?: string;
-    error?: string;
-    paymentMethod?: string;
-  } | null>(null);
+  
+  // Order result state
+  const [orderResult, setOrderResult] = useState<OrderResultState>(null);
 
-  // Load cart data
+  // Load cart data and user info only once with extra protection
   useEffect(() => {
-    const loadCart = async () => {
+    // Triple protection against multiple calls
+    if (hasLoadedCart.current || isLoadingCart.current) {
+      return;
+    }
+
+    const loadData = async () => {
+      isLoadingCart.current = true;
+      
       try {
+        console.log('🛒 Loading cart data...');
         setIsLoading(true);
-        const cartData = await getCart();
-        if (cartData) {
-          setCart(cartData);
-          setItems(cartData.items || []);
-        }
+        
+        // Load cart and user in parallel
+        const [cartData, user] = await Promise.all([
+          getCart(),
+          getCurrentUser()
+        ]);
+        
+        setCart(cartData);
+        setUserId(user?.userId);
+        hasLoadedCart.current = true;
+        console.log('✅ Cart and user loaded successfully');
       } catch (error) {
-        console.error('Error loading cart:', error);
+        console.error('❌ Error loading data:', error);
       } finally {
         setIsLoading(false);
+        isLoadingCart.current = false;
       }
     };
 
-    loadCart();
-  }, []);
-
-  // Update final total when cart or coupon changes
-  useEffect(() => {
-    if (cart) {
-      const discount = appliedCoupon?.discountAmount || 0;
-      setFinalTotal(cart.estimatedTotal - discount);
-    }
-  }, [cart, appliedCoupon]);
-
-  // Load product details for cart items
-  useEffect(() => {
-    const loadProducts = async () => {
-      if (!items.length) {
-        return;
-      }
-
-      try {
-        const productIds = [...new Set(items.map(item => item.productId))];
-        const productList = await getProductsByIds(productIds);
-        
-        const productMap = new Map<string, Product>();
-        productList.forEach(product => {
-          productMap.set(product.id, product);
-        });
-        
-        setProducts(productMap);
-      } catch (error) {
-        console.error('Error loading products:', error);
-      }
-    };
-
-    loadProducts();
-  }, [items]);
+    loadData();
+  }, []); // Empty deps - only run once
 
   // Prevent accidental navigation away from checkout
   useEffect(() => {
@@ -111,11 +103,22 @@ export default function CheckoutPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentStep, shippingAddress]);
 
+  // Memoize calculated values to prevent unnecessary re-renders
+  const finalTotal = useMemo(() => {
+    return cart ? cart.estimatedTotal - (appliedCoupon?.discountAmount || 0) : 0;
+  }, [cart?.estimatedTotal, appliedCoupon?.discountAmount]);
+
+  const items = useMemo(() => cart?.items || [], [cart?.items]);
+  
+  const itemCount = useMemo(() => {
+    return items.reduce((total: number, item: CartItem) => total + item.quantity, 0);
+  }, [items]);
+
   if (isLoading) {
     return <PageLoading />;
   }
 
-  // Show order result when cart is empty (after order attempt)
+  // Show order result when cart is empty (after order completion)
   if ((!cart || items.length === 0) && orderResult) {
     if (orderResult.success) {
       // Success Screen
@@ -138,11 +141,9 @@ export default function CheckoutPage() {
                 Thank you for your order! We've received your order and will process it shortly.
               </p>
 
-              {/* Order Details */}
               <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-8 mb-8 border border-green-200">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Order Information</h3>
                 
-                {/* Confirmation Number - Highlighted */}
                 {orderResult.confirmationNumber && (
                   <div className="bg-white rounded-lg p-6 shadow-sm border-2 border-green-300 mb-6">
                     <p className="text-sm font-medium text-green-700 mb-2 text-center">Confirmation Number</p>
@@ -177,7 +178,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* What's Next */}
               <div className="bg-blue-50 rounded-lg p-6 mb-8">
                 <h4 className="font-semibold text-blue-900 mb-4 flex items-center text-center justify-center">
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="space-y-3">
                 <a 
                   href="/products" 
@@ -215,15 +214,8 @@ export default function CheckoutPage() {
                 >
                   Continue Shopping
                 </a>
-                {/* <a 
-                  href="/" 
-                  className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
-                >
-                  Back to Homepage
-                </a> */}
               </div>
 
-              {/* Support Information */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-sm text-gray-600 mb-2">Need help with your order?</p>
                 <div className="space-y-1">
@@ -255,15 +247,11 @@ export default function CheckoutPage() {
                 </svg>
               </div>
               
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                Order Failed
-              </h1>
-              
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Failed</h1>
               <p className="text-lg text-gray-600 mb-6">
                 We're sorry, but there was an issue processing your order.
               </p>
 
-              {/* Error Details */}
               <div className="bg-red-50 rounded-lg p-6 mb-8 text-left">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3 text-center">Error Details</h3>
                 <p className="text-sm text-red-700 bg-white px-4 py-3 rounded border border-red-200">
@@ -271,7 +259,6 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
-              {/* What to do next */}
               <div className="bg-yellow-50 rounded-lg p-6 mb-8 text-left">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">What can you do?</h3>
                 <div className="space-y-3 text-sm text-gray-700">
@@ -296,7 +283,6 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="space-y-3">
                 <button 
                   onClick={() => {
@@ -313,15 +299,8 @@ export default function CheckoutPage() {
                 >
                   Continue Shopping
                 </a>
-                {/* <a 
-                  href="/" 
-                  className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors inline-block"
-                >
-                  Back to Homepage
-                </a> */}
               </div>
 
-              {/* Support Information */}
               <div className="mt-8 pt-6 border-t border-gray-200">
                 <p className="text-sm text-gray-600 mb-2">Need immediate assistance?</p>
                 <div className="space-y-1">
@@ -363,20 +342,13 @@ export default function CheckoutPage() {
 
   const handleShippingSubmit = (address: Partial<Address>) => {
     setShippingAddress(address);
-    setEditingShippingAddress(null); // Clear editing state
     if (sameAsShipping) {
-      // Copy shipping address to billing address, preserving email and phone
-      const billingAddr = {
+      setBillingAddress({
         ...address,
         type: 'billing' as const,
-        // Preserve email and phone from shipping address
-        email: (address as any).email,
-        phone: (address as any).phone,
-      };
-      setBillingAddress(billingAddr);
+      });
       setCurrentStep('review');
     } else {
-      // Clear billing address and go to billing step
       setBillingAddress(null);
       setCurrentStep('billing');
     }
@@ -385,43 +357,22 @@ export default function CheckoutPage() {
   const handleSameAsShippingChange = (same: boolean) => {
     setSameAsShipping(same);
     if (same && shippingAddress) {
-      // Copy shipping address to billing address, preserving email and phone
       setBillingAddress({
         ...shippingAddress,
         type: 'billing',
-        // Preserve email and phone from shipping address
-        email: (shippingAddress as any).email,
-        phone: (shippingAddress as any).phone,
       });
     } else {
-      // Clear billing address when unchecked
       setBillingAddress(null);
     }
   };
 
   const handleBillingSubmit = (address: Partial<Address>) => {
     setBillingAddress(address);
-    setEditingBillingAddress(null); // Clear editing state
     setCurrentStep('review');
   };
 
-  const handleBackToShipping = () => {
-    setCurrentStep('shipping');
-    // If we have shipping address data, we want to show the form directly
-    // This ensures that when user navigates back, they see their entered data
-    if (shippingAddress) {
-      setEditingShippingAddress(null); // Clear any editing state
-    }
-  };
-
-  const handleBackToBilling = () => {
-    setCurrentStep('billing');
-  };
-
-  const handlePlaceOrder = async () => {
-    // This is now handled by the PaymentButton component
-    console.log('Order placement handled by PaymentButton component');
-  };
+  const handleBackToShipping = () => setCurrentStep('shipping');
+  const handleBackToBilling = () => setCurrentStep('billing');
 
   const handleOrderSuccess = (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => {
     setOrderResult({
@@ -439,32 +390,16 @@ export default function CheckoutPage() {
     });
   };
 
-  if (isLoading) {
-    return <PageLoading />;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Checkout Header */}
       <CheckoutHeader />
       
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
           <p className="mt-2 text-gray-600">
-            Complete your purchase of {items.length} {items.length === 1 ? 'item' : 'items'}
+            Complete your purchase of {itemCount} {itemCount === 1 ? 'item' : 'items'}
           </p>
-          {/* <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center">
-              <svg className="h-5 w-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-blue-800">
-                No account required! Simply provide your shipping information to complete your order.
-              </p>
-            </div>
-          </div> */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -472,7 +407,6 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2">
             <CheckoutSteps currentStep={currentStep} />
             
-            {/* Back button for review step */}
             {currentStep === 'review' && (
               <div className="mb-6">
                 <button
@@ -494,7 +428,7 @@ export default function CheckoutPage() {
                   sameAsShipping={sameAsShipping}
                   onSameAsShippingChange={handleSameAsShippingChange}
                   initialData={shippingAddress}
-                  editingAddress={editingShippingAddress}
+                  editingAddress={null}
                 />
               )}
               
@@ -503,7 +437,7 @@ export default function CheckoutPage() {
                   onSubmit={handleBillingSubmit}
                   onBack={handleBackToShipping}
                   initialData={billingAddress}
-                  editingAddress={editingBillingAddress}
+                  editingAddress={null}
                 />
               )}
               
@@ -513,7 +447,7 @@ export default function CheckoutPage() {
                   items={items}
                   shippingAddress={shippingAddress!}
                   billingAddress={billingAddress!}
-                  onPlaceOrder={handlePlaceOrder}
+                  onPlaceOrder={async () => {}}
                   isProcessing={false}
                   onSuccess={handleOrderSuccess}
                   onError={handleOrderError}
@@ -527,6 +461,7 @@ export default function CheckoutPage() {
                     });
                   }}
                   onCouponRemoved={() => setAppliedCoupon(null)}
+                  userId={userId}
                 />
               )}
             </div>
@@ -541,16 +476,15 @@ export default function CheckoutPage() {
               
               <div className="space-y-4">
                 {items.map((item) => {
-                  const product = products.get(item.productId);
-                  const priceInfo = calculatePriceInfo(item.unitPrice, product?.actualPrice);
+                  const priceInfo = calculatePriceInfo(item.unitPrice, item.product?.actualPrice);
                   
                   return (
                     <div key={item.id} className="flex items-center space-x-3">
                       <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-md overflow-hidden">
-                        {product?.images?.[0] ? (
+                        {item.product?.images?.[0] ? (
                           <CachedAmplifyImage
-                            path={product.images[0]}
-                            alt={product.name}
+                            path={item.product.images[0]}
+                            alt={item.product.name}
                             className="w-full h-full object-cover"
                           />
                         ) : (
@@ -563,7 +497,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {product?.name || `Product ${item.productId}`}
+                          {item.product?.name || `Product ${item.productId}`}
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-gray-500">

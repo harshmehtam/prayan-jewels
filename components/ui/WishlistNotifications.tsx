@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { WishlistNotificationService, type WishlistNotification } from '@/lib/services/wishlist-notifications';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 import Link from 'next/link';
 
 interface WishlistNotificationsProps {
@@ -10,7 +10,7 @@ interface WishlistNotificationsProps {
 }
 
 export default function WishlistNotifications({ className = '' }: WishlistNotificationsProps) {
-  const { user } = useAuth();
+  const { user } = useUser();
   const [notifications, setNotifications] = useState<WishlistNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);

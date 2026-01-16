@@ -1,5 +1,6 @@
+'use client';
 import React from 'react';
-import { formatPhoneForDisplay } from '@/lib/services/auth-service';
+import { formatPhoneForDisplay } from '@/lib/utils/phone-utils';
 
 interface OTPFormProps {
   otp: string;

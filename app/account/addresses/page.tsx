@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
+import Link from 'next/link';
 import * as addressActions from '@/app/actions/address-actions';
 import type { SavedAddress, AddressInput } from '@/lib/services/address-service';
 import { useRouter } from 'next/navigation';
@@ -9,7 +10,7 @@ import { AddressForm } from '@/components/checkout/AddressForm';
 import type { Address } from '@/types';
 
 export default function AddressesPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useUser();
   const router = useRouter();
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [isLoading, setIsLoading] = useState(true);

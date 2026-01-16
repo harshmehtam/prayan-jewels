@@ -100,13 +100,39 @@ export default function CouponSection({
   };
 
   const handleQuickApply = async (code: string) => {
-    setCouponCode(code);
+    setIsValidating(true);
+    setValidationError('');
     setShowAvailableCoupons(false);
     
-    // Auto-apply the coupon
-    setTimeout(() => {
-      handleApplyCoupon();
-    }, 100);
+    try {
+      const result: CouponValidationResult = await couponActions.validateAndApplyCoupon({
+        code: code.trim().toUpperCase(),
+        userId,
+        subtotal,
+        productIds,
+      });
+
+      if (result.isValid && result.coupon && result.discountAmount !== undefined) {
+        onCouponApplied(result.coupon, result.discountAmount);
+        setCouponCode('');
+        toast({
+          title: 'Coupon Applied!',
+          description: `You saved ₹${result.discountAmount.toFixed(2)}`,
+        });
+      } else {
+        setValidationError(result.error || 'Invalid coupon code');
+      }
+    } catch (error) {
+      console.error('Error applying coupon:', error);
+      setValidationError('Failed to apply coupon. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to apply coupon. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   return (

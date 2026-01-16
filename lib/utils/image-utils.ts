@@ -2,6 +2,9 @@
  * Image utility functions for optimization and validation
  */
 
+import { getUrl } from 'aws-amplify/storage/server';
+import { runWithAmplifyServerContext } from '@/utils/amplify-utils';
+
 export interface ImageValidationResult {
   isValid: boolean;
   error?: string;
@@ -212,4 +215,62 @@ export function generateOptimizedFilename(originalName: string, prefix?: string)
   
   const baseName = prefix ? `${prefix}-${timestamp}-${randomId}` : `${timestamp}-${randomId}`;
   return `${baseName}.${extension}`;
+}
+
+/**
+ * Server-side function to get image URL from Amplify Storage
+ * @param path - S3 path to the image
+ * @param expiresIn - URL expiration time in seconds (default: 1 hour)
+ * @returns Promise resolving to the image URL or null if error
+ */
+export async function getImageUrl(
+  path: string | null | undefined,
+  expiresIn: number = 3600
+): Promise<string | null> {
+  if (!path) {
+    return null;
+  }
+
+  try {
+    const { cookies } = await import('next/headers');
+    
+    const result = await runWithAmplifyServerContext({
+      nextServerContext: { cookies },
+      operation: (contextSpec) =>
+        getUrl(contextSpec, {
+          path,
+          options: {
+            expiresIn,
+            validateObjectExistence: false,
+          },
+        }),
+    });
+
+    return result.url.toString();
+  } catch (error) {
+    console.error('Failed to get image URL:', error);
+    return null;
+  }
+}
+
+/**
+ * Server-side function to get multiple image URLs from Amplify Storage
+ * @param paths - Array of S3 paths
+ * @param expiresIn - URL expiration time in seconds (default: 1 hour)
+ * @returns Promise resolving to array of URLs (null for failed fetches)
+ */
+export async function getImageUrls(
+  paths: (string | null | undefined)[],
+  expiresIn: number = 3600
+): Promise<(string | null)[]> {
+  return Promise.all(
+    paths.map((path) => getImageUrl(path, expiresIn))
+  );
+}
+
+/**
+ * Get a fallback image URL
+ */
+export function getFallbackImageUrl(): string {
+  return '/placeholder-product.svg';
 }

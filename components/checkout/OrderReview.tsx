@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { PaymentButton } from './PaymentButton';
 import CouponSection from './CouponSection';
-import { getCurrentUser } from 'aws-amplify/auth';
 import type { ShoppingCart, CartItem, Address } from '@/types';
 
 interface OrderReviewProps {
@@ -23,6 +22,101 @@ interface OrderReviewProps {
   } | null;
   onCouponApplied?: (coupon: any, discountAmount: number) => void;
   onCouponRemoved?: () => void;
+  userId?: string;
+}
+
+// Helper component for address display
+function AddressDisplay({ title, address }: { title: string; address: Partial<Address> }) {
+  const formatAddress = (addr: Partial<Address>) => {
+    const parts = [
+      `${addr.firstName} ${addr.lastName}`,
+      addr.addressLine1,
+      addr.addressLine2,
+      `${addr.city}, ${addr.state} ${addr.postalCode}`,
+      addr.country
+    ].filter(Boolean);
+    
+    return parts.join('\n');
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">{title}</h2>
+      <div className="text-sm text-gray-700 whitespace-pre-line">
+        {formatAddress(address)}
+      </div>
+    </div>
+  );
+}
+
+// Payment method selector component
+function PaymentMethodSelector({
+  selectedMethod,
+  onMethodChange,
+}: {
+  selectedMethod: 'razorpay' | 'cash_on_delivery';
+  onMethodChange: (method: 'razorpay' | 'cash_on_delivery') => void;
+}) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Method</h2>
+      
+      <div className="space-y-3">
+        {/* Razorpay Option */}
+        <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <input
+            type="radio"
+            name="paymentMethod"
+            value="razorpay"
+            checked={selectedMethod === 'razorpay'}
+            onChange={(e) => onMethodChange(e.target.value as 'razorpay')}
+            className="h-4 w-4 text-black focus:ring-black border-gray-300"
+          />
+          <div className="ml-3 flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Pay Online</p>
+                <p className="text-xs text-gray-500">Credit Card, Debit Card, Net Banking, UPI, Wallets</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-5 bg-black rounded flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">RP</span>
+                </div>
+                <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </label>
+
+        {/* Cash on Delivery Option */}
+        <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+          <input
+            type="radio"
+            name="paymentMethod"
+            value="cash_on_delivery"
+            checked={selectedMethod === 'cash_on_delivery'}
+            onChange={(e) => onMethodChange(e.target.value as 'cash_on_delivery')}
+            className="h-4 w-4 text-black focus:ring-black border-gray-300"
+          />
+          <div className="ml-3 flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Cash on Delivery</p>
+                <p className="text-xs text-gray-500">Pay when your order is delivered</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </label>
+      </div>
+    </div>
+  );
 }
 
 export function OrderReview({
@@ -30,100 +124,26 @@ export function OrderReview({
   items,
   shippingAddress,
   billingAddress,
-  onPlaceOrder,
   onSuccess,
   onError,
-  appliedCoupon: initialAppliedCoupon,
-  onCouponApplied: onCouponAppliedProp,
-  onCouponRemoved: onCouponRemovedProp,
+  appliedCoupon,
+  onCouponApplied,
+  onCouponRemoved,
+  userId,
 }: OrderReviewProps) {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'razorpay' | 'cash_on_delivery'>('razorpay');
-  const [userId, setUserId] = useState<string | undefined>();
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    id: string;
-    code: string;
-    name: string;
-    discountAmount: number;
-  } | null>(initialAppliedCoupon || null);
-  const [finalTotal, setFinalTotal] = useState(cart.estimatedTotal);
 
-  // Load user info only
-  useEffect(() => {
-    const loadUserInfo = async () => {
-      try {
-        const user = await getCurrentUser();
-        setUserId(user.userId);
-      } catch (error) {
-        // User not logged in
-        setUserId(undefined);
-      }
-    };
-
-    loadUserInfo();
-  }, []);
-
-  const handleCouponApplied = (coupon: any, discountAmount: number) => {
-    const couponData = {
-      id: coupon.id,
-      code: coupon.code,
-      name: coupon.name,
-      discountAmount,
-    };
-    setAppliedCoupon(couponData);
-    setFinalTotal(cart.estimatedTotal - discountAmount);
-    onCouponAppliedProp?.(coupon, discountAmount);
-  };
-
-  const handleCouponRemoved = () => {
-    setAppliedCoupon(null);
-    setFinalTotal(cart.estimatedTotal);
-    onCouponRemovedProp?.();
-  };
-
-  const formatAddress = (address: Partial<Address>) => {
-    const parts = [
-      `${address.firstName} ${address.lastName}`,
-      address.addressLine1,
-      address.addressLine2,
-      `${address.city}, ${address.state} ${address.postalCode}`,
-      address.country
-    ].filter(Boolean);
-    
-    return parts.join('\n');
-  };
-
-  const handlePlaceOrder = async () => {
-    await onPlaceOrder();
-  };
-
-  const handlePaymentSuccess = (orderId: string, paymentId: string, confirmationNumber?: string, paymentMethod?: string) => {
-    console.log('Payment successful:', { orderId, paymentId, confirmationNumber, paymentMethod });
-    onSuccess?.(orderId, paymentId, confirmationNumber, paymentMethod);
-  };
-
-  const handlePaymentError = (error: string) => {
-    console.error('Payment error:', error);
-    onError?.(error);
-  };
+  // Calculate final total with coupon discount
+  const finalTotal = cart.estimatedTotal - (appliedCoupon?.discountAmount || 0);
 
   return (
     <div className="space-y-6">
       {/* Shipping Address */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Shipping Address</h2>
-        <div className="text-sm text-gray-700 whitespace-pre-line">
-          {formatAddress(shippingAddress)}
-        </div>
-      </div>
+      <AddressDisplay title="Shipping Address" address={shippingAddress} />
 
       {/* Billing Address */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Billing Address</h2>
-        <div className="text-sm text-gray-700 whitespace-pre-line">
-          {formatAddress(billingAddress)}
-        </div>
-      </div>
+      <AddressDisplay title="Billing Address" address={billingAddress} />
 
       {/* Coupon Section */}
       <CouponSection
@@ -131,69 +151,15 @@ export function OrderReview({
         productIds={items.map(item => item.productId)}
         userId={userId}
         appliedCoupon={appliedCoupon}
-        onCouponApplied={handleCouponApplied}
-        onCouponRemoved={handleCouponRemoved}
+        onCouponApplied={onCouponApplied!}
+        onCouponRemoved={onCouponRemoved!}
       />
 
       {/* Payment Method */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Method</h2>
-        
-        <div className="space-y-3">
-          {/* Razorpay Option */}
-          <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="razorpay"
-              checked={selectedPaymentMethod === 'razorpay'}
-              onChange={(e) => setSelectedPaymentMethod(e.target.value as 'razorpay')}
-              className="h-4 w-4 text-black focus:ring-black border-gray-300"
-            />
-            <div className="ml-3 flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Pay Online</p>
-                  <p className="text-xs text-gray-500">Credit Card, Debit Card, Net Banking, UPI, Wallets</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-5 bg-black rounded flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">RP</span>
-                  </div>
-                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </label>
-
-          {/* Cash on Delivery Option */}
-          <label className="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="cash_on_delivery"
-              checked={selectedPaymentMethod === 'cash_on_delivery'}
-              onChange={(e) => setSelectedPaymentMethod(e.target.value as 'cash_on_delivery')}
-              className="h-4 w-4 text-black focus:ring-black border-gray-300"
-            />
-            <div className="ml-3 flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Cash on Delivery</p>
-                  <p className="text-xs text-gray-500">Pay when your order is delivered</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </label>
-        </div>
-      </div>
+      <PaymentMethodSelector
+        selectedMethod={selectedPaymentMethod}
+        onMethodChange={setSelectedPaymentMethod}
+      />
 
       {/* Terms and Conditions */}
       <div className="bg-gray-50 rounded-lg p-4">
@@ -224,8 +190,8 @@ export function OrderReview({
           billingAddress={billingAddress}
           isProcessing={paymentProcessing}
           onProcessingChange={setPaymentProcessing}
-          onSuccess={handlePaymentSuccess}
-          onError={handlePaymentError}
+          onSuccess={onSuccess!}
+          onError={onError!}
           selectedPaymentMethod={selectedPaymentMethod}
           appliedCoupon={appliedCoupon}
           finalTotal={finalTotal}

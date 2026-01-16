@@ -26,12 +26,12 @@ export class WishlistNotificationService {
         }
       });
 
-      if (!wishlistResponse.data) return [];
+      if (!wishlistResponse.data || wishlistResponse.data.length === 0) return [];
 
       const notifications: WishlistNotification[] = [];
 
-      // Check each wishlist item for price changes
-      for (const wishlistItem of wishlistResponse.data) {
+      // Check each wishlist item for price changes in parallel
+      const notificationPromises = wishlistResponse.data.map(async (wishlistItem) => {
         try {
           // Get current product data
           const productResponse = await client.models.Product.get({ id: wishlistItem.productId });
@@ -46,26 +46,28 @@ export class WishlistNotificationService {
             if (originalPrice && product.price < originalPrice) {
               const discount = ((originalPrice - product.price) / originalPrice * 100).toFixed(0);
               
-              notifications.push({
+              return {
                 id: `price_drop_${wishlistItem.id}_${Date.now()}`,
                 customerId,
                 productId: wishlistItem.productId,
-                type: 'price_drop',
+                type: 'price_drop' as const,
                 title: 'Price Drop Alert!',
                 message: `${product.name} is now ${discount}% off! Price dropped from ₹${originalPrice} to ₹${product.price}`,
                 originalPrice,
                 newPrice: product.price,
                 isRead: false,
                 createdAt: new Date().toISOString()
-              });
+              };
             }
           }
         } catch (error) {
           console.error(`Error checking price for product ${wishlistItem.productId}:`, error);
         }
-      }
+        return null;
+      });
 
-      return notifications;
+      const results = await Promise.all(notificationPromises);
+      return results.filter((notif): notif is WishlistNotification => notif !== null);
     } catch (error) {
       console.error('Error checking price drops:', error);
       return [];
@@ -154,12 +156,10 @@ export class WishlistNotificationService {
         }
       });
 
-      if (!wishlistResponse.data) return [];
+      if (!wishlistResponse.data || wishlistResponse.data.length === 0) return [];
 
-      const notifications: WishlistNotification[] = [];
-
-      // Generate special offers (this would be based on business logic)
-      for (const wishlistItem of wishlistResponse.data) {
+      // Generate special offers in parallel
+      const notificationPromises = wishlistResponse.data.map(async (wishlistItem) => {
         try {
           // Get product data
           const productResponse = await client.models.Product.get({ id: wishlistItem.productId });
@@ -172,24 +172,26 @@ export class WishlistNotificationService {
             const daysSinceAdded = Math.floor((Date.now() - addedDate.getTime()) / (1000 * 60 * 60 * 24));
             
             if (daysSinceAdded >= 7 && Math.random() > 0.7) { // 30% chance of special offer
-              notifications.push({
+              return {
                 id: `special_offer_${wishlistItem.id}_${Date.now()}`,
                 customerId,
                 productId: wishlistItem.productId,
-                type: 'special_offer',
+                type: 'special_offer' as const,
                 title: 'Special Offer Just for You!',
                 message: `Get 10% off on ${product.name}! Use code WISHLIST10 at checkout.`,
                 isRead: false,
                 createdAt: new Date().toISOString()
-              });
+              };
             }
           }
         } catch (error) {
           console.error(`Error generating special offer for product ${wishlistItem.productId}:`, error);
         }
-      }
+        return null;
+      });
 
-      return notifications;
+      const results = await Promise.all(notificationPromises);
+      return results.filter((notif): notif is WishlistNotification => notif !== null);
     } catch (error) {
       console.error('Error generating special offers:', error);
       return [];

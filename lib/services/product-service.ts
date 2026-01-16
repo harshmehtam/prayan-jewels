@@ -1,9 +1,10 @@
 import { cookiesClient } from '@/utils/amplify-utils';
+import { getImageUrl } from '@/lib/utils/image-utils';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
-import { getProductReviews } from './review-service';
+import { getProductReviews, batchGetProductReviewStats } from './review-service';
 
 // Cache configuration
-const CACHE_DURATION = 30000; // 30 seconds
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes (URLs are valid for 2 hours, so we can cache longer)
 const BATCH_SIZE = 10; // Batch size for fetching review stats
 
 // Simple cache implementation
@@ -25,15 +26,22 @@ function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<
   return !!entry && Date.now() - entry.timestamp < CACHE_DURATION;
 }
 
-// Helper: Transform raw product data to Product type
-function transformProduct(product: any, stats: any): Product {
+// Helper: Transform raw product data to Product type with resolved image URLs
+async function transformProduct(product: any, stats: any): Promise<Product> {
+  // Resolve image URLs from S3 paths in parallel for better performance
+  const imagePaths = product.images?.filter((img: string | null): img is string => img !== null) || [];
+  
+  // Use Promise.all to resolve all URLs in parallel instead of sequentially
+  const imageUrlPromises = imagePaths.map((imagePath: string) => getImageUrl(imagePath, 7200)); // 2 hour expiry
+  const imageUrls = (await Promise.all(imageUrlPromises)).filter((url): url is string => url !== null);
+
   return {
     id: product.id,
     name: product.name,
     description: product.description,
     price: product.price,
     actualPrice: product.actualPrice,
-    images: product.images?.filter((img: string | null): img is string => img !== null) || [],
+    images: imageUrls, // Now contains resolved URLs instead of S3 paths
     isActive: product.isActive,
     viewCount: product.viewCount,
     createdAt: product.createdAt,
@@ -46,24 +54,8 @@ function transformProduct(product: any, stats: any): Product {
 
 // Helper: Batch fetch review stats for multiple products
 async function batchGetReviewStats(productIds: string[]): Promise<Map<string, any>> {
-  const statsMap = new Map();
-
-  // Process in batches to avoid overwhelming the API
-  for (let i = 0; i < productIds.length; i += BATCH_SIZE) {
-    const batch = productIds.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(
-      batch.map(async (productId) => {
-        const { stats } = await getProductReviews(productId);
-        return { productId, stats };
-      })
-    );
-
-    batchResults.forEach(({ productId, stats }) => {
-      statsMap.set(productId, stats);
-    });
-  }
-
-  return statsMap;
+  // Use the optimized batch function from review-service
+  return await batchGetProductReviewStats(productIds);
 }
 
 // Helper: Sort products based on sort criteria
@@ -173,15 +165,17 @@ export async function getProducts(
     const productIds = data.map(p => p.id);
     const reviewStatsMap = await batchGetReviewStats(productIds);
 
-    // Transform and enrich products with review stats
-    const transformedProducts = data.map((product) => {
-      const stats = reviewStatsMap.get(product.id) || {
-        averageRating: 0,
-        totalReviews: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
-      };
-      return transformProduct(product, stats);
-    });
+    // Transform and enrich products with review stats (now async)
+    const transformedProducts = await Promise.all(
+      data.map(async (product) => {
+        const stats = reviewStatsMap.get(product.id) || {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        };
+        return await transformProduct(product, stats);
+      })
+    );
 
     // Sort products
     const sortedProducts = sortProducts(transformedProducts, filters.sortBy);
@@ -235,7 +229,7 @@ export async function getProductById(id: string): Promise<Product | null> {
 
     // Get review stats
     const { stats } = await getProductReviews(id);
-    const transformedProduct = transformProduct(data, stats);
+    const transformedProduct = await transformProduct(data, stats);
 
     // Cache the result
     productCache.set(id, {

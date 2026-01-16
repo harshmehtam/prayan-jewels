@@ -250,6 +250,73 @@ export const getProductReviews = async (productId: string): Promise<{
 };
 
 /**
+ * Batch get review stats for multiple products (OPTIMIZED)
+ * This reduces multiple POST calls to a single call
+ */
+export const batchGetProductReviewStats = async (productIds: string[]): Promise<Map<string, ReviewStats>> => {
+  const statsMap = new Map<string, ReviewStats>();
+  
+  // Initialize all products with empty stats
+  productIds.forEach(productId => {
+    statsMap.set(productId, {
+      averageRating: 0,
+      totalReviews: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    });
+  });
+
+  if (productIds.length === 0) {
+    return statsMap;
+  }
+
+  try {
+    const client = await cookiesClient;
+    
+    // Fetch ALL approved reviews for all products in ONE call
+    // Using 'or' filter to get reviews for any of the product IDs
+    const orFilters = productIds.map(productId => ({ productId: { eq: productId } }));
+    
+    const reviewsResult = await client.models.ProductReview.list({
+      filter: {
+        and: [
+          { isApproved: { eq: true } },
+          { or: orFilters }
+        ]
+      },
+      authMode: 'iam',
+      limit: 1000 // Increase limit to fetch more reviews at once
+    });
+
+    if (reviewsResult.errors || !reviewsResult.data) {
+      console.error('Error fetching batch reviews:', reviewsResult.errors);
+      return statsMap;
+    }
+
+    const allReviews = reviewsResult.data as unknown as ProductReview[];
+
+    // Group reviews by product ID
+    const reviewsByProduct = new Map<string, ProductReview[]>();
+    allReviews.forEach(review => {
+      const existing = reviewsByProduct.get(review.productId) || [];
+      existing.push(review);
+      reviewsByProduct.set(review.productId, existing);
+    });
+
+    // Calculate stats for each product
+    reviewsByProduct.forEach((reviews, productId) => {
+      const stats = calculateReviewStats(reviews);
+      statsMap.set(productId, stats);
+    });
+
+    return statsMap;
+
+  } catch (error) {
+    console.error('Error in batch review stats:', error);
+    return statsMap;
+  }
+};
+
+/**
  * Calculate review statistics
  */
 const calculateReviewStats = (reviews: ProductReview[]): ReviewStats => {

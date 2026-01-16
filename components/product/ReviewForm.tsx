@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 import StarRating from '@/components/ui/StarRating';
-import { ReviewService } from '@/lib/services/review-service';
+import { createReview } from '@/app/actions/review-actions';
 import type { CreateReviewInput } from '@/types';
 
 interface ReviewFormProps {
@@ -26,7 +26,7 @@ export default function ReviewForm({
   onReviewSubmitted,
   onCancel
 }: ReviewFormProps) {
-  const { user } = useAuth();
+  const { user } = useUser();
   const [selectedOrderItem, setSelectedOrderItem] = useState(orderItems[0]);
   const [rating, setRating] = useState(0);
   const [title, setTitle] = useState('');
@@ -70,7 +70,7 @@ export default function ReviewForm({
         comment: comment.trim()
       };
 
-      const result = await ReviewService.createReview(user.userId, reviewData);
+      const result = await createReview(user.userId, reviewData);
 
       if (result.errors) {
         setError(result.errors.join(', '));

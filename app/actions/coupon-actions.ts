@@ -11,7 +11,31 @@ export async function validateAndApplyCoupon(
   input: ApplyCouponInput
 ): Promise<CouponValidationResult> {
   try {
-    return await couponService.validateAndApplyCoupon(input);
+    const result = await couponService.validateAndApplyCoupon(input);
+    
+    // If validation is successful, serialize the coupon object to remove function properties
+    if (result.isValid && result.coupon) {
+      const serializedCoupon = JSON.parse(JSON.stringify(result.coupon));
+      
+      return {
+        ...result,
+        coupon: {
+          id: serializedCoupon.id,
+          code: serializedCoupon.code,
+          name: serializedCoupon.name,
+          description: serializedCoupon.description,
+          type: serializedCoupon.type,
+          value: serializedCoupon.value,
+          minimumOrderAmount: serializedCoupon.minimumOrderAmount,
+          maximumDiscountAmount: serializedCoupon.maximumDiscountAmount,
+          validFrom: serializedCoupon.validFrom,
+          validUntil: serializedCoupon.validUntil,
+          isActive: serializedCoupon.isActive,
+        },
+      };
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error validating coupon:', error);
     return {
@@ -61,12 +85,63 @@ export async function getAvailableCoupons(userId?: string): Promise<any[]> {
   try {
     const coupons = await couponService.getAvailableCoupons(userId);
     
-    // Format coupons for display using the service utility
+    // Convert to plain objects and add formatted data
     return coupons.map((coupon) => {
-      const formatted = couponService.formatCouponForDisplay(coupon);
+      // Use JSON serialization to remove any function properties
+      const serializedCoupon = JSON.parse(JSON.stringify(coupon));
+      
+      // Extract only the serializable properties
+      const plainCoupon = {
+        id: serializedCoupon.id,
+        code: serializedCoupon.code,
+        name: serializedCoupon.name,
+        description: serializedCoupon.description,
+        type: serializedCoupon.type,
+        value: serializedCoupon.value,
+        minimumOrderAmount: serializedCoupon.minimumOrderAmount,
+        maximumDiscountAmount: serializedCoupon.maximumDiscountAmount,
+        validFrom: serializedCoupon.validFrom,
+        validUntil: serializedCoupon.validUntil,
+        isActive: serializedCoupon.isActive,
+        usageLimit: serializedCoupon.usageLimit,
+        usageCount: serializedCoupon.usageCount,
+        userUsageLimit: serializedCoupon.userUsageLimit,
+        applicableProducts: serializedCoupon.applicableProducts,
+        excludedProducts: serializedCoupon.excludedProducts,
+        allowedUsers: serializedCoupon.allowedUsers,
+        excludedUsers: serializedCoupon.excludedUsers,
+        showOnHeader: serializedCoupon.showOnHeader,
+        createdAt: serializedCoupon.createdAt,
+        updatedAt: serializedCoupon.updatedAt,
+      };
+
+      // Add formatted data inline
+      const discount = plainCoupon.type === 'percentage' 
+        ? `${plainCoupon.value}% OFF` 
+        : `₹${plainCoupon.value} OFF`;
+
+      const conditions = [];
+      if (plainCoupon.minimumOrderAmount && plainCoupon.minimumOrderAmount > 0) {
+        conditions.push(`Min order ₹${plainCoupon.minimumOrderAmount}`);
+      }
+      if (plainCoupon.maximumDiscountAmount && plainCoupon.type === 'percentage') {
+        conditions.push(`Max discount ₹${plainCoupon.maximumDiscountAmount}`);
+      }
+
       return {
-        ...coupon,
-        formatted, // Add formatted data to the coupon object
+        ...plainCoupon,
+        formatted: {
+          code: plainCoupon.code,
+          name: plainCoupon.name,
+          description: plainCoupon.description,
+          discount,
+          conditions: conditions.join(' • '),
+          validUntil: new Date(plainCoupon.validUntil).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+        },
       };
     });
   } catch (error) {

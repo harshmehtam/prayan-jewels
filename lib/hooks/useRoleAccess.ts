@@ -1,6 +1,8 @@
 'use client';
 
-import { useAuth } from '@/components/providers/auth-provider';
+// In future will be use role-actions.ts server actions instead of current
+
+import { useUser } from '@/hooks/use-user';
 import { 
   hasPermission, 
   isAdmin, 
@@ -29,14 +31,14 @@ export interface RoleAccessHook {
  * Hook to check user roles and permissions
  */
 export function useRoleAccess(): RoleAccessHook {
-  const { user, userProfile, isAuthenticated } = useAuth();
+  const { user: userProfile, isAuthenticated } = useUser();
   
   const userRole = userProfile?.role;
   
   return {
     userRole,
     userProfile,
-    userId: user?.userId,
+    userId: userProfile?.userId,
     isAuthenticated,
     isAdmin: isAdmin(userRole),
     isSuperAdmin: isSuperAdmin(userRole),

@@ -46,14 +46,11 @@ export async function getWishlistCount(): Promise<number> {
 
 // Add item to wishlist
 export async function addToWishlist(
-  productId: string,
-  productName: string,
-  productPrice: number,
-  productImage: string
+  productId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const sessionId = await getSessionId();
-    const result = await wishlistService.addToWishlist(sessionId, productId, productName, productPrice, productImage);
+    const result = await wishlistService.addToWishlist(sessionId, productId);
     
     if (result.success) {
       revalidatePath('/');
@@ -112,6 +109,45 @@ export async function batchCheckWishlist(productIds: string[]): Promise<Record<s
     const result: Record<string, boolean> = {};
     productIds.forEach(id => result[id] = false);
     return result;
+  }
+}
+
+// Toggle item in wishlist (add if not present, remove if present)
+export async function toggleWishlistItem(productId: string): Promise<{ success: boolean; isInWishlist: boolean; error?: string }> {
+  try {
+    const sessionId = await getSessionId();
+    const isAlreadyInWishlist = await wishlistService.isInWishlist(sessionId, productId);
+    
+    if (isAlreadyInWishlist) {
+      const result = await wishlistService.removeFromWishlist(sessionId, productId);
+      if (result.success) {
+        revalidatePath('/');
+        revalidatePath('/account/wishlist');
+      }
+      return {
+        success: result.success,
+        isInWishlist: false,
+        error: result.error
+      };
+    } else {
+      const result = await wishlistService.addToWishlist(sessionId, productId);
+      if (result.success) {
+        revalidatePath('/');
+        revalidatePath('/account/wishlist');
+      }
+      return {
+        success: result.success,
+        isInWishlist: true,
+        error: result.error
+      };
+    }
+  } catch (error) {
+    console.error('Error toggling wishlist:', error);
+    return {
+      success: false,
+      isInWishlist: false,
+      error: error instanceof Error ? error.message : 'Failed to toggle wishlist'
+    };
   }
 }
 

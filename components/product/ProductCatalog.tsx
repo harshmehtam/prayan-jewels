@@ -1,5 +1,6 @@
 import type { ProductFilters } from '@/types';
 import { getProducts } from '@/lib/services/product-service';
+import { batchCheckWishlist } from '@/app/actions/wishlist-actions';
 import ProductGridCard from './ProductGridCard';
 import SortDropdown from './SortDropdown';
 import PaginationControls from './PaginationControls';
@@ -50,6 +51,10 @@ export default async function ProductCatalog({
     nextToken
   );
 
+  // Batch check wishlist status for all products
+  const productIds = products.map(p => p.id);
+  const wishlistStatus = await batchCheckWishlist(productIds);
+
   const isFirstPage = !nextToken;
 
   return (
@@ -97,7 +102,11 @@ export default async function ProductCatalog({
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 mb-8">
               {products.map((product) => (
-                <ProductGridCard key={product.id} product={product} />
+                <ProductGridCard 
+                  key={product.id} 
+                  product={product} 
+                  isInWishlist={wishlistStatus[product.id] || false}
+                />
               ))}
             </div>
 

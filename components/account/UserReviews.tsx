@@ -1,83 +1,49 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { getCurrentUser } from 'aws-amplify/auth';
 import Link from 'next/link';
 import StarRating from '@/components/ui/StarRating';
-import { ReviewService } from '@/lib/services/review-service';
-import type { ProductReview } from '@/types';
+import { getUserReviews } from '@/app/actions/review-actions';
+import { getCurrentUserServer } from '@/lib/services/auth-service';
 
-export default function UserReviews() {
-  const [user, setUser] = useState<{ userId: string } | null>(null);
-  const [reviews, setReviews] = useState<ProductReview[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default async function UserReviews() {
+  const user = await getCurrentUserServer();
+  
+  if (!user?.userId) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-400 mb-4">
+          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Please sign in</h3>
+        <p className="text-gray-600 mb-6">
+          Sign in to view your reviews
+        </p>
+        <Link
+          href="/auth/login"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Sign In
+        </Link>
+      </div>
+    );
+  }
 
-  // Check authentication status
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        setUser({ userId: currentUser.userId });
-      } catch (error) {
-        setUser(null);
-      }
-    };
-    
-    checkAuth();
-  }, []);
+  const result = await getUserReviews(user.userId);
+  
+  if (result.errors) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-red-600 mb-4">
+          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-red-600">{result.errors.join(', ')}</p>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (user?.userId) {
-      loadUserReviews();
-    }
-  }, [user?.userId]);
-
-  const loadUserReviews = async () => {
-    if (!user?.userId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const result = await ReviewService.getUserReviews(user.userId);
-      
-      if (result.errors) {
-        setError(result.errors.join(', '));
-        return;
-      }
-
-      setReviews(result.reviews);
-    } catch (err) {
-      console.error('Error loading user reviews:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load reviews');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteReview = async (reviewId: string) => {
-    if (!user?.userId) return;
-
-    if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const result = await ReviewService.deleteReview(user.userId, reviewId);
-      
-      if (result.errors) {
-        setError(result.errors.join(', '));
-        return;
-      }
-
-      // Remove the deleted review from the list
-      setReviews(prev => prev.filter(review => review.id !== reviewId));
-    } catch (err) {
-      console.error('Error deleting review:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete review');
-    }
-  };
+  const reviews = result.reviews;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -87,53 +53,12 @@ export default function UserReviews() {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="border border-gray-200 rounded-lg p-6 animate-pulse">
-            <div className="flex items-start space-x-4">
-              <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
-              <div className="flex-1 space-y-3">
-                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="space-y-2">
-                  <div className="h-3 bg-gray-200 rounded"></div>
-                  <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-8">
-        <div className="text-red-600 mb-4">
-          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <p className="text-red-600">{error}</p>
-        <button
-          onClick={loadUserReviews}
-          className="mt-4 text-blue-600 hover:text-blue-800 text-sm"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
-
   if (reviews.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-400 mb-4">
           <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>
@@ -216,7 +141,7 @@ export default function UserReviews() {
                   {review.comment}
                 </div>
 
-                {/* Review Stats and Actions */}
+                {/* Review Stats */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4 text-sm text-gray-500">
                     {review.helpfulCount > 0 && (
@@ -224,20 +149,12 @@ export default function UserReviews() {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Link
-                      href={`/products/${review.productId}`}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      View Product
-                    </Link>
-                    <button
-                      onClick={() => handleDeleteReview(review.id)}
-                      className="text-sm text-red-600 hover:text-red-800"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  <Link
+                    href={`/products/${review.productId}`}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    View Product
+                  </Link>
                 </div>
               </div>
             </div>

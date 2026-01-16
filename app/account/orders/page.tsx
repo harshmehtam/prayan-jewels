@@ -1,9 +1,9 @@
 'use client';
 
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { OrderService } from '@/lib/services/order-service';
+import { getCustomerOrders } from '@/app/actions/order-actions';
 import { OrderCancellationService } from '@/lib/services/order-cancellation';
 import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
@@ -18,7 +18,7 @@ type OrderWithItems = Schema['Order']['type'] & {
 export const dynamic = 'force-dynamic';
 
 export default function OrdersPage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useUser();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +42,7 @@ export default function OrdersPage() {
 
     const loadOrders = async () => {
       try {
-        const customerOrders = await OrderService.getCustomerOrders(user.userId);
+        const customerOrders = await getCustomerOrders(user.userId);
         const sortedOrders = customerOrders.sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );

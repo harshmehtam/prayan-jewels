@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useUser } from '@/hooks/use-user';
 import PhoneLoginModal from './Login';
 
 interface LoginButtonProps {
@@ -14,7 +14,7 @@ interface LoginButtonProps {
   onModalOpen?: () => void;
 }
 
-export default function LoginButton({ 
+export default function LoginButton({
   className = '',
   children,
   redirectTo = '/account',
@@ -24,7 +24,7 @@ export default function LoginButton({
   onModalOpen
 }: LoginButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useUser();
 
   // Don't show login button if user is already authenticated
   if (isAuthenticated) {
@@ -32,7 +32,7 @@ export default function LoginButton({
   }
 
   const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-300 uppercase tracking-wider';
-  
+
   const variantClasses = {
     primary: 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white focus:ring-gray-400',
     secondary: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
@@ -47,8 +47,8 @@ export default function LoginButton({
   };
 
   // For icon variant, don't apply base classes and size classes
-  const buttonClasses = variant === 'icon' 
-    ? className 
+  const buttonClasses = variant === 'icon'
+    ? className
     : `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
 
   return (

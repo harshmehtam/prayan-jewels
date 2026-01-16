@@ -1,6 +1,8 @@
-import type { CreateOrderInput } from '@/types';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import { validateRazorpayBasicConfig } from '@/lib/config/razorpay';
 
-// Razorpay types (since @types/razorpay doesn't exist)
+// Razorpay types
 interface RazorpayOptions {
   key: string;
   amount: number;
@@ -39,185 +41,223 @@ declare global {
   }
 }
 
-export class RazorpayService {
-  private static instance: RazorpayService;
-  private isScriptLoaded = false;
+/**
+ * Get Razorpay client instance (server-side only)
+ */
+function getRazorpayClient(): Razorpay {
+  validateRazorpayBasicConfig();
+  
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID!,
+    key_secret: process.env.RAZORPAY_KEY_SECRET!,
+  });
+}
 
-  private constructor() {}
+/**
+ * Calculate order totals
+ */
+export function calculateOrderTotals(items: Array<{ quantity: number; unitPrice: number }>, couponDiscount: number = 0) {
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+  const tax = subtotal * 0.18; // 18% GST
+  const shipping = subtotal > 2000 ? 0 : 100; // Free shipping above ₹2000
+  const totalAmount = subtotal + tax + shipping - couponDiscount;
 
-  static getInstance(): RazorpayService {
-    if (!RazorpayService.instance) {
-      RazorpayService.instance = new RazorpayService();
-    }
-    return RazorpayService.instance;
-  }
+  return {
+    subtotal,
+    tax,
+    shipping,
+    totalAmount,
+  };
+}
 
-  // Load Razorpay script dynamically
-  private loadRazorpayScript(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.isScriptLoaded && window.Razorpay) {
-        resolve();
-        return;
-      }
+/**
+ * Create Razorpay order (server-side only)
+ */
+export async function createRazorpayOrder(
+  amount: number,
+  customerId: string,
+  itemCount: number
+): Promise<{ success: boolean; order?: any; error?: string }> {
+  try {
+    const razorpay = getRazorpayClient();
 
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => {
-        this.isScriptLoaded = true;
-        resolve();
-      };
-      script.onerror = () => {
-        reject(new Error('Failed to load Razorpay script'));
-      };
-      document.head.appendChild(script);
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // Amount in paise
+      currency: 'INR',
+      receipt: `receipt_${Date.now()}`,
+      notes: {
+        customerId,
+        totalAmount: amount.toString(),
+        itemCount: itemCount.toString(),
+      },
     });
-  }
 
-  // Create order on server
-  async createOrder(orderData: CreateOrderInput) {
-    try {
-      const response = await fetch('/api/razorpay/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderData }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to create order');
+    return {
+      success: true,
+      order: {
+        id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        receipt: razorpayOrder.receipt,
+      },
+    };
+  } catch (error) {
+    let errorMessage = 'Failed to create payment order';
+    
+    if (error instanceof Error) {
+      if (error.message.includes('key_id')) {
+        errorMessage = 'Razorpay configuration error: Invalid key ID';
+      } else if (error.message.includes('key_secret')) {
+        errorMessage = 'Razorpay configuration error: Invalid key secret';
+      } else if (error.message.includes('network') || error.message.includes('ENOTFOUND')) {
+        errorMessage = 'Network error: Unable to connect to Razorpay servers';
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Error creating order:', error);
-      throw error;
     }
+    
+    return {
+      success: false,
+      error: errorMessage,
+    };
   }
+}
 
-  // Verify payment on server
-  async verifyPayment(paymentData: RazorpayResponse & { orderId: string }) {
-    try {
-      const response = await fetch('/api/razorpay/verify-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData),
-      });
+/**
+ * Verify Razorpay payment signature (server-side only)
+ */
+export async function verifyRazorpayPayment(
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+  razorpaySignature: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    validateRazorpayBasicConfig();
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to verify payment');
-      }
+    // Verify payment signature
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+      .digest('hex');
 
-      return await response.json();
-    } catch (error) {
-      console.error('Error verifying payment:', error);
-      throw error;
-    }
-  }
-
-  // Open Razorpay checkout
-  async openCheckout(options: {
-    orderData: CreateOrderInput;
-    customerName: string;
-    customerEmail: string;
-    customerPhone: string;
-    onSuccess: (orderId: string, paymentId: string, confirmationNumber?: string) => void;
-    onError: (error: Error) => void;
-    onDismiss?: () => void;
-  }): Promise<void> {
-    try {
-      // Load Razorpay script
-      await this.loadRazorpayScript();
-
-      // Create order on server
-      const orderResponse = await this.createOrder(options.orderData);
-
-      if (!orderResponse.success) {
-        throw new Error('Failed to create payment order');
-      }
-
-      console.log('Opening Razorpay checkout modal for order:', orderResponse.orderId);
-
-      // Configure Razorpay options
-      const razorpayOptions: RazorpayOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-        amount: orderResponse.razorpayOrder.amount,
-        currency: orderResponse.razorpayOrder.currency,
-        name: 'Silver Mangalsutra Store',
-        description: 'Purchase of silver mangalsutra jewelry',
-        order_id: orderResponse.razorpayOrder.id,
-        handler: async (response: RazorpayResponse) => {
-          try {
-            console.log('Payment successful, verifying...', response);
-            
-            // Verify payment on server
-            const verificationResult = await this.verifyPayment({
-              ...response,
-              orderId: orderResponse.orderId,
-            });
-
-            if (verificationResult.success) {
-              options.onSuccess(orderResponse.orderId, response.razorpay_payment_id, verificationResult.confirmationNumber);
-            } else {
-              options.onError(new Error('Payment verification failed'));
-            }
-          } catch (error) {
-            console.error('Payment verification error:', error);
-            options.onError(error as Error);
-          }
-        },
-        prefill: {
-          name: options.customerName,
-          email: options.customerEmail,
-          contact: options.customerPhone,
-        },
-        notes: {
-          orderId: orderResponse.orderId,
-          customerId: options.orderData.customerId,
-        },
-        theme: {
-          color: '#3B82F6', // Blue theme
-        },
-        modal: {
-          ondismiss: () => {
-            console.log('Razorpay modal dismissed');
-            if (options.onDismiss) {
-              options.onDismiss();
-            }
-          },
-        },
+    if (expectedSignature !== razorpaySignature) {
+      return {
+        success: false,
+        error: 'Invalid payment signature',
       };
-
-      console.log('Opening Razorpay checkout modal...');
-      // Open Razorpay checkout
-      const razorpay = new window.Razorpay(razorpayOptions);
-      razorpay.open();
-
-    } catch (error) {
-      console.error('Error opening Razorpay checkout:', error);
-      options.onError(error as Error);
     }
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment verification failed',
+    };
+  }
+}
+
+/**
+ * Get payment status from Razorpay (server-side only)
+ */
+export async function getPaymentStatus(paymentId: string): Promise<{ success: boolean; payment?: any; error?: string }> {
+  try {
+    const razorpay = getRazorpayClient();
+    const payment = await razorpay.payments.fetch(paymentId);
+
+    return {
+      success: true,
+      payment: {
+        id: payment.id,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: payment.status,
+        method: payment.method,
+        createdAt: payment.created_at,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch payment status',
+    };
+  }
+}
+
+// Client-side functions
+
+let isScriptLoaded = false;
+
+/**
+ * Load Razorpay script dynamically (client-side only)
+ */
+export function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (isScriptLoaded && window.Razorpay) {
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => {
+      isScriptLoaded = true;
+      resolve();
+    };
+    script.onerror = () => {
+      reject(new Error('Failed to load Razorpay script'));
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/**
+ * Open Razorpay checkout modal (client-side only)
+ */
+export function openRazorpayCheckout(options: {
+  orderId: string;
+  amount: number;
+  currency: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerId: string;
+  onSuccess: (response: RazorpayResponse) => void;
+  onError: (error: Error) => void;
+  onDismiss?: () => void;
+}): void {
+  if (!window.Razorpay) {
+    options.onError(new Error('Razorpay script not loaded'));
+    return;
   }
 
-  // Get payment status
-  async getPaymentStatus(paymentId: string) {
-    try {
-      // This would typically call Razorpay API to get payment status
-      // For now, we'll implement a simple status check
-      const response = await fetch(`/api/razorpay/payment-status?paymentId=${paymentId}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to get payment status');
-      }
+  const razorpayOptions: RazorpayOptions = {
+    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+    amount: options.amount,
+    currency: options.currency,
+    name: 'Prayan Jewels',
+    description: 'Purchase of jewelry',
+    order_id: options.orderId,
+    handler: options.onSuccess,
+    prefill: {
+      name: options.customerName,
+      email: options.customerEmail,
+      contact: options.customerPhone,
+    },
+    notes: {
+      customerId: options.customerId,
+    },
+    theme: {
+      color: '#3B82F6',
+    },
+    modal: {
+      ondismiss: () => {
+        if (options.onDismiss) {
+          options.onDismiss();
+        }
+      },
+    },
+  };
 
-      return await response.json();
-    } catch (error) {
-      console.error('Error getting payment status:', error);
-      throw error;
-    }
-  }
+  const razorpay = new window.Razorpay(razorpayOptions);
+  razorpay.open();
 }

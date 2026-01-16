@@ -1,7 +1,12 @@
-import { signUp, confirmSignUp, signIn, resetPassword, confirmResetPassword, resendSignUpCode } from 'aws-amplify/auth';
-import { getCurrentUser, fetchUserAttributes, fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { signUp, confirmSignUp, signIn, resetPassword, confirmResetPassword, resendSignUpCode, signOut as clientSignOut } from 'aws-amplify/auth';
+import { getCurrentUser, fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth/server';
 import { runWithAmplifyServerContext } from '@/utils/amplify-utils';
-import { cookies } from 'next/headers';
+import { 
+  formatPhoneForCognito, 
+  formatPhoneForDisplay, 
+  validatePhoneNumber, 
+  formatPhoneInput 
+} from '@/lib/utils/phone-utils';
 
 // Types
 export interface AuthResponse {
@@ -49,63 +54,8 @@ export interface AuthUserProfile {
   role?: 'customer' | 'admin' | 'super_admin';
 }
 
-// Phone number utilities
-export const formatPhoneForCognito = (phoneNumber: string): string => {
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
-  
-  if (cleanPhone.length === 10) {
-    return `+91${cleanPhone}`;
-  } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
-    return `+${cleanPhone}`;
-  } else if (phoneNumber.startsWith('+91') && cleanPhone.length === 12) {
-    return phoneNumber;
-  }
-  
-  return `+91${cleanPhone}`;
-};
-
-export const formatPhoneForDisplay = (phoneNumber: string): string => {
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
-  if (cleanPhone.length === 10) {
-    return `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`;
-  } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
-    const number = cleanPhone.slice(2);
-    return `+91 ${number.slice(0, 5)} ${number.slice(5)}`;
-  }
-  return phoneNumber;
-};
-
-export const validatePhoneNumber = (phoneNumber: string): boolean => {
-  if (!phoneNumber || typeof phoneNumber !== 'string') {
-    return false;
-  }
-
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
-  
-  if (cleanPhone.length === 10) {
-    return /^[6-9]\d{9}$/.test(cleanPhone);
-  }
-  
-  if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
-    const number = cleanPhone.slice(2);
-    return /^[6-9]\d{9}$/.test(number);
-  }
-  
-  if (phoneNumber.startsWith('+91') && cleanPhone.length === 12) {
-    const number = cleanPhone.slice(2);
-    return /^[6-9]\d{9}$/.test(number);
-  }
-  
-  return false;
-};
-
-export const formatPhoneInput = (value: string): string => {
-  const cleaned = value.replace(/\D/g, '');
-  if (cleaned.length <= 10) {
-    return cleaned.replace(/(\d{5})(\d{0,5})/, '$1 $2').trim();
-  }
-  return cleaned.slice(0, 10).replace(/(\d{5})(\d{5})/, '$1 $2');
-};
+// Re-export phone utilities for backward compatibility
+export { formatPhoneForCognito, formatPhoneForDisplay, validatePhoneNumber, formatPhoneInput };
 
 // Error handling
 export const getAuthErrorMessage = (error: any): string => {
@@ -272,9 +222,12 @@ export const handleResendCode = async (phoneNumber: string): Promise<AuthRespons
  */
 export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
   try {
+    // Import cookies only when needed (server-side)
+    const { cookies } = await import('next/headers');
+    
     const user = await runWithAmplifyServerContext({
       nextServerContext: { cookies },
-      operation: () => getCurrentUser(),
+      operation: (contextSpec) => getCurrentUser(contextSpec),
     });
 
     if (!user?.userId) {
@@ -284,7 +237,7 @@ export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
     // Get user attributes
     const attributes = await runWithAmplifyServerContext({
       nextServerContext: { cookies },
-      operation: () => fetchUserAttributes(),
+      operation: (contextSpec) => fetchUserAttributes(contextSpec),
     });
 
     // Get user groups from session
@@ -294,7 +247,7 @@ export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
     try {
       const session = await runWithAmplifyServerContext({
         nextServerContext: { cookies },
-        operation: () => fetchAuthSession(),
+        operation: (contextSpec) => fetchAuthSession(contextSpec),
       });
 
       const accessToken = session.tokens?.accessToken;
@@ -323,8 +276,11 @@ export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
       groups,
       role,
     };
-  } catch (error) {
-    console.error('Error getting current user:', error);
+  } catch (error: any) {
+    // Only log unexpected errors, not authentication failures for guest users
+    if (error?.name !== 'UserUnAuthenticatedException') {
+      console.error('Error getting current user:', error);
+    }
     return null;
   }
 }
@@ -370,10 +326,7 @@ export async function isSuperAdmin(): Promise<boolean> {
  */
 export async function signOut(): Promise<void> {
   try {
-    await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: () => amplifySignOut(),
-    });
+    await clientSignOut();
   } catch (error) {
     console.error('Error signing out:', error);
     throw error;

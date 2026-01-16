@@ -48,7 +48,7 @@ export async function getCartItemCount(): Promise<number> {
 export async function addToCart(
   productId: string,
   quantity: number,
-  unitPrice: number
+  unitPrice?: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const sessionId = await getSessionId();

@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddToCartButton } from '@/components/cart';
-import { useWishlist } from '@/components/providers/wishlist-provider';
-import { useCart } from '@/components/providers/cart-provider';
+import { toggleWishlistItem } from '@/app/actions/wishlist-actions';
+import { addToCart } from '@/app/actions/cart-actions';
 import type { Product } from '@/types';
 
 interface ProductActionsProps {
@@ -15,20 +15,13 @@ export default function ProductActions({ product }: ProductActionsProps) {
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
 
-  const { toggleWishlist, wishlistStatus } = useWishlist();
-  const { addItem } = useCart();
   const router = useRouter();
-
-  // Update wishlist status from context
-  useEffect(() => {
-    setIsInWishlist(wishlistStatus[product.id] || false);
-  }, [wishlistStatus, product.id]);
 
   const handleBuyNow = async () => {
     setIsBuyingNow(true);
     
     try {
-      await addItem(product.id, 1, product.price);
+      await addToCart(product.id, 1);
       router.push('/checkout');
     } catch (error) {
       console.error('Failed to add product to cart:', error);
@@ -44,13 +37,7 @@ export default function ProductActions({ product }: ProductActionsProps) {
     setIsTogglingWishlist(true);
     
     try {
-      const productDetails = {
-        name: product.name,
-        price: product.price,
-        image: product.images[0] || ''
-      };
-      
-      const result = await toggleWishlist(product.id, productDetails);
+      const result = await toggleWishlistItem(product.id);
       setIsInWishlist(result.isInWishlist);
     } catch (error) {
       console.error('Failed to toggle wishlist:', error);

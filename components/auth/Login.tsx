@@ -26,7 +26,6 @@ export default function Login({
   redirectTo = '/account',
   isAdminLogin = false 
 }: LoginProps) {
-  // Form state
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -35,7 +34,7 @@ export default function Login({
   const [lastName, setLastName] = useState('');
   const [otp, setOtp] = useState('');
   const [signUpUsername, setSignUpUsername] = useState('');
-  const [signUpPassword, setSignUpPassword] = useState(''); // Store password for auto sign-in
+  const [signUpPassword, setSignUpPassword] = useState('');
   const [resetUsername, setResetUsername] = useState('');
   
   // Custom hooks

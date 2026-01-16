@@ -4,13 +4,17 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
-import type { CartItem } from '@/types';
+import type { CartItem, ShoppingCart } from '@/types';
 import {
   getCart,
   updateCartQuantity,
   removeFromCart
 } from '@/app/actions/cart-actions';
-import type { CartWithItems } from '@/lib/services/cart-service';
+
+// Type for cart with enriched items (returned from getCart action)
+type CartWithItems = ShoppingCart & {
+  items: CartItem[];
+};
 
 interface CartModalProps {
   isOpen: boolean;
