@@ -113,16 +113,23 @@ export default function ProfilePage() {
         throw new Error('User not found');
       }
 
-      await updateUserAttributes(user.userId, formData);
+      await updateUserAttributes({
+        userAttributes: {
+          given_name: formData.firstName,
+          family_name: formData.lastName,
+          phone_number: formData.phone ? `+91${formData.phone}` : undefined,
+        }
+      });
 
       // Refresh user profile
       await refreshUser();
       
       setSuccess('Profile updated successfully!');
       setIsEditing(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error);
-      setError(error.message || 'Failed to update profile. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update profile. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -186,7 +193,7 @@ export default function ProfilePage() {
                 </label>
                 <input
                   type="email"
-                  value={user?.username || ''}
+                  value={user?.email || user?.phone || ''}
                   disabled
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
                 />

@@ -3,10 +3,10 @@ import { cookiesClient } from '@/utils/amplify-utils';
 
 export async function GET(
   request: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     if (!orderId) {
       return NextResponse.json(
@@ -42,7 +42,7 @@ export async function GET(
         {
           status: order.status,
           timestamp: new Date(order.updatedAt || order.createdAt),
-          notes: getStatusNotes(order.status)
+          notes: getStatusNotes(order.status || 'pending')
         }
       ]
     };

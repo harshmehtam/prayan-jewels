@@ -58,12 +58,7 @@ export default function WishlistButton({
           setInWishlist(false);
         }
       } else {
-        const result = await wishlistActions.addToWishlist(
-          productId,
-          productName,
-          productPrice,
-          productImage
-        );
+        const result = await wishlistActions.addToWishlist(productId);
         if (result.success) {
           setInWishlist(true);
         } else if (result.error === 'Item already in wishlist') {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { OrderService } from '@/lib/services/order-service';
+import { updateOrderStatus } from '@/lib/services/order-service';
 import type { Order } from '@/types';
 import type { OrderStatus } from '@/lib/services/order-status';
 
@@ -42,8 +42,8 @@ export default function OrderCancellation({ order, onCancellationSuccess }: Orde
         throw new Error(errorMessage);
       }
 
-      // Use OrderService to update order status to cancelled
-      const updateResult = await OrderService.updateOrderStatus(order.id, 'cancelled');
+      // Use updateOrderStatus function to update order status to cancelled
+      const updateResult = await updateOrderStatus(order.id, 'cancelled');
 
       if (updateResult.errors && updateResult.errors.length > 0) {
         throw new Error(`Failed to cancel order: ${updateResult.errors.map(e => e.message).join(', ')}`);

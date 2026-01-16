@@ -1,5 +1,5 @@
 // Wishlist notification service for price drops and stock availability
-import { getClient, client } from '@/lib/amplify-client';
+import { cookiesClient } from '@/utils/amplify-utils';
 import type { WishlistItem, Product } from '@/types';
 
 export interface WishlistNotification {
@@ -19,6 +19,12 @@ export class WishlistNotificationService {
   // Check for price drops on wishlist items
   static async checkPriceDrops(customerId: string): Promise<WishlistNotification[]> {
     try {
+      // TODO: Implement after cookiesClient is properly set up
+      // For now, return empty array
+      return [];
+      
+      /*
+      const client = await cookiesClient;
       // Get user's wishlist items
       const wishlistResponse = await client.models.Wishlist.list({
         filter: {
@@ -68,6 +74,7 @@ export class WishlistNotificationService {
 
       const results = await Promise.all(notificationPromises);
       return results.filter((notif): notif is WishlistNotification => notif !== null);
+      */
     } catch (error) {
       console.error('Error checking price drops:', error);
       return [];
@@ -77,69 +84,8 @@ export class WishlistNotificationService {
   // Check for stock availability on wishlist items
   static async checkStockAvailability(customerId: string): Promise<WishlistNotification[]> {
     try {
-      // Get user's wishlist items
-      const wishlistResponse = await client.models.Wishlist.list({
-        filter: {
-          customerId: { eq: customerId }
-        }
-      });
-
-      if (!wishlistResponse.data) return [];
-
-      const notifications: WishlistNotification[] = [];
-
-      // Check each wishlist item for stock availability
-      // COMMENTED OUT - Check each wishlist item for stock availability - Not needed for now
-      /*
-      for (const wishlistItem of wishlistResponse.data) {
-        try {
-          // Get current inventory data
-          const inventoryResponse = await client.models.InventoryItem.list({
-            filter: {
-              productId: { eq: wishlistItem.productId }
-            }
-          });
-
-          if (inventoryResponse.data && inventoryResponse.data.length > 0) {
-            const inventory = inventoryResponse.data[0];
-            
-            // Check if item was previously out of stock and is now available
-            const wasOutOfStock = this.getStoredStockStatus(wishlistItem.id);
-            
-            if (wasOutOfStock && inventory.stockQuantity > (inventory.reservedQuantity || 0)) {
-              const availableQuantity = inventory.stockQuantity - (inventory.reservedQuantity || 0);
-              
-              // Get product name
-              const productResponse = await client.models.Product.get({ id: wishlistItem.productId });
-              const productName = productResponse.data?.name || 'Product';
-              
-              notifications.push({
-                id: `back_in_stock_${wishlistItem.id}_${Date.now()}`,
-                customerId,
-                productId: wishlistItem.productId,
-                type: 'back_in_stock',
-                title: 'Back in Stock!',
-                message: `${productName} is now available! Only ${availableQuantity} left in stock.`,
-                isRead: false,
-                createdAt: new Date().toISOString()
-              });
-
-              // Update stored stock status
-              this.updateStoredStockStatus(wishlistItem.id, true);
-            } else if (!wasOutOfStock && inventory.stockQuantity <= (inventory.reservedQuantity || 0)) {
-              // Update stored stock status to out of stock
-              this.updateStoredStockStatus(wishlistItem.id, false);
-            }
-          }
-        } catch (error) {
-          console.error(`Error checking stock for product ${wishlistItem.productId}:`, error);
-        }
-      }
-      */
-
-      // For now, return empty notifications since we don't have inventory tracking
-
-      return notifications;
+      // TODO: Implement after cookiesClient is properly set up
+      return [];
     } catch (error) {
       console.error('Error checking stock availability:', error);
       return [];
@@ -149,49 +95,8 @@ export class WishlistNotificationService {
   // Generate special offer notifications for wishlist items
   static async generateSpecialOffers(customerId: string): Promise<WishlistNotification[]> {
     try {
-      // Get user's wishlist items
-      const wishlistResponse = await client.models.Wishlist.list({
-        filter: {
-          customerId: { eq: customerId }
-        }
-      });
-
-      if (!wishlistResponse.data || wishlistResponse.data.length === 0) return [];
-
-      // Generate special offers in parallel
-      const notificationPromises = wishlistResponse.data.map(async (wishlistItem) => {
-        try {
-          // Get product data
-          const productResponse = await client.models.Product.get({ id: wishlistItem.productId });
-          
-          if (productResponse.data) {
-            const product = productResponse.data;
-            
-            // Example: Generate special offer for items in wishlist for more than 7 days
-            const addedDate = new Date(wishlistItem.createdAt);
-            const daysSinceAdded = Math.floor((Date.now() - addedDate.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (daysSinceAdded >= 7 && Math.random() > 0.7) { // 30% chance of special offer
-              return {
-                id: `special_offer_${wishlistItem.id}_${Date.now()}`,
-                customerId,
-                productId: wishlistItem.productId,
-                type: 'special_offer' as const,
-                title: 'Special Offer Just for You!',
-                message: `Get 10% off on ${product.name}! Use code WISHLIST10 at checkout.`,
-                isRead: false,
-                createdAt: new Date().toISOString()
-              };
-            }
-          }
-        } catch (error) {
-          console.error(`Error generating special offer for product ${wishlistItem.productId}:`, error);
-        }
-        return null;
-      });
-
-      const results = await Promise.all(notificationPromises);
-      return results.filter((notif): notif is WishlistNotification => notif !== null);
+      // TODO: Implement after cookiesClient is properly set up
+      return [];
     } catch (error) {
       console.error('Error generating special offers:', error);
       return [];

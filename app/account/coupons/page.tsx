@@ -1,14 +1,41 @@
-import UserCoupons from '@/components/account/UserCoupons';
-import { getCurrentUserServer } from '@/lib/services/auth-service';
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import UserCoupons from '@/components/account/UserCoupons';
+import { useUser } from '@/hooks/use-user';
 
-export default async function AccountCouponsPage() {
-  const user = await getCurrentUserServer();
+export default function AccountCouponsPage() {
+  const router = useRouter();
+  const { user, isLoading } = useUser();
+  const [mounted, setMounted] = useState(false);
 
-  // Redirect if not authenticated
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading && !user?.userId && mounted) {
+      router.push('/');
+    }
+  }, [user, isLoading, mounted, router]);
+
+  if (!mounted || isLoading) {
+    return (
+      <div className="container mx-auto px-4 pt-52 sm:pt-44 lg:pt-48 pb-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!user?.userId) {
-    redirect('/');
+    return null;
   }
 
   return (

@@ -23,9 +23,10 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const [isMounted, setIsMounted] = useState(false);
 
-  // Ensure component only renders on client side
+  // Set mounted state only once when component mounts
   useEffect(() => {
     setIsMounted(true);
+    return () => setIsMounted(false);
   }, []);
 
   const editor = useEditor({

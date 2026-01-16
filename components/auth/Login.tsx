@@ -38,7 +38,7 @@ export default function Login({
   const [resetUsername, setResetUsername] = useState('');
   
   // Custom hooks
-  const authFlow = useAuthFlow({ redirectTo, isAdminLogin, onClose });
+  const authFlow = useAuthFlow({ redirectTo, onClose });
   const { countdown, startCountdown, resetCountdown } = useCountdown();
   useBodyScrollLock({ isLocked: isOpen });
 

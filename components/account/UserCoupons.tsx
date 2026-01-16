@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tag, Copy, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getAvailableCoupons, getUserCouponUsage } from '@/app/actions/coupon-actions';
-import { getCurrentUserServer } from '@/lib/services/auth-service';
+import { useUser } from '@/hooks/use-user';
 
 interface CouponWithUsage {
   id: string;
@@ -118,10 +121,63 @@ const CouponCard = ({ coupon, status }: { coupon: CouponWithUsage; status: 'avai
   );
 };
 
-export default async function UserCoupons() {
-  const user = await getCurrentUserServer();
+export default function UserCoupons() {
+  const { user } = useUser();
+  const [coupons, setCoupons] = useState<{
+    available: CouponWithUsage[];
+    used: CouponWithUsage[];
+    expired: CouponWithUsage[];
+  }>({ available: [], used: [], expired: [] });
+  const [loading, setLoading] = useState(true);
 
-  if (!user?.userId) {
+  useEffect(() => {
+    const loadCoupons = async () => {
+      if (!user?.userId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const allCoupons = await getAvailableCoupons();
+        
+        const now = new Date();
+        const available: CouponWithUsage[] = [];
+        const used: CouponWithUsage[] = [];
+        const expired: CouponWithUsage[] = [];
+
+        for (const coupon of allCoupons) {
+          const userUsageCount = await getUserCouponUsage(user.userId, coupon.id);
+          const isExpired = new Date(coupon.validUntil) < now;
+          const isUsedUp = coupon.userUsageLimit && userUsageCount >= coupon.userUsageLimit;
+
+          const couponWithUsage: CouponWithUsage = {
+            ...coupon,
+            description: coupon.description || undefined,
+            type: coupon.type as 'percentage' | 'fixed_amount',
+            userUsageCount,
+          };
+
+          if (isExpired) {
+            expired.push(couponWithUsage);
+          } else if (isUsedUp) {
+            used.push(couponWithUsage);
+          } else if (coupon.isActive) {
+            available.push(couponWithUsage);
+          }
+        }
+
+        setCoupons({ available, used, expired });
+      } catch (error) {
+        console.error('Error loading coupons:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCoupons();
+  }, [user]);
+
+  if (loading) {
     return (
       <Card>
         <CardHeader>
@@ -132,52 +188,12 @@ export default async function UserCoupons() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
-            <div className="text-gray-400 mb-4">
-              <Tag className="h-16 w-16 mx-auto opacity-50" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Please sign in</h3>
-            <p className="text-gray-600 mb-6">
-              Sign in to view your coupons
-            </p>
-            <Link
-              href="/auth/login"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Sign In
-            </Link>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading coupons...</p>
           </div>
         </CardContent>
       </Card>
     );
-  }
-
-  // Get all coupons using the action
-  const allCoupons = await getAvailableCoupons(user.userId);
-
-  const now = new Date();
-  const available: CouponWithUsage[] = [];
-  const used: CouponWithUsage[] = [];
-  const expired: CouponWithUsage[] = [];
-
-  for (const coupon of allCoupons) {
-    const userUsageCount = await getUserCouponUsage(user.userId, coupon.id);
-    const isExpired = new Date(coupon.validUntil) < now;
-    const isUsedUp = coupon.userUsageLimit && userUsageCount >= coupon.userUsageLimit;
-
-    const couponWithUsage: CouponWithUsage = {
-      ...coupon,
-      description: coupon.description || undefined,
-      type: coupon.type as 'percentage' | 'fixed_amount',
-      userUsageCount,
-    };
-
-    if (isExpired) {
-      expired.push(couponWithUsage);
-    } else if (isUsedUp) {
-      used.push(couponWithUsage);
-    } else if (coupon.isActive) {
-      available.push(couponWithUsage);
-    }
   }
 
   return (
@@ -196,55 +212,55 @@ export default async function UserCoupons() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="available" className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
-              Available ({available.length})
+              Available ({coupons.available.length})
             </TabsTrigger>
             <TabsTrigger value="used" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Used ({used.length})
+              Used ({coupons.used.length})
             </TabsTrigger>
             <TabsTrigger value="expired" className="flex items-center gap-2">
               <XCircle className="h-4 w-4" />
-              Expired ({expired.length})
+              Expired ({coupons.expired.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="available" className="space-y-4 mt-4">
-            {available.length === 0 ? (
+            {coupons.available.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Tag className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No available coupons at the moment</p>
                 <p className="text-sm">Check back later for new offers!</p>
               </div>
             ) : (
-              available.map((coupon) => (
+              coupons.available.map((coupon) => (
                 <CouponCard key={coupon.id} coupon={coupon} status="available" />
               ))
             )}
           </TabsContent>
 
           <TabsContent value="used" className="space-y-4 mt-4">
-            {used.length === 0 ? (
+            {coupons.used.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No used coupons</p>
                 <p className="text-sm">Coupons you've fully used will appear here</p>
               </div>
             ) : (
-              used.map((coupon) => (
+              coupons.used.map((coupon) => (
                 <CouponCard key={coupon.id} coupon={coupon} status="used" />
               ))
             )}
           </TabsContent>
 
           <TabsContent value="expired" className="space-y-4 mt-4">
-            {expired.length === 0 ? (
+            {coupons.expired.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <XCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>No expired coupons</p>
                 <p className="text-sm">Expired coupons will appear here</p>
               </div>
             ) : (
-              expired.map((coupon) => (
+              coupons.expired.map((coupon) => (
                 <CouponCard key={coupon.id} coupon={coupon} status="expired" />
               ))
             )}

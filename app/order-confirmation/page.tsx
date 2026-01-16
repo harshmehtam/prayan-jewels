@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import CheckoutHeader from '@/components/layout/CheckoutHeader';
-import { OrderService } from '@/lib/services/order-service';
+import { getOrderById } from '@/lib/services/order-service';
 
 interface OrderDetails {
   id: string;
@@ -42,7 +42,7 @@ function OrderConfirmationContent() {
 
   const loadOrderDetails = async (orderIdParam: string) => {
     try {
-      const order = await OrderService.getOrderById(orderIdParam);
+      const order = await getOrderById(orderIdParam);
       if (order) {
         setOrderDetails({
           id: order.id,
