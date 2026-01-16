@@ -14,8 +14,7 @@ export default function ConditionalLayout({ children, promotionalCoupon = null }
   // Determine layout type based on pathname
   const isMinimalLayout =
     pathname.startsWith("/checkout") ||
-    pathname.startsWith("/order-confirmation") ||
-    pathname.startsWith("/admin");
+    pathname.startsWith("/order-confirmation");
 
   if (isMinimalLayout) {
     return <div className="min-h-screen">{children}</div>;

@@ -2,7 +2,6 @@ import { cookiesClient } from '@/utils/amplify-utils';
 import type { CartItem, Address } from '@/types';
 import { EmailService } from './email';
 import { recordCouponUsage } from './coupon-service';
-import { AdminCouponService } from './admin-coupons';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 
 // Types
@@ -265,7 +264,6 @@ export async function createOrder(orderData: CreateOrderData): Promise<OrderResu
     if (orderData.couponId && orderData.customerId && !orderData.customerId.startsWith('guest_')) {
       try {
         await recordCouponUsage(orderData.customerId, orderData.couponId);
-        await AdminCouponService.incrementCouponUsage(orderData.couponId);
       } catch (couponError) {
         console.error('Error recording coupon usage:', couponError);
       }

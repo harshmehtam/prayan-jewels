@@ -41,7 +41,7 @@ export default function OrderTracking({
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/admin/orders/${orderId}/status`);
+      const response = await fetch(`/api/orders/${orderId}/status`);
       const data = await response.json();
 
       if (!response.ok) {

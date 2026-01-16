@@ -24,11 +24,7 @@ export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: U
           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
         {/* User indicator */}
-        {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-        ) : (
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-        )}
+        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
         <span className="sr-only">Account menu</span>
       </button>
 
@@ -42,26 +38,9 @@ export default function UserAccountMenu({ isScrolled, isHomePage, onSignOut }: U
             }
           </p>
           <p className="text-xs text-gray-500 capitalize">
-            {userProfile?.role === 'super_admin' ? 'Super Admin' : userProfile?.role || 'Customer'}
+            {userProfile?.role || 'Customer'}
           </p>
         </div>
-
-        {/* Role-based menu items */}
-        {userProfile?.role === 'admin' || userProfile?.role === 'super_admin' ? (
-          <>
-            <Link href="/admin" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>
-              <div className="flex items-center">
-                <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                Admin Dashboard
-              </div>
-            </Link>
-            <Link href="/admin/products" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Products</Link>
-            <Link href="/admin/orders" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>Manage Orders</Link>
-            <hr className="my-1" />
-          </>
-        ) : null}
 
         {/* Customer menu items */}
         <Link href="/account" className="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer outline-none focus:outline-none" style={{ outline: 'none', boxShadow: 'none' }}>My Account</Link>

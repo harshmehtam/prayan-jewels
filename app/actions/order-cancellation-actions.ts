@@ -13,7 +13,6 @@ export async function cancelOrderForUser(orderId: string, customerId: string) {
     // Revalidate relevant paths
     revalidatePath('/account/orders');
     revalidatePath(`/account/orders/${orderId}`);
-    revalidatePath('/admin/orders');
     
     return {
       success: true,
@@ -36,9 +35,6 @@ export async function cancelOrderForUser(orderId: string, customerId: string) {
 export async function cancelOrderForGuest(orderId: string, email: string, phone: string) {
   try {
     const result = await OrderCancellationService.cancelOrderForGuest(orderId, email, phone);
-    
-    // Revalidate admin orders path
-    revalidatePath('/admin/orders');
     
     return {
       success: true,

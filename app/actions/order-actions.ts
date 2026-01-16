@@ -123,7 +123,6 @@ export async function updateOrderStatus(
     const result = await OrderService.updateOrderStatus(orderId, status);
     
     if (result.order) {
-      revalidatePath('/admin/orders');
       revalidatePath('/account/orders');
       revalidatePath(`/account/orders/${orderId}`);
     }
@@ -150,7 +149,6 @@ export async function addTrackingInfo(
     const result = await OrderService.addTrackingInfo(orderId, trackingNumber, estimatedDelivery);
     
     if (result.order) {
-      revalidatePath('/admin/orders');
       revalidatePath('/account/orders');
       revalidatePath(`/account/orders/${orderId}`);
     }

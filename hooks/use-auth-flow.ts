@@ -33,13 +33,11 @@ interface UseAuthFlowReturn {
 
 interface UseAuthFlowProps {
   redirectTo?: string;
-  isAdminLogin?: boolean;
   onClose?: () => void;
 }
 
 export const useAuthFlow = ({ 
   redirectTo = '/account', 
-  isAdminLogin = false,
   onClose 
 }: UseAuthFlowProps = {}): UseAuthFlowReturn => {
   const [step, setStep] = useState<AuthStep>('login');
@@ -52,9 +50,9 @@ export const useAuthFlow = ({
 
   const handleSuccess = useCallback(async () => {
     onClose?.();
-    router.push(isAdminLogin ? '/admin' : redirectTo);
+    router.push(redirectTo);
     router.refresh(); // Refresh to get new auth state
-  }, [onClose, router, isAdminLogin, redirectTo]);
+  }, [onClose, router, redirectTo]);
 
   const signUp = useCallback(async (params: SignUpParams) => {
     setIsLoading(true);
