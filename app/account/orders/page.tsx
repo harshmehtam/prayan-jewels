@@ -7,9 +7,16 @@ import { getCustomerOrders } from '@/app/actions/order-actions';
 import { OrderCancellationService } from '@/lib/services/order-cancellation';
 import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
+import { 
+  getStatusColor, 
+  getOrderStatusMessage, 
+  formatOrderNumber, 
+  formatCurrency, 
+  formatOrderDate, 
+  formatPaymentMethod 
+} from '@/lib/utils/order-utils';
 import type { Schema } from '@/amplify/data/resource';
 
-// Define order type with items as a proper type
 type OrderWithItems = Schema['Order']['type'] & {
   items?: Array<{
     id: string;
@@ -23,7 +30,8 @@ type OrderWithItems = Schema['Order']['type'] & {
 export const dynamic = 'force-dynamic';
 
 export default function OrdersPage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useUser();
+  // Middleware ensures authentication, just get user data
+  const { user, isLoading: authLoading } = useUser();
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,23 +44,13 @@ export default function OrdersPage() {
     isVisible: false
   });
 
-  // Simple useEffect - load orders when user is available
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to finish loading
-    
-    if (!isAuthenticated || !user?.userId) {
-      setIsLoadingOrders(false);
-      return;
-    }
+    if (authLoading || !user?.userId) return;
 
     const loadOrders = async () => {
       try {
         const customerOrders = await getCustomerOrders(user.userId);
-        const sortedOrders = customerOrders.sort((a, b) => 
-          new Date((b as Record<string, unknown>).createdAt as string).getTime() - 
-          new Date((a as Record<string, unknown>).createdAt as string).getTime()
-        );
-        setOrders(sortedOrders as OrderWithItems[]);
+        setOrders(customerOrders as OrderWithItems[]);
       } catch (error) {
         console.error('Error loading orders:', error);
         setError('Failed to load orders. Please try again.');
@@ -62,20 +60,15 @@ export default function OrdersPage() {
     };
 
     loadOrders();
-  }, [user?.userId, isAuthenticated, authLoading]);
+  }, [user?.userId, authLoading]);
 
   const canCancelOrder = (order: OrderWithItems) => {
-    // Check if order can be cancelled based on status
     if (!OrderCancellationService.canCancelOrder(order)) {
       return false;
     }
-
-    // Additional check: Ensure this is an authenticated user's order (not guest)
     if (!OrderCancellationService.isAuthenticatedUserOrder(order)) {
       return false;
     }
-
-    // Ensure the order belongs to the current user
     if (order.customerId !== user?.userId) {
       return false;
     }
@@ -122,74 +115,14 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getOrderStatusMessage = (order: OrderWithItems) => {
-    switch (order.status) {
-      case 'pending':
-        return 'Your order is being processed';
-      case 'processing':
-        return 'Order confirmed and being prepared';
-      case 'shipped':
-        return order.trackingNumber ? `Shipped - Tracking: ${order.trackingNumber}` : 'Your order has been shipped';
-      case 'delivered':
-        return 'Order delivered successfully';
-      case 'cancelled':
-        return 'Order was cancelled';
-      default:
-        return 'Order status unknown';
-    }
-  };
-
-  // Show loading while auth is being determined
-  if (authLoading) {
+  // Show loading while user data is being fetched
+  if (authLoading || isLoadingOrders) {
     return (
       <div className="container mx-auto px-4 pt-52 sm:pt-44 lg:pt-48 pb-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <span className="ml-3 text-gray-600">Loading...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show login prompt if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 pt-52 sm:pt-44 lg:pt-48 pb-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-12">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Please sign in</h3>
-            <p className="text-gray-600 mb-6">You need to be signed in to view your order history</p>
-            <Link
-              href="/"
-              className="inline-flex items-center px-6 py-3 bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-900 hover:text-white transition-all duration-300 font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-gray-400"
-            >
-              Go to Home & Sign In
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
           </div>
         </div>
       </div>
@@ -257,27 +190,17 @@ export default function OrdersPage() {
 
         {/* Orders List */}
         <div className="space-y-4">
-          {isLoadingOrders ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : orders.length > 0 ? (
+          {orders.length > 0 ? (
             orders.map((order) => (
               <div key={order.id} className="bg-white rounded-lg shadow-sm border">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        Order #{order.confirmationNumber || order.id.slice(-8)}
+                        Order {formatOrderNumber(order)}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        Placed on {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                        Placed on {formatOrderDate(order.createdAt)}
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         {getOrderStatusMessage(order)}
@@ -288,11 +211,11 @@ export default function OrdersPage() {
                         {order.status || 'pending'}
                       </span>
                       <p className="text-lg font-semibold text-gray-900 mt-1">
-                        ₹{order.totalAmount.toLocaleString('en-IN')}
+                        {formatCurrency(order.totalAmount)}
                       </p>
                       {order.paymentMethod && (
                         <p className="text-xs text-gray-500 mt-1">
-                          {order.paymentMethod === 'cash_on_delivery' ? 'COD' : 'Online Payment'}
+                          {formatPaymentMethod(order.paymentMethod)}
                         </p>
                       )}
                     </div>
@@ -308,7 +231,7 @@ export default function OrdersPage() {
                             <span className="text-gray-600">
                               {item.productName} × {item.quantity}
                             </span>
-                            <span className="text-gray-900">₹{item.totalPrice.toLocaleString('en-IN')}</span>
+                            <span className="text-gray-900">{formatCurrency(item.totalPrice)}</span>
                           </div>
                         ))}
                         {order.items.length > 3 && (
@@ -431,7 +354,7 @@ export default function OrdersPage() {
             setOrderToCancel(null);
           }}
           onConfirm={handleCancelOrder}
-          orderNumber={orderToCancel?.confirmationNumber || orderToCancel?.id.slice(-8) || ''}
+          orderNumber={orderToCancel ? formatOrderNumber(orderToCancel) : ''}
           paymentMethod={orderToCancel?.paymentMethod || 'cash_on_delivery'}
           isLoading={cancellingOrderId === orderToCancel?.id}
         />

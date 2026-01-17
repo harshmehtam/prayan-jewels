@@ -31,3 +31,16 @@ export async function AuthGetCurrentUserServer() {
     return null;
   }
 }
+
+/**
+ * Get appropriate auth mode based on user authentication status
+ * Returns 'userPool' if user is authenticated, 'iam' otherwise
+ */
+export async function getAuthMode(): Promise<'iam' | 'userPool'> {
+  try {
+    const user = await AuthGetCurrentUserServer();
+    return user ? 'userPool' : 'iam';
+  } catch (error) {
+    return 'iam';
+  }
+}

@@ -1,4 +1,4 @@
-import { cookiesClient } from '@/utils/amplify-utils';
+import { cookiesClient, getAuthMode } from '@/utils/amplify-utils';
 import { getImageUrl } from '@/lib/utils/image-utils';
 import type { CartItem, ShoppingCart } from '@/types';
 
@@ -15,11 +15,12 @@ export function generateSessionId(): string {
 export async function getOrCreateCart(sessionId: string) {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     
     // Try to find existing cart
     const cartResponse = await client.models.ShoppingCart.list({
       filter: { sessionId: { eq: sessionId } },
-      authMode: 'iam'
+      authMode
     });
 
     let cart = cartResponse.data?.[0];
@@ -34,7 +35,7 @@ export async function getOrCreateCart(sessionId: string) {
         estimatedTotal: 0,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
       }, {
-        authMode: 'iam'
+        authMode
       });
       
       if (createResponse.data) {
@@ -56,11 +57,12 @@ export async function getCartWithItems(sessionId: string): Promise<CartWithItems
     if (!cart) return null;
 
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     
     // Get cart items
     const itemsResponse = await client.models.CartItem.list({
       filter: { cartId: { eq: cart.id } },
-      authMode: 'iam'
+      authMode
     });
 
     const items = itemsResponse.data || [];
@@ -69,7 +71,7 @@ export async function getCartWithItems(sessionId: string): Promise<CartWithItems
     const enrichedItemsPromises = items.map(async (item) => {
       const productResponse = await client.models.Product.get(
         { id: item.productId },
-        { authMode: 'iam' }
+        { authMode }
       );
       
       if (productResponse.data) {
@@ -146,13 +148,14 @@ export async function addItemToCart(
     }
 
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
 
     // If unitPrice not provided, fetch it from the product
     let finalUnitPrice = unitPrice;
     if (finalUnitPrice === undefined) {
       const productResponse = await client.models.Product.get(
         { id: productId },
-        { authMode: 'iam' }
+        { authMode }
       );
       
       if (!productResponse.data) {
@@ -170,7 +173,7 @@ export async function addItemToCart(
           { productId: { eq: productId } }
         ]
       },
-      authMode: 'iam'
+      authMode
     });
 
     const existingItem = existingItemsResponse.data?.[0];
@@ -183,7 +186,7 @@ export async function addItemToCart(
         quantity: newQuantity,
         totalPrice: newQuantity * finalUnitPrice
       }, {
-        authMode: 'iam'
+        authMode
       });
     } else {
       // Create new item
@@ -194,7 +197,7 @@ export async function addItemToCart(
         unitPrice: finalUnitPrice,
         totalPrice: quantity * finalUnitPrice
       }, {
-        authMode: 'iam'
+        authMode
       });
     }
 
@@ -215,6 +218,7 @@ export async function addItemToCart(
 export async function updateCartItemQuantity(itemId: string, quantity: number) {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
 
     if (quantity <= 0) {
       return await removeCartItem(itemId);
@@ -223,7 +227,7 @@ export async function updateCartItemQuantity(itemId: string, quantity: number) {
     // Get the item
     const itemResponse = await client.models.CartItem.get(
       { id: itemId },
-      { authMode: 'iam' }
+      { authMode }
     );
     
     if (!itemResponse.data) {
@@ -235,7 +239,7 @@ export async function updateCartItemQuantity(itemId: string, quantity: number) {
     // Get current product price
     const productResponse = await client.models.Product.get(
       { id: item.productId },
-      { authMode: 'iam' }
+      { authMode }
     );
     const currentPrice = productResponse.data?.price || item.unitPrice;
 
@@ -246,7 +250,7 @@ export async function updateCartItemQuantity(itemId: string, quantity: number) {
       unitPrice: currentPrice,
       totalPrice: quantity * currentPrice
     }, {
-      authMode: 'iam'
+      authMode
     });
 
     // Recalculate totals
@@ -266,11 +270,12 @@ export async function updateCartItemQuantity(itemId: string, quantity: number) {
 export async function removeCartItem(itemId: string) {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
 
     // Get the item first
     const itemResponse = await client.models.CartItem.get(
       { id: itemId },
-      { authMode: 'iam' }
+      { authMode }
     );
     
     if (!itemResponse.data) {
@@ -282,7 +287,7 @@ export async function removeCartItem(itemId: string) {
     // Delete the item
     await client.models.CartItem.delete(
       { id: itemId },
-      { authMode: 'iam' }
+      { authMode }
     );
 
     // Recalculate totals
@@ -307,18 +312,19 @@ export async function clearCart(sessionId: string) {
     }
 
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
 
     // Get all items
     const itemsResponse = await client.models.CartItem.list({
       filter: { cartId: { eq: cart.id } },
-      authMode: 'iam'
+      authMode
     });
 
     // Delete all items
     for (const item of itemsResponse.data || []) {
       await client.models.CartItem.delete(
         { id: item.id },
-        { authMode: 'iam' }
+        { authMode }
       );
     }
 
@@ -330,7 +336,7 @@ export async function clearCart(sessionId: string) {
       estimatedShipping: 0,
       estimatedTotal: 0
     }, {
-      authMode: 'iam'
+      authMode
     });
 
     return { success: true };
@@ -350,9 +356,10 @@ export async function getCartItemCount(sessionId: string): Promise<number> {
     if (!cart) return 0;
 
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     const itemsResponse = await client.models.CartItem.list({
       filter: { cartId: { eq: cart.id } },
-      authMode: 'iam'
+      authMode
     });
 
     const items = itemsResponse.data || [];
@@ -367,11 +374,12 @@ export async function getCartItemCount(sessionId: string): Promise<number> {
 async function recalculateCartTotals(cartId: string) {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
 
     // Get all items
     const itemsResponse = await client.models.CartItem.list({
       filter: { cartId: { eq: cartId } },
-      authMode: 'iam'
+      authMode
     });
 
     const items = itemsResponse.data || [];
@@ -390,7 +398,7 @@ async function recalculateCartTotals(cartId: string) {
       estimatedShipping,
       estimatedTotal
     }, {
-      authMode: 'iam'
+      authMode
     });
   } catch (error) {
     console.error('Error recalculating totals:', error);

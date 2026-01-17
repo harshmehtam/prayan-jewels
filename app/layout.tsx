@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { ConditionalLayout } from "@/components/layout";
+import AmplifyConfig from "@/components/AmplifyConfig";
 import type { Metadata } from "next";
 import "./globals.css";
 import "@aws-amplify/ui-react/styles.css";
@@ -29,6 +30,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <AmplifyConfig />
         <div
           className={`relative pt-10 xs:pt-6`}
         >

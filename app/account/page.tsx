@@ -1,38 +1,21 @@
-import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { getCurrentUserServer } from '@/lib/services/auth-service';
-import { getCustomerOrders } from '@/app/actions/order-actions';
+import { getCurrentUserServer } from '@/lib/services/auth-service.server';
+import { getCustomerOrders } from '@/lib/services/order-service';
+import { 
+  getStatusColor, 
+  formatOrderNumber, 
+  formatCurrency, 
+  formatOrderDate 
+} from '@/lib/utils/order-utils';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AccountPage() {
+  // Middleware ensures authentication, so we can directly get user
   const user = await getCurrentUserServer();
 
-  // Redirect if not authenticated
-  if (!user?.userId) {
-    redirect('/');
-  }
-
-  // Load recent orders
-  const orders = await getCustomerOrders(user.userId);
-  const recentOrders = orders.slice(0, 3);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // Load only the 3 most recent orders
+  const orders = await getCustomerOrders(user!.userId, 3);
 
   return (
     <div className="container mx-auto px-4 pt-52 sm:pt-44 lg:pt-48 pb-8">
@@ -41,7 +24,7 @@ export default async function AccountPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">My Account</h1>
           <p className="text-gray-600 mt-2">
-            Welcome back, {user.firstName || 'User'}!
+            Welcome back, {user!.firstName || 'User'}!
           </p>
         </div>
 
@@ -111,38 +94,6 @@ export default async function AccountPage() {
               <p className="text-sm text-gray-500">My product reviews</p>
             </div>
           </Link>
-
-          {/* Wishlist */}
-          <Link
-            href="/account/wishlist"
-            className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-          >
-            <div className="text-center">
-              <div className="flex justify-center mb-3">
-                <svg className="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">Wishlist</h3>
-              <p className="text-sm text-gray-500">Saved items</p>
-            </div>
-          </Link>
-
-          {/* Coupons */}
-          <Link
-            href="/account/coupons"
-            className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow"
-          >
-            <div className="text-center">
-              <div className="flex justify-center mb-3">
-                <svg className="h-8 w-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">Coupons</h3>
-              <p className="text-sm text-gray-500">My discount coupons</p>
-            </div>
-          </Link>
         </div>
 
         {/* Recent Orders */}
@@ -160,28 +111,36 @@ export default async function AccountPage() {
           </div>
           
           <div className="p-6">
-            {recentOrders.length > 0 ? (
+            {orders.length > 0 ? (
               <div className="space-y-4">
-                {recentOrders.map((order) => (
-                  <div key={(order as Record<string, unknown>).id as string} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h3 className="font-medium text-gray-900">
-                        Order #{(order as Record<string, unknown>).confirmationNumber as string || ((order as Record<string, unknown>).id as string).slice(-8)}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date((order as Record<string, unknown>).createdAt as string).toLocaleDateString('en-IN')}
-                      </p>
+                {orders.map((order) => {
+                  const orderData = order as Record<string, unknown>;
+                  const status = (orderData.status as string) || 'pending';
+                  
+                  return (
+                    <div key={orderData.id as string} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h3 className="font-medium text-gray-900">
+                          Order {formatOrderNumber({
+                            confirmationNumber: orderData.confirmationNumber as string | null,
+                            id: orderData.id as string
+                          })}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {formatOrderDate(orderData.createdAt as string)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                          {status}
+                        </span>
+                        <p className="text-sm font-medium text-gray-900 mt-1">
+                          {formatCurrency(orderData.totalAmount as number)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(((order as Record<string, unknown>).status as string) || 'pending')}`}>
-                        {((order as Record<string, unknown>).status as string) || 'pending'}
-                      </span>
-                      <p className="text-sm font-medium text-gray-900 mt-1">
-                        ₹{((order as Record<string, unknown>).totalAmount as number).toLocaleString('en-IN')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">

@@ -1,4 +1,4 @@
-import { cookiesClient } from '@/utils/amplify-utils';
+import { cookiesClient, getAuthMode } from '@/utils/amplify-utils';
 import type { CartItem, Address, OrderItem } from '@/types';
 import { EmailService } from './email';
 import { recordCouponUsage } from './coupon-service';
@@ -419,12 +419,16 @@ export async function getOrderByConfirmationNumber(confirmationNumber: string) {
 /**
  * Get orders for a customer
  */
-export async function getCustomerOrders(customerId: string) {
+export async function getCustomerOrders(customerId: string, limit?: number) {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
+    
     const result = await client.models.Order.list({
       filter: { customerId: { eq: customerId } },
-      authMode: 'userPool'
+      limit: limit,
+      sortDirection: 'DESC',
+      authMode
     });
     
     if (result.errors && result.errors.length > 0) {
@@ -438,34 +442,76 @@ export async function getCustomerOrders(customerId: string) {
       return [];
     }
 
-    // Get ALL order items in a single call, then filter by customer's order IDs
-    const orderIds = orders.map(order => order.id);
-    const allItemsResult = await client.models.OrderItem.list({ authMode: 'userPool' });
-    
-    if (allItemsResult.errors && allItemsResult.errors.length > 0) {
-      console.error('Error fetching order items:', allItemsResult.errors);
-      return orders.map(order => ({ ...order, items: [] }));
-    }
+    // Fetch order items for each order using GraphQL filter
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const itemsResult = await client.models.OrderItem.list({
+          filter: { orderId: { eq: order.id } },
+          authMode
+        });
 
-    // Filter items to only include those belonging to this customer's orders
-    const customerOrderItems = (allItemsResult.data || []).filter(item => 
-      orderIds.includes(item.orderId)
+        // Convert to plain object to remove Amplify functions
+        const plainOrder = JSON.parse(JSON.stringify({
+          id: order.id,
+          customerId: order.customerId,
+          customerEmail: order.customerEmail,
+          customerPhone: order.customerPhone,
+          subtotal: order.subtotal,
+          tax: order.tax,
+          shipping: order.shipping,
+          couponId: order.couponId,
+          couponCode: order.couponCode,
+          couponDiscount: order.couponDiscount,
+          totalAmount: order.totalAmount,
+          status: order.status,
+          paymentMethod: order.paymentMethod,
+          paymentStatus: order.paymentStatus,
+          confirmationNumber: order.confirmationNumber,
+          paymentOrderId: order.paymentOrderId,
+          paymentId: order.paymentId,
+          trackingNumber: order.trackingNumber,
+          estimatedDelivery: order.estimatedDelivery,
+          shippingFirstName: order.shippingFirstName,
+          shippingLastName: order.shippingLastName,
+          shippingAddressLine1: order.shippingAddressLine1,
+          shippingAddressLine2: order.shippingAddressLine2,
+          shippingCity: order.shippingCity,
+          shippingState: order.shippingState,
+          shippingPostalCode: order.shippingPostalCode,
+          shippingCountry: order.shippingCountry,
+          billingFirstName: order.billingFirstName,
+          billingLastName: order.billingLastName,
+          billingAddressLine1: order.billingAddressLine1,
+          billingAddressLine2: order.billingAddressLine2,
+          billingCity: order.billingCity,
+          billingState: order.billingState,
+          billingPostalCode: order.billingPostalCode,
+          billingCountry: order.billingCountry,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+        }));
+
+        // Convert items to plain objects
+        const plainItems = (itemsResult.data || []).map(item => JSON.parse(JSON.stringify({
+          id: item.id,
+          orderId: item.orderId,
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        })));
+
+        return {
+          ...plainOrder,
+          items: plainItems
+        };
+      })
     );
 
-    // Group items by orderId for efficient lookup
-    const itemsByOrderId = new Map<string, unknown[]>();
-    customerOrderItems.forEach(item => {
-      if (!itemsByOrderId.has(item.orderId)) {
-        itemsByOrderId.set(item.orderId, []);
-      }
-      itemsByOrderId.get(item.orderId)!.push(item);
-    });
-
-    // Attach items to orders
-    return orders.map(order => ({
-      ...order,
-      items: itemsByOrderId.get(order.id) || []
-    }));
+    return ordersWithItems;
   } catch (error) {
     console.error('Error fetching customer orders:', error);
     return [];

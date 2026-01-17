@@ -29,9 +29,9 @@ export async function createOrder(orderData: CreateOrderData): Promise<OrderResu
 /**
  * Get customer orders
  */
-export async function getCustomerOrders(customerId: string): Promise<Array<Record<string, unknown>>> {
+export async function getCustomerOrders(customerId: string, limit?: number): Promise<Array<Record<string, unknown>>> {
   try {
-    return await OrderService.getCustomerOrders(customerId);
+    return await OrderService.getCustomerOrders(customerId, limit);
   } catch (error) {
     console.error('Error getting customer orders:', error);
     return [];
@@ -94,86 +94,5 @@ export async function updateOrderPayment(orderId: string, paymentOrderId: string
   } catch (error) {
     console.error('Error updating order payment:', error);
     return false;
-  }
-}
-
-/**
- * Get all orders (admin only)
- */
-export async function getAllOrders(): Promise<{ orders: Array<Record<string, unknown>>; errors: unknown }> {
-  try {
-    return await OrderService.getAllOrders();
-  } catch (error) {
-    console.error('Error getting all orders:', error);
-    return {
-      orders: [],
-      errors: [{ message: 'Failed to fetch orders' }],
-    };
-  }
-}
-
-/**
- * Update order status (admin only)
- */
-export async function updateOrderStatus(
-  orderId: string,
-  status: string
-): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
-  try {
-    const result = await OrderService.updateOrderStatus(orderId, status);
-    
-    if (result.order) {
-      revalidatePath('/account/orders');
-      revalidatePath(`/account/orders/${orderId}`);
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error updating order status:', error);
-    return {
-      order: null,
-      errors: [{ message: 'Failed to update order status' }],
-    };
-  }
-}
-
-/**
- * Add tracking info (admin only)
- */
-export async function addTrackingInfo(
-  orderId: string,
-  trackingNumber: string,
-  estimatedDelivery?: string
-): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
-  try {
-    const result = await OrderService.addTrackingInfo(orderId, trackingNumber, estimatedDelivery);
-    
-    if (result.order) {
-      revalidatePath('/account/orders');
-      revalidatePath(`/account/orders/${orderId}`);
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error adding tracking info:', error);
-    return {
-      order: null,
-      errors: [{ message: 'Failed to add tracking info' }],
-    };
-  }
-}
-
-/**
- * Get order with items
- */
-export async function getOrder(orderId: string): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
-  try {
-    return await OrderService.getOrder(orderId);
-  } catch (error) {
-    console.error('Error getting order:', error);
-    return {
-      order: null,
-      errors: [{ message: 'Failed to fetch order' }],
-    };
   }
 }

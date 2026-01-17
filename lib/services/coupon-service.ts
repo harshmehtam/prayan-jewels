@@ -1,4 +1,4 @@
-import { cookiesClient } from '@/utils/amplify-utils';
+import { cookiesClient, getAuthMode } from '@/utils/amplify-utils';
 
 // Types
 export interface CouponValidationResult {
@@ -328,6 +328,7 @@ export async function getHeaderPromotionalCoupon(): Promise<Record<string, unkno
   try {
     const client = await cookiesClient;
     const now = new Date().toISOString();
+    const authMode = await getAuthMode();
     
     const { data, errors } = await client.models.Coupon.list({
       filter: {
@@ -336,7 +337,7 @@ export async function getHeaderPromotionalCoupon(): Promise<Record<string, unkno
         validFrom: { le: now },
         validUntil: { ge: now },
       },
-      authMode: 'iam',
+      authMode,
       limit: 1,
     });
 
@@ -377,6 +378,7 @@ export async function getAvailableCoupons(userId?: string): Promise<Record<strin
   try {
     const client = await cookiesClient;
     const now = new Date().toISOString();
+    const authMode = await getAuthMode();
 
     const { data, errors } = await client.models.Coupon.list({
       filter: {
@@ -384,7 +386,7 @@ export async function getAvailableCoupons(userId?: string): Promise<Record<strin
         validFrom: { le: now },
         validUntil: { ge: now },
       },
-      authMode: 'iam',
+      authMode,
     });
 
     if (errors) {

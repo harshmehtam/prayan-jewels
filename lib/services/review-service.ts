@@ -1,4 +1,4 @@
-import { cookiesClient } from '@/utils/amplify-utils';
+import { cookiesClient, getAuthMode } from '@/utils/amplify-utils';
 import type { 
   ProductReview, 
   CreateReviewInput, 
@@ -271,6 +271,7 @@ export const batchGetProductReviewStats = async (productIds: string[]): Promise<
 
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     
     // Fetch ALL approved reviews for all products in ONE call
     // Using 'or' filter to get reviews for any of the product IDs
@@ -283,7 +284,7 @@ export const batchGetProductReviewStats = async (productIds: string[]): Promise<
           { or: orFilters }
         ]
       },
-      authMode: 'iam',
+      authMode,
       limit: 1000 // Increase limit to fetch more reviews at once
     });
 

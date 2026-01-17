@@ -1,4 +1,4 @@
-import { cookiesClient } from '@/utils/amplify-utils';
+import { cookiesClient, getAuthMode } from '@/utils/amplify-utils';
 import { unstable_noStore as noStore } from 'next/cache';
 import { getImageUrl } from '@/lib/utils/image-utils';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
@@ -137,12 +137,13 @@ export async function getProducts(
   try {
     const client = await cookiesClient;
     const graphqlFilter = buildGraphQLFilter(filters);
+    const authMode = await getAuthMode();
 
     const { data, errors, nextToken: newNextToken } = await client.models.Product.list({
       filter: graphqlFilter,
       limit,
       nextToken,
-      authMode: 'iam'
+      authMode
     });
 
     if (errors) {
@@ -222,9 +223,10 @@ export async function getProductById(id: string): Promise<Product | null> {
 
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     const { data, errors } = await client.models.Product.get(
       { id },
-      { authMode: 'iam' }
+      { authMode }
     );
 
     if (errors || !data) {
@@ -328,9 +330,10 @@ export function clearProductCache(productId?: string): void {
 export async function incrementProductViewCount(productId: string): Promise<void> {
   try {
     const client = await cookiesClient;
+    const authMode = await getAuthMode();
     const { data } = await client.models.Product.get(
       { id: productId },
-      { authMode: 'iam' }
+      { authMode }
     );
 
     if (data) {
@@ -338,7 +341,7 @@ export async function incrementProductViewCount(productId: string): Promise<void
         id: productId,
         viewCount: (data.viewCount || 0) + 1,
       }, {
-        authMode: 'iam'
+        authMode
       });
 
       // Invalidate cache for this product

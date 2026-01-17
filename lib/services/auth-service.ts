@@ -1,6 +1,6 @@
-import { signUp, confirmSignUp, signIn, resetPassword, confirmResetPassword, resendSignUpCode, signOut as clientSignOut } from 'aws-amplify/auth';
-import { getCurrentUser, fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth/server';
-import { runWithAmplifyServerContext } from '@/utils/amplify-utils';
+'use client';
+
+import { signUp, confirmSignUp, signIn, resetPassword, confirmResetPassword, resendSignUpCode, signOut as clientSignOut, getCurrentUser, fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
 import { 
   formatPhoneForCognito, 
   formatPhoneForDisplay, 
@@ -82,7 +82,7 @@ export const getAuthErrorMessage = (error: unknown): string => {
   }
 };
 
-// Auth operations using Amplify Gen 2
+// Auth operations using Amplify Gen 2 - Client Side
 export const handleSignUp = async (params: SignUpParams): Promise<AuthResponse> => {
   try {
     const formattedPhone = formatPhoneForCognito(params.phoneNumber);
@@ -219,37 +219,25 @@ export const handleResendCode = async (phoneNumber: string): Promise<AuthRespons
 };
 
 /**
- * Get current authenticated user from server
+ * Get current authenticated user from client
  */
-export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
+export async function getCurrentUserClient(): Promise<AuthUserProfile | null> {
   try {
-    // Import cookies only when needed (server-side)
-    const { cookies } = await import('next/headers');
-    
-    const user = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => getCurrentUser(contextSpec),
-    });
+    const user = await getCurrentUser();
 
     if (!user?.userId) {
       return null;
     }
 
     // Get user attributes
-    const attributes = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => fetchUserAttributes(contextSpec),
-    });
+    const attributes = await fetchUserAttributes();
 
     // Get user groups from session
     let groups: string[] = [];
     let role: 'customer' | 'admin' | 'super_admin' = 'customer';
 
     try {
-      const session = await runWithAmplifyServerContext({
-        nextServerContext: { cookies },
-        operation: (contextSpec) => fetchAuthSession(contextSpec),
-      });
+      const session = await fetchAuthSession();
 
       const accessToken = session.tokens?.accessToken;
       if (accessToken) {
@@ -288,11 +276,11 @@ export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
 }
 
 /**
- * Check if user is authenticated
+ * Check if user is authenticated (client-side)
  */
-export async function isAuthenticated(): Promise<boolean> {
+export async function isAuthenticatedClient(): Promise<boolean> {
   try {
-    const user = await getCurrentUserServer();
+    const user = await getCurrentUserClient();
     return !!user;
   } catch (error) {
     console.error('Error checking authentication:', error);
@@ -305,7 +293,7 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function isAdmin(): Promise<boolean> {
   try {
-    const user = await getCurrentUserServer();
+    const user = await getCurrentUserClient();
     return user?.role === 'admin' || user?.role === 'super_admin';
   } catch (error) {
     console.error('Error checking admin role:', error);
@@ -318,7 +306,7 @@ export async function isAdmin(): Promise<boolean> {
  */
 export async function isSuperAdmin(): Promise<boolean> {
   try {
-    const user = await getCurrentUserServer();
+    const user = await getCurrentUserClient();
     return user?.role === 'super_admin';
   } catch (error) {
     console.error('Error checking super admin role:', error);

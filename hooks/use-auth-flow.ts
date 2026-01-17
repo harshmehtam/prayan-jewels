@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import * as authActions from '@/app/actions/auth-actions';
+import * as authService from '@/lib/services/auth-service';
 import type {
   SignUpParams,
   SignInParams,
@@ -58,7 +58,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await authActions.signUp(params);
+    const result = await authService.handleSignUp(params);
     
     setIsLoading(false);
     
@@ -75,7 +75,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const confirmResult = await authActions.confirmSignUp({
+    const confirmResult = await authService.handleConfirmSignUp({
       phoneNumber: params.phoneNumber,
       code: params.code,
     });
@@ -87,7 +87,7 @@ export const useAuthFlow = ({
     }
 
     // Auto sign in after confirmation
-    const signInResult = await authActions.signIn({
+    const signInResult = await authService.handleSignIn({
       phoneNumber: params.phoneNumber,
       password: params.password,
     });
@@ -108,7 +108,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await authActions.signIn(params);
+    const result = await authService.handleSignIn(params);
     
     setIsLoading(false);
 
@@ -125,7 +125,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await authActions.resetPassword(params);
+    const result = await authService.handleResetPassword(params);
     
     setIsLoading(false);
 
@@ -142,7 +142,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const confirmResult = await authActions.confirmResetPassword(params);
+    const confirmResult = await authService.handleConfirmResetPassword(params);
     
     if (!confirmResult.success) {
       setIsLoading(false);
@@ -151,7 +151,7 @@ export const useAuthFlow = ({
     }
 
     // Auto sign in after password reset
-    const signInResult = await authActions.signIn({
+    const signInResult = await authService.handleSignIn({
       phoneNumber: params.phoneNumber,
       password: params.newPassword,
     });
@@ -172,7 +172,7 @@ export const useAuthFlow = ({
     setIsLoading(true);
     setError('');
 
-    const result = await authActions.resendCode(phoneNumber);
+    const result = await authService.handleResendCode(phoneNumber);
     
     setIsLoading(false);
 

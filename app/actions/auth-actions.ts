@@ -2,23 +2,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import * as authService from '@/lib/services/auth-service';
-import type { 
-  AuthResponse, 
-  SignUpParams, 
-  SignInParams, 
-  ConfirmSignUpParams, 
-  ResetPasswordParams, 
-  ConfirmResetPasswordParams,
-  AuthUserProfile 
-} from '@/lib/services/auth-service';
+import { cookies } from 'next/headers';
+import * as authServiceServer from '@/lib/services/auth-service.server';
+import type { AuthUserProfile } from '@/lib/services/auth-service.server';
 
 /**
  * Get current user profile
  */
 export async function getCurrentUser(): Promise<AuthUserProfile | null> {
   try {
-    return await authService.getCurrentUserServer();
+    return await authServiceServer.getCurrentUserServer();
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;
@@ -30,7 +23,7 @@ export async function getCurrentUser(): Promise<AuthUserProfile | null> {
  */
 export async function checkAuthentication(): Promise<boolean> {
   try {
-    return await authService.isAuthenticated();
+    return await authServiceServer.isAuthenticated();
   } catch (error) {
     console.error('Error checking authentication:', error);
     return false;
@@ -42,7 +35,7 @@ export async function checkAuthentication(): Promise<boolean> {
  */
 export async function checkIsAdmin(): Promise<boolean> {
   try {
-    return await authService.isAdmin();
+    return await authServiceServer.isAdmin();
   } catch (error) {
     console.error('Error checking admin role:', error);
     return false;
@@ -54,7 +47,7 @@ export async function checkIsAdmin(): Promise<boolean> {
  */
 export async function checkIsSuperAdmin(): Promise<boolean> {
   try {
-    return await authService.isSuperAdmin();
+    return await authServiceServer.isSuperAdmin();
   } catch (error) {
     console.error('Error checking super admin role:', error);
     return false;
@@ -62,139 +55,29 @@ export async function checkIsSuperAdmin(): Promise<boolean> {
 }
 
 /**
- * Sign up a new user
+ * Sign out user - Server action
  */
-export async function signUp(params: SignUpParams): Promise<AuthResponse> {
+export async function signOutAction(): Promise<void> {
   try {
-    const result = await authService.handleSignUp(params);
-    return result;
-  } catch (error) {
-    console.error('Error signing up:', error);
-    return {
-      success: false,
-      error: 'Failed to sign up. Please try again.',
-    };
-  }
-}
-
-/**
- * Confirm sign up with OTP
- */
-export async function confirmSignUp(params: ConfirmSignUpParams): Promise<AuthResponse> {
-  try {
-    const result = await authService.handleConfirmSignUp(params);
+    // Clear all auth-related cookies
+    const cookieStore = await cookies();
+    const allCookies = cookieStore.getAll();
     
-    if (result.success) {
-      revalidatePath('/');
-    }
+    // Delete all Amplify-related cookies
+    allCookies.forEach((cookie) => {
+      if (cookie.name.startsWith('CognitoIdentityServiceProvider') || 
+          cookie.name.includes('accessToken') || 
+          cookie.name.includes('idToken') ||
+          cookie.name.includes('refreshToken')) {
+        cookieStore.delete(cookie.name);
+      }
+    });
     
-    return result;
-  } catch (error) {
-    console.error('Error confirming sign up:', error);
-    return {
-      success: false,
-      error: 'Failed to confirm sign up. Please try again.',
-    };
-  }
-}
-
-/**
- * Sign in user
- */
-export async function signIn(params: SignInParams): Promise<AuthResponse> {
-  try {
-    const result = await authService.handleSignIn(params);
-    
-    if (result.success) {
-      revalidatePath('/');
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Error signing in:', error);
-    return {
-      success: false,
-      error: 'Failed to sign in. Please try again.',
-    };
-  }
-}
-
-/**
- * Sign out user
- */
-export async function signOut(): Promise<void> {
-  try {
-    await authService.signOut();
-    revalidatePath('/');
-    redirect('/');
+    revalidatePath('/', 'layout');
   } catch (error) {
     console.error('Error signing out:', error);
     throw error;
   }
-}
-
-/**
- * Reset password
- */
-export async function resetPassword(params: ResetPasswordParams): Promise<AuthResponse> {
-  try {
-    return await authService.handleResetPassword(params);
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    return {
-      success: false,
-      error: 'Failed to reset password. Please try again.',
-    };
-  }
-}
-
-/**
- * Confirm reset password with OTP
- */
-export async function confirmResetPassword(params: ConfirmResetPasswordParams): Promise<AuthResponse> {
-  try {
-    return await authService.handleConfirmResetPassword(params);
-  } catch (error) {
-    console.error('Error confirming reset password:', error);
-    return {
-      success: false,
-      error: 'Failed to reset password. Please try again.',
-    };
-  }
-}
-
-/**
- * Resend OTP code
- */
-export async function resendCode(phoneNumber: string): Promise<AuthResponse> {
-  try {
-    return await authService.handleResendCode(phoneNumber);
-  } catch (error) {
-    console.error('Error resending code:', error);
-    return {
-      success: false,
-      error: 'Failed to resend code. Please try again.',
-    };
-  }
-}
-
-/**
- * Validate phone number
- */
-export async function validatePhoneNumber(phoneNumber: string): Promise<boolean> {
-  return authService.validatePhoneNumber(phoneNumber);
-}
-
-/**
- * Format phone number for display
- */
-export async function formatPhoneForDisplay(phoneNumber: string): Promise<string> {
-  return authService.formatPhoneForDisplay(phoneNumber);
-}
-
-/**
- * Format phone number for Cognito
- */
-export async function formatPhoneForCognito(phoneNumber: string): Promise<string> {
-  return authService.formatPhoneForCognito(phoneNumber);
+  
+  redirect('/');
 }

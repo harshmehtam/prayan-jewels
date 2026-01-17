@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { CartModal } from '@/components/cart';
 import { useUser } from '@/hooks/use-user';
-import { signOut } from '@/app/actions/auth-actions';
+import { signOut } from '@/lib/services/auth-service';
 import { getCartItemCount } from '@/app/actions/cart-actions';
 import { getWishlistCount } from '@/app/actions/wishlist-actions';
 import PromotionalBanner from './PromotionalBanner';

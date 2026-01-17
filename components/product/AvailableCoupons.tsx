@@ -1,6 +1,6 @@
 import React from 'react';
 import { getAvailableCoupons } from '@/app/actions/coupon-actions';
-import { getCurrentUserServer } from '@/lib/services/auth-service';
+import { getCurrentUserServer } from '@/lib/services/auth-service.server';
 import AvailableCouponsClient from './AvailableCouponsClient';
 
 interface AvailableCouponsProps {
