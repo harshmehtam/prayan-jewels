@@ -86,7 +86,34 @@ export async function getHeaderPromotionalCoupon(): Promise<Record<string, unkno
 export async function getHeaderPromotionalCouponClient(): Promise<Record<string, unknown> | null> {
   noStore(); // Explicitly mark as dynamic
   try {
-    return await couponService.getHeaderPromotionalCoupon();
+    const coupon = await couponService.getHeaderPromotionalCoupon();
+    
+    if (!coupon) {
+      return null;
+    }
+    
+    // Serialize to remove function properties
+    const serializedCoupon = JSON.parse(JSON.stringify(coupon));
+    
+    // Return only serializable properties
+    return {
+      id: serializedCoupon.id,
+      code: serializedCoupon.code,
+      name: serializedCoupon.name,
+      description: serializedCoupon.description,
+      type: serializedCoupon.type,
+      value: serializedCoupon.value,
+      minimumOrderAmount: serializedCoupon.minimumOrderAmount,
+      maximumDiscountAmount: serializedCoupon.maximumDiscountAmount,
+      validFrom: serializedCoupon.validFrom,
+      validUntil: serializedCoupon.validUntil,
+      isActive: serializedCoupon.isActive,
+      showOnHeader: serializedCoupon.showOnHeader,
+      usageLimit: serializedCoupon.usageLimit,
+      usageCount: serializedCoupon.usageCount,
+      createdAt: serializedCoupon.createdAt,
+      updatedAt: serializedCoupon.updatedAt,
+    };
   } catch (error) {
     console.error('Error getting header promotional coupon:', error);
     return null;

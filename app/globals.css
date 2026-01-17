@@ -78,11 +78,6 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Prevent horizontal scroll on mobile */
-html, body {
-  overflow-x: hidden;
-}
-
 /* Prevent over-scrolling at the top and bottom of the page */
 html {
   overscroll-behavior: none;

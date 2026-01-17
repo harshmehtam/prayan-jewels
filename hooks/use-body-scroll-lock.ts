@@ -25,5 +25,13 @@ export const useBodyScrollLock = ({ isLocked }: UseBodyScrollLockProps) => {
         }
       };
     }
+    
+    // Cleanup function to ensure scroll is always restored when component unmounts
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+    };
   }, [isLocked]);
 };
