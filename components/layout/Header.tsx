@@ -11,17 +11,13 @@ import { getWishlistCount } from '@/app/actions/wishlist-actions';
 import PromotionalBanner from './PromotionalBanner';
 import { SearchBar, UserAccountMenu, HeaderActions, MobileMenu } from './header/index';
 
-interface HeaderProps {
-  promotionalCoupon?: any | null;
-}
-
-export default function Header({ promotionalCoupon = null }: HeaderProps) {
+export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
-  const { isAuthenticated, user } = useUser();
+  const { isAuthenticated } = useUser();
   const pathname = usePathname();
   const isHomePage = pathname === '/';
 
@@ -96,7 +92,7 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
   return (
     <>
       {/* Dynamic Promotional Banner */}
-      <PromotionalBanner coupon={promotionalCoupon} />
+      <PromotionalBanner />
 
       {/* Main Header */}
       <header className={`fixed left-0 right-0 z-40 transition-all duration-300 ${isScrolled || !isHomePage
@@ -167,7 +163,6 @@ export default function Header({ promotionalCoupon = null }: HeaderProps) {
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         isAuthenticated={isAuthenticated}
-        user={user}
         wishlistCount={wishlistCount}
         onSignOut={handleSignOut}
       />

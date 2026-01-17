@@ -132,6 +132,7 @@ export class BrowserInfoService {
   static async detectVPN(ipAddress: string): Promise<boolean> {
     // This would require integration with a VPN detection service
     // For now, return false as a placeholder
+    console.log('VPN detection not implemented for IP:', ipAddress);
     return false;
   }
 
@@ -141,6 +142,7 @@ export class BrowserInfoService {
   static async getLocationFromIP(ipAddress: string): Promise<string | null> {
     // This would require integration with a geolocation service like MaxMind
     // For now, return null as a placeholder
+    console.log('Geolocation not implemented for IP:', ipAddress);
     return null;
   }
 }

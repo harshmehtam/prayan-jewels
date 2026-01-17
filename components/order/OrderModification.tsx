@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import type { Order, OrderItem } from '@/types';
+import type { Order } from '@/types';
 import type { OrderStatus } from '@/lib/services/order-status';
 
 interface OrderModificationProps {
   order: Order;
-  orderItems: OrderItem[];
   onModificationSuccess: () => void;
 }
 
@@ -25,7 +24,7 @@ interface ModificationRequest {
   };
 }
 
-export default function OrderModification({ order, orderItems, onModificationSuccess }: OrderModificationProps) {
+export default function OrderModification({ order, onModificationSuccess }: OrderModificationProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showModificationForm, setShowModificationForm] = useState(false);

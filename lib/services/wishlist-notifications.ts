@@ -1,6 +1,4 @@
 // Wishlist notification service for price drops and stock availability
-import { cookiesClient } from '@/utils/amplify-utils';
-import type { WishlistItem, Product } from '@/types';
 
 export interface WishlistNotification {
   id: string;
@@ -17,7 +15,7 @@ export interface WishlistNotification {
 
 export class WishlistNotificationService {
   // Check for price drops on wishlist items
-  static async checkPriceDrops(customerId: string): Promise<WishlistNotification[]> {
+  static async checkPriceDrops(/* customerId: string */): Promise<WishlistNotification[]> {
     try {
       // TODO: Implement after cookiesClient is properly set up
       // For now, return empty array
@@ -82,7 +80,7 @@ export class WishlistNotificationService {
   }
 
   // Check for stock availability on wishlist items
-  static async checkStockAvailability(customerId: string): Promise<WishlistNotification[]> {
+  static async checkStockAvailability(/* customerId: string */): Promise<WishlistNotification[]> {
     try {
       // TODO: Implement after cookiesClient is properly set up
       return [];
@@ -93,7 +91,7 @@ export class WishlistNotificationService {
   }
 
   // Generate special offer notifications for wishlist items
-  static async generateSpecialOffers(customerId: string): Promise<WishlistNotification[]> {
+  static async generateSpecialOffers(/* customerId: string */): Promise<WishlistNotification[]> {
     try {
       // TODO: Implement after cookiesClient is properly set up
       return [];
@@ -104,12 +102,12 @@ export class WishlistNotificationService {
   }
 
   // Get all notifications for a user
-  static async getAllNotifications(customerId: string): Promise<WishlistNotification[]> {
+  static async getAllNotifications(/* customerId: string */): Promise<WishlistNotification[]> {
     try {
       const [priceDrops, stockAlerts, specialOffers] = await Promise.all([
-        this.checkPriceDrops(customerId),
-        this.checkStockAvailability(customerId),
-        this.generateSpecialOffers(customerId)
+        this.checkPriceDrops(),
+        this.checkStockAvailability(),
+        this.generateSpecialOffers()
       ]);
 
       return [...priceDrops, ...stockAlerts, ...specialOffers]

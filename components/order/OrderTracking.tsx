@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { OrderStatus } from '@/lib/services/order-status';
 
 interface OrderTrackingProps {
@@ -32,11 +32,7 @@ export default function OrderTracking({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTrackingInfo();
-  }, [orderId]);
-
-  const fetchTrackingInfo = async () => {
+  const fetchTrackingInfo = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -58,7 +54,11 @@ export default function OrderTracking({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    fetchTrackingInfo();
+  }, [fetchTrackingInfo]);
 
   const getStatusIcon = (status: OrderStatus) => {
     switch (status) {

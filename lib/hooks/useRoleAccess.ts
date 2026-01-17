@@ -12,10 +12,11 @@ import {
   canManageAdmins,
   UserRole 
 } from '@/lib/auth/roles';
+import type { AuthUserProfile } from '@/lib/services/auth-service';
 
 export interface RoleAccessHook {
   userRole: UserRole | null | undefined;
-  userProfile: any;
+  userProfile: AuthUserProfile | null | undefined;
   userId: string | null | undefined;
   isAuthenticated: boolean;
   isAdmin: boolean;

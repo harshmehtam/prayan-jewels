@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { LoginButton } from '@/components/auth';
@@ -9,9 +9,18 @@ import { getOrder } from '@/app/actions/order-actions';
 import OrderCancellation from '@/components/order/OrderCancellation';
 import type { Schema } from '@/amplify/data/resource';
 
+// Define order item type
+type OrderItem = {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+};
+
 // Define order type with items
 type OrderWithItems = Schema['Order']['type'] & {
-  items?: any[];
+  items?: OrderItem[];
 };
 
 export default function OrderDetailsPage() {
@@ -26,13 +35,7 @@ export default function OrderDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && isAuthenticated && orderId) {
-      fetchOrderDetails();
-    }
-  }, [authLoading, isAuthenticated, orderId]);
-
-  const fetchOrderDetails = async () => {
+  const fetchOrderDetails = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -51,7 +54,13 @@ export default function OrderDetailsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && orderId) {
+      fetchOrderDetails();
+    }
+  }, [authLoading, isAuthenticated, orderId, fetchOrderDetails]);
 
   const formatAddress = (order: OrderWithItems, type: 'shipping' | 'billing') => {
     const prefix = type === 'shipping' ? 'shipping' : 'billing';
@@ -259,7 +268,7 @@ export default function OrderDetailsPage() {
 
         {/* Order cancellation */}
         <OrderCancellation
-          order={order as any}
+          order={order}
           onCancellationSuccess={() => {
             // Refresh the page to show updated order status
             window.location.reload();

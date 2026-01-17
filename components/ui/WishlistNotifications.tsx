@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { WishlistNotificationService, type WishlistNotification } from '@/lib/services/wishlist-notifications';
 import { useUser } from '@/hooks/use-user';
 import Link from 'next/link';
@@ -16,19 +16,19 @@ export default function WishlistNotifications({ className = '' }: WishlistNotifi
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Load notifications
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     if (!user?.userId) return;
 
     try {
       setLoading(true);
-      const allNotifications = await WishlistNotificationService.getAllNotifications(user.userId);
+      const allNotifications = await WishlistNotificationService.getAllNotifications();
       setNotifications(allNotifications.slice(0, 5)); // Show only latest 5
     } catch (error) {
       console.error('Error loading wishlist notifications:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.userId]);
 
   // Mark notification as read
   const markAsRead = async (notificationId: string) => {
@@ -53,7 +53,7 @@ export default function WishlistNotifications({ className = '' }: WishlistNotifi
       const interval = setInterval(loadNotifications, 5 * 60 * 1000);
       return () => clearInterval(interval);
     }
-  }, [user?.userId]);
+  }, [user?.userId, loadNotifications]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

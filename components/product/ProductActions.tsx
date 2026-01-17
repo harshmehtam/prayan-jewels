@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddToCartButton } from '@/components/cart';
 import { toggleWishlistItem } from '@/app/actions/wishlist-actions';

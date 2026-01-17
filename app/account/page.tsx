@@ -163,21 +163,21 @@ export default async function AccountPage() {
             {recentOrders.length > 0 ? (
               <div className="space-y-4">
                 {recentOrders.map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                  <div key={(order as Record<string, unknown>).id as string} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                     <div>
                       <h3 className="font-medium text-gray-900">
-                        Order #{order.confirmationNumber || order.id.slice(-8)}
+                        Order #{(order as Record<string, unknown>).confirmationNumber as string || ((order as Record<string, unknown>).id as string).slice(-8)}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                        {new Date((order as Record<string, unknown>).createdAt as string).toLocaleDateString('en-IN')}
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status || 'pending')}`}>
-                        {order.status || 'pending'}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(((order as Record<string, unknown>).status as string) || 'pending')}`}>
+                        {((order as Record<string, unknown>).status as string) || 'pending'}
                       </span>
                       <p className="text-sm font-medium text-gray-900 mt-1">
-                        ₹{order.totalAmount.toLocaleString('en-IN')}
+                        ₹{((order as Record<string, unknown>).totalAmount as number).toLocaleString('en-IN')}
                       </p>
                     </div>
                   </div>

@@ -1,11 +1,78 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import StarRating from '@/components/ui/StarRating';
 import { getUserReviews } from '@/app/actions/review-actions';
-import { getCurrentUserServer } from '@/lib/services/auth-service';
+import { useUser } from '@/hooks/use-user';
 
-export default async function UserReviews() {
-  const user = await getCurrentUserServer();
-  
+interface Review {
+  id: string;
+  productId: string;
+  rating: number;
+  title: string;
+  comment: string;
+  createdAt: string;
+  isVerifiedPurchase: boolean;
+  isApproved: boolean;
+  helpfulCount: number;
+}
+
+export default function UserReviews() {
+  const { user, isLoading: isUserLoading } = useUser();
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isUserLoading && user?.userId) {
+      const fetchReviews = async () => {
+        try {
+          const result = await getUserReviews(user.userId);
+          
+          if (result.errors) {
+            setError(result.errors.join(', '));
+          } else {
+            setReviews(result.reviews);
+          }
+        } catch (err) {
+          console.error('Error fetching reviews:', err);
+          setError('Failed to load reviews');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchReviews();
+    } else if (!isUserLoading) {
+      setIsLoading(false);
+    }
+  }, [user?.userId, isUserLoading]);
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Loading state
+  if (isLoading || isUserLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-400 mb-4">
+          <svg className="w-12 h-12 mx-auto animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+        <p className="text-gray-600">Loading reviews...</p>
+      </div>
+    );
+  }
+
+  // Not authenticated
   if (!user?.userId) {
     return (
       <div className="text-center py-12">
@@ -28,9 +95,8 @@ export default async function UserReviews() {
     );
   }
 
-  const result = await getUserReviews(user.userId);
-  
-  if (result.errors) {
+  // Error state
+  if (error) {
     return (
       <div className="text-center py-8">
         <div className="text-red-600 mb-4">
@@ -38,27 +104,18 @@ export default async function UserReviews() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <p className="text-red-600">{result.errors.join(', ')}</p>
+        <p className="text-red-600">{error}</p>
       </div>
     );
   }
 
-  const reviews = result.reviews;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
+  // Empty state
   if (reviews.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-400 mb-4">
           <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">No reviews yet</h3>

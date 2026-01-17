@@ -8,12 +8,11 @@ interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   isAuthenticated: boolean;
-  user: any;
   wishlistCount: number;
   onSignOut: () => void;
 }
 
-export default function MobileMenu({ isOpen, onClose, isAuthenticated, user, wishlistCount, onSignOut }: MobileMenuProps) {
+export default function MobileMenu({ isOpen, onClose, isAuthenticated, wishlistCount, onSignOut }: MobileMenuProps) {
   // Prevent body scroll when mobile menu is open and add blur effect
   useEffect(() => {
     if (!isOpen) return;

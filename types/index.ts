@@ -356,3 +356,17 @@ export interface CreateCouponInput {
 export interface UpdateCouponInput extends Partial<CreateCouponInput> {
   id: string;
 }
+
+// Wishlist notification types
+export interface WishlistNotification {
+  id: string;
+  customerId: string;
+  productId: string;
+  type: 'price_drop' | 'back_in_stock' | 'special_offer';
+  title: string;
+  message: string;
+  originalPrice?: number;
+  newPrice?: number;
+  isRead: boolean;
+  createdAt: string;
+}

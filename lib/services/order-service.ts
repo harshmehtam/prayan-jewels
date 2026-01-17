@@ -1,5 +1,5 @@
 import { cookiesClient } from '@/utils/amplify-utils';
-import type { CartItem, Address } from '@/types';
+import type { CartItem, Address, OrderItem } from '@/types';
 import { EmailService } from './email';
 import { recordCouponUsage } from './coupon-service';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
@@ -104,12 +104,29 @@ async function sendOrderNotifications(
   orderData: CreateOrderData,
   confirmationNumber: string,
   orderId: string,
-  orderItemPromises: Promise<any>[]
+  orderItemPromises: Promise<unknown>[]
 ): Promise<void> {
   try {
     try {
       const createdOrderItems = await Promise.all(orderItemPromises);
-      const orderItemsWithNames = createdOrderItems.map(result => result.data).filter(Boolean);
+      const orderItemsWithNames = createdOrderItems.map(result => {
+        const item = result as { data?: Record<string, unknown> };
+        const itemData = item.data;
+        if (!itemData) return null;
+        
+        // Cast to OrderItem type
+        return {
+          id: itemData.id as string,
+          orderId: itemData.orderId as string,
+          productId: itemData.productId as string,
+          productName: itemData.productName as string,
+          quantity: itemData.quantity as number,
+          unitPrice: itemData.unitPrice as number,
+          totalPrice: itemData.totalPrice as number,
+          createdAt: itemData.createdAt as string,
+          updatedAt: itemData.updatedAt as string,
+        };
+      }).filter((item): item is OrderItem => item !== null);
 
       await EmailService.sendOrderConfirmationEmail({
         orderId,
@@ -294,20 +311,13 @@ export async function updatePaymentStatus(
 ): Promise<boolean> {
   try {
     const client = await cookiesClient;
-    const updateData: any = {
+    
+    const result = await client.models.Order.update({
       id: orderId,
       paymentStatus,
-    };
-
-    if (paymentId) {
-      updateData.paymentId = paymentId;
-    }
-
-    if (paymentStatus === 'paid') {
-      updateData.status = 'processing';
-    }
-
-    const result = await client.models.Order.update(updateData, { authMode: 'iam' });
+      ...(paymentId && { paymentId }),
+      ...(paymentStatus === 'paid' && { status: 'processing' as const }),
+    }, { authMode: 'iam' });
 
     if (result.errors && result.errors.length > 0) {
       console.error('Error updating payment status:', result.errors);
@@ -443,7 +453,7 @@ export async function getCustomerOrders(customerId: string) {
     );
 
     // Group items by orderId for efficient lookup
-    const itemsByOrderId = new Map<string, any[]>();
+    const itemsByOrderId = new Map<string, unknown[]>();
     customerOrderItems.forEach(item => {
       if (!itemsByOrderId.has(item.orderId)) {
         itemsByOrderId.set(item.orderId, []);
@@ -498,7 +508,7 @@ export async function getAllOrders() {
     }
 
     // Group items by orderId for efficient lookup
-    const itemsByOrderId = new Map<string, any[]>();
+    const itemsByOrderId = new Map<string, unknown[]>();
     (allItemsResult.data || []).forEach(item => {
       if (!itemsByOrderId.has(item.orderId)) {
         itemsByOrderId.set(item.orderId, []);
@@ -533,7 +543,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
     const client = await cookiesClient;
     const result = await client.models.Order.update({
       id: orderId,
-      status: status as any
+      status: status as 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
     }, { authMode: 'userPool' });
 
     if (result.errors && result.errors.length > 0) {
@@ -589,16 +599,12 @@ export async function updateOrderStatus(orderId: string, status: string) {
 export async function addTrackingInfo(orderId: string, trackingNumber: string, estimatedDelivery?: string) {
   try {
     const client = await cookiesClient;
-    const updateData: any = {
+
+    const result = await client.models.Order.update({
       id: orderId,
-      trackingNumber
-    };
-
-    if (estimatedDelivery) {
-      updateData.estimatedDelivery = estimatedDelivery;
-    }
-
-    const result = await client.models.Order.update(updateData, { authMode: 'userPool' });
+      trackingNumber,
+      ...(estimatedDelivery && { estimatedDelivery }),
+    }, { authMode: 'userPool' });
 
     if (result.errors && result.errors.length > 0) {
       return {

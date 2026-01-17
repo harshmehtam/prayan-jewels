@@ -1,32 +1,51 @@
-interface Coupon {
-  id: string;
-  code: string;
-  type: 'percentage' | 'fixed_amount';
-  value: number;
-  minimumOrderAmount?: number | null;
-}
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getHeaderPromotionalCouponClient } from '@/app/actions/coupon-actions';
 
 interface PromotionalBannerProps {
-  coupon: Coupon | null;
+  coupon?: Record<string, unknown> | null;
 }
 
-export default function PromotionalBanner({ coupon }: PromotionalBannerProps) {
-  // Don't render if no coupon
-  if (!coupon) {
+export default function PromotionalBanner({ coupon: initialCoupon }: PromotionalBannerProps) {
+  const [coupon, setCoupon] = useState<Record<string, unknown> | null>(initialCoupon || null);
+  const [isLoading, setIsLoading] = useState(!initialCoupon);
+
+  useEffect(() => {
+    // Only fetch if we don't have initial data
+    if (!initialCoupon) {
+      const fetchPromotionalCoupon = async () => {
+        try {
+          const data = await getHeaderPromotionalCouponClient();
+          setCoupon(data);
+        } catch (error) {
+          console.error('Error fetching promotional coupon:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchPromotionalCoupon();
+    }
+  }, [initialCoupon]);
+
+  if (isLoading || !coupon) {
     return null;
   }
   
-  const formatDiscount = (coupon: Coupon) => {
-    if (coupon.type === 'percentage') {
-      return `${coupon.value}% OFF`;
+  const formatDiscount = (coupon: Record<string, unknown>) => {
+    const type = coupon.type as string;
+    const value = coupon.value as number;
+    if (type === 'percentage') {
+      return `${value}% OFF`;
     } else {
-      return `₹${coupon.value} OFF`;
+      return `₹${value} OFF`;
     }
   };
 
-  const getPromotionText = (coupon: Coupon) => {
+  const getPromotionText = (coupon: Record<string, unknown>) => {
     const discount = formatDiscount(coupon);
-    const minOrder = coupon.minimumOrderAmount ? ` on Orders Over ₹${coupon.minimumOrderAmount}` : '';
+    const minOrder = coupon.minimumOrderAmount ? ` on Orders Over ₹${coupon.minimumOrderAmount as number}` : '';
     return `Get ${discount}${minOrder}`;
   };
 
@@ -40,7 +59,7 @@ export default function PromotionalBanner({ coupon }: PromotionalBannerProps) {
               {getPromotionText(coupon)}:
             </span>
             <span className="font-semibold px-2 py-1 whitespace-nowrap">
-              Code {coupon.code}
+              Code {coupon.code as string}
             </span>
           </div>
         </div>
@@ -50,10 +69,10 @@ export default function PromotionalBanner({ coupon }: PromotionalBannerProps) {
           <div className="flex items-center justify-center space-x-1 px-1">
             <span className="font-medium truncate">
               {formatDiscount(coupon)}
-              {coupon.minimumOrderAmount && ` on ₹${coupon.minimumOrderAmount}+`}
+              {(coupon.minimumOrderAmount as number) && ` on ₹${coupon.minimumOrderAmount as number}+`}
             </span>
             <span className="font-semibold whitespace-nowrap">
-              Code {coupon.code}
+              Code {coupon.code as string}
             </span>
           </div>
         </div>

@@ -1,7 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tag } from 'lucide-react';
 import { getAvailableCoupons } from '@/app/actions/coupon-actions';
 import { getCurrentUserServer } from '@/lib/services/auth-service';
 import AvailableCouponsClient from './AvailableCouponsClient';
@@ -21,14 +18,18 @@ export default async function AvailableCoupons({ productId, productPrice }: Avai
   
   // Filter coupons applicable to this product
   const applicableCoupons = allCoupons.filter(coupon => {
+    const couponData = coupon as Record<string, unknown>;
+    const applicableProducts = couponData.applicableProducts as string[] | undefined;
+    const excludedProducts = couponData.excludedProducts as string[] | undefined;
+    
     // If coupon has specific applicable products, check if this product is included
-    if (coupon.applicableProducts && coupon.applicableProducts.length > 0) {
-      return coupon.applicableProducts.includes(productId);
+    if (applicableProducts && applicableProducts.length > 0) {
+      return applicableProducts.includes(productId);
     }
     
     // If coupon has excluded products, check if this product is not excluded
-    if (coupon.excludedProducts && coupon.excludedProducts.length > 0) {
-      return !coupon.excludedProducts.includes(productId);
+    if (excludedProducts && excludedProducts.length > 0) {
+      return !excludedProducts.includes(productId);
     }
     
     // If no specific product restrictions, coupon is applicable
@@ -37,21 +38,28 @@ export default async function AvailableCoupons({ productId, productPrice }: Avai
 
   // Calculate potential savings for each coupon
   const couponsWithSavings = applicableCoupons.map(coupon => {
+    const couponData = coupon as Record<string, unknown>;
     let potentialSaving = 0;
     
-    if (coupon.type === 'percentage') {
-      potentialSaving = (productPrice * coupon.value) / 100;
-      if (coupon.maximumDiscountAmount && potentialSaving > coupon.maximumDiscountAmount) {
-        potentialSaving = coupon.maximumDiscountAmount;
+    if (couponData.type === 'percentage') {
+      potentialSaving = (productPrice * (couponData.value as number)) / 100;
+      if (couponData.maximumDiscountAmount && potentialSaving > (couponData.maximumDiscountAmount as number)) {
+        potentialSaving = couponData.maximumDiscountAmount as number;
       }
-    } else if (coupon.type === 'fixed_amount') {
-      potentialSaving = Math.min(coupon.value, productPrice);
+    } else if (couponData.type === 'fixed_amount') {
+      potentialSaving = Math.min(couponData.value as number, productPrice);
     }
 
     return {
-      ...coupon,
+      id: couponData.id as string,
+      code: couponData.code as string,
+      description: (couponData.description as string) || '',
+      type: couponData.type as 'percentage' | 'fixed_amount',
+      value: couponData.value as number,
+      minimumOrderAmount: couponData.minimumOrderAmount as number | undefined,
+      maximumDiscountAmount: couponData.maximumDiscountAmount as number | undefined,
       potentialSaving: Math.round(potentialSaving * 100) / 100,
-      isApplicable: productPrice >= (coupon.minimumOrderAmount || 0),
+      isApplicable: productPrice >= ((couponData.minimumOrderAmount as number) || 0),
     };
   });
 

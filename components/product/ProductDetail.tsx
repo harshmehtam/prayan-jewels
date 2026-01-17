@@ -93,7 +93,6 @@ export default async function ProductDetail({ productId }: ProductDetailProps) {
       <div className="container mx-auto px-4 py-8">
         <ProductReviews 
           productId={productId} 
-          productName={product.name} 
         />
       </div>
     </>

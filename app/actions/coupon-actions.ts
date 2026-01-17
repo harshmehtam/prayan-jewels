@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { unstable_noStore as noStore } from 'next/cache';
 import * as couponService from '@/lib/services/coupon-service';
 import type { CouponValidationResult, ApplyCouponInput } from '@/lib/services/coupon-service';
 
@@ -69,7 +70,21 @@ export async function recordCouponUsage(
 /**
  * Get header promotional coupon
  */
-export async function getHeaderPromotionalCoupon(): Promise<any | null> {
+export async function getHeaderPromotionalCoupon(): Promise<Record<string, unknown> | null> {
+  try {
+    return await couponService.getHeaderPromotionalCoupon();
+  } catch (error) {
+    console.error('Error getting header promotional coupon:', error);
+    return null;
+  }
+}
+
+/**
+ * Get header promotional coupon for client-side use
+ * This explicitly opts out of static rendering
+ */
+export async function getHeaderPromotionalCouponClient(): Promise<Record<string, unknown> | null> {
+  noStore(); // Explicitly mark as dynamic
   try {
     return await couponService.getHeaderPromotionalCoupon();
   } catch (error) {
@@ -81,7 +96,7 @@ export async function getHeaderPromotionalCoupon(): Promise<any | null> {
 /**
  * Get available coupons for a user (formatted for display)
  */
-export async function getAvailableCoupons(userId?: string): Promise<any[]> {
+export async function getAvailableCoupons(userId?: string): Promise<Array<Record<string, unknown>>> {
   try {
     const coupons = await couponService.getAvailableCoupons(userId);
     

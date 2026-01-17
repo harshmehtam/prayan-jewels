@@ -9,9 +9,14 @@ import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
 import type { Schema } from '@/amplify/data/resource';
 
-// Define order type with items as a simple array
+// Define order type with items as a proper type
 type OrderWithItems = Schema['Order']['type'] & {
-  items?: any[];
+  items?: Array<{
+    id: string;
+    productName: string;
+    quantity: number;
+    totalPrice: number;
+  }>;
 };
 
 // Prevent SSR for this page
@@ -44,7 +49,8 @@ export default function OrdersPage() {
       try {
         const customerOrders = await getCustomerOrders(user.userId);
         const sortedOrders = customerOrders.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          new Date((b as Record<string, unknown>).createdAt as string).getTime() - 
+          new Date((a as Record<string, unknown>).createdAt as string).getTime()
         );
         setOrders(sortedOrders as OrderWithItems[]);
       } catch (error) {

@@ -29,7 +29,7 @@ export async function createOrder(orderData: CreateOrderData): Promise<OrderResu
 /**
  * Get customer orders
  */
-export async function getCustomerOrders(customerId: string): Promise<any[]> {
+export async function getCustomerOrders(customerId: string): Promise<Array<Record<string, unknown>>> {
   try {
     return await OrderService.getCustomerOrders(customerId);
   } catch (error) {
@@ -41,7 +41,7 @@ export async function getCustomerOrders(customerId: string): Promise<any[]> {
 /**
  * Get order by ID
  */
-export async function getOrderById(orderId: string): Promise<any | null> {
+export async function getOrderById(orderId: string): Promise<Record<string, unknown> | null> {
   try {
     return await OrderService.getOrderById(orderId);
   } catch (error) {
@@ -53,7 +53,7 @@ export async function getOrderById(orderId: string): Promise<any | null> {
 /**
  * Get order by confirmation number
  */
-export async function getOrderByConfirmationNumber(confirmationNumber: string): Promise<any | null> {
+export async function getOrderByConfirmationNumber(confirmationNumber: string): Promise<Record<string, unknown> | null> {
   try {
     return await OrderService.getOrderByConfirmationNumber(confirmationNumber);
   } catch (error) {
@@ -100,7 +100,7 @@ export async function updateOrderPayment(orderId: string, paymentOrderId: string
 /**
  * Get all orders (admin only)
  */
-export async function getAllOrders(): Promise<{ orders: any[]; errors: any }> {
+export async function getAllOrders(): Promise<{ orders: Array<Record<string, unknown>>; errors: unknown }> {
   try {
     return await OrderService.getAllOrders();
   } catch (error) {
@@ -118,7 +118,7 @@ export async function getAllOrders(): Promise<{ orders: any[]; errors: any }> {
 export async function updateOrderStatus(
   orderId: string,
   status: string
-): Promise<{ order: any | null; errors: any }> {
+): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
   try {
     const result = await OrderService.updateOrderStatus(orderId, status);
     
@@ -144,7 +144,7 @@ export async function addTrackingInfo(
   orderId: string,
   trackingNumber: string,
   estimatedDelivery?: string
-): Promise<{ order: any | null; errors: any }> {
+): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
   try {
     const result = await OrderService.addTrackingInfo(orderId, trackingNumber, estimatedDelivery);
     
@@ -166,7 +166,7 @@ export async function addTrackingInfo(
 /**
  * Get order with items
  */
-export async function getOrder(orderId: string): Promise<{ order: any | null; errors: any }> {
+export async function getOrder(orderId: string): Promise<{ order: Record<string, unknown> | null; errors: unknown }> {
   try {
     return await OrderService.getOrder(orderId);
   } catch (error) {

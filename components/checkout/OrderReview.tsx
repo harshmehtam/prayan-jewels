@@ -20,7 +20,7 @@ interface OrderReviewProps {
     name: string;
     discountAmount: number;
   } | null;
-  onCouponApplied?: (coupon: any, discountAmount: number) => void;
+  onCouponApplied?: (coupon: Record<string, unknown>, discountAmount: number) => void;
   onCouponRemoved?: () => void;
   userId?: string;
 }

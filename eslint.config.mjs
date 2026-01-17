@@ -15,16 +15,18 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      // Relax some rules to warnings instead of errors
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
+      // Turn off less critical rules
+      'react/no-unescaped-entities': 'off', // Allow unescaped quotes in JSX
+      '@next/next/no-img-element': 'off', // Allow img tags (we use them intentionally)
+      
+      // Enforce strict TypeScript rules
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': 'error',
+      
+      // Keep other rules as warnings
       '@typescript-eslint/no-empty-object-type': 'warn',
-      'react/no-unescaped-entities': 'warn',
       '@next/next/no-html-link-for-pages': 'warn',
-      '@next/next/no-img-element': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-hooks/set-state-in-effect': 'warn', // Changed to warn temporarily
-      'react-hooks/static-components': 'warn', // Changed to warn temporarily
     },
   },
 ]);

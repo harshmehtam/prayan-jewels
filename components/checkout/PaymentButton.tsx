@@ -58,13 +58,13 @@ export function PaymentButton({
         ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.userId
         : `${shippingAddress.firstName} ${shippingAddress.lastName}`;
       
-      const customerEmail = (shippingAddress as any).email;
+      const customerEmail = (shippingAddress as Record<string, unknown>).email as string;
       
       if (!customerEmail) {
         throw new Error('Email address is required for order placement');
       }
       
-      const customerPhone = (shippingAddress as any).phone || '';
+      const customerPhone = (shippingAddress as Record<string, unknown>).phone as string || '';
       const guestCustomerId = user?.userId || `guest_${btoa(customerEmail + '_' + customerPhone).replace(/[^a-zA-Z0-9]/g, '').substring(0, 20)}`;
       
       // Prepare order data for server action
@@ -152,9 +152,9 @@ export function PaymentButton({
 
           // Open Razorpay checkout modal
           openRazorpayCheckout({
-            orderId: orderResult.razorpayOrder.id,
-            amount: orderResult.razorpayOrder.amount,
-            currency: orderResult.razorpayOrder.currency,
+            orderId: orderResult.razorpayOrder.id as string,
+            amount: orderResult.razorpayOrder.amount as number,
+            currency: orderResult.razorpayOrder.currency as string,
             customerName,
             customerEmail,
             customerPhone,

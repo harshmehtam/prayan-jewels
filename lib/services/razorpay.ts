@@ -77,7 +77,7 @@ export async function createRazorpayOrder(
   amount: number,
   customerId: string,
   itemCount: number
-): Promise<{ success: boolean; order?: any; error?: string }> {
+): Promise<{ success: boolean; order?: Record<string, unknown>; error?: string }> {
   try {
     const razorpay = getRazorpayClient();
 
@@ -159,7 +159,7 @@ export async function verifyRazorpayPayment(
 /**
  * Get payment status from Razorpay (server-side only)
  */
-export async function getPaymentStatus(paymentId: string): Promise<{ success: boolean; payment?: any; error?: string }> {
+export async function getPaymentStatus(paymentId: string): Promise<{ success: boolean; payment?: Record<string, unknown>; error?: string }> {
   try {
     const razorpay = getRazorpayClient();
     const payment = await razorpay.payments.fetch(paymentId);

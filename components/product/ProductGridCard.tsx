@@ -5,7 +5,7 @@ import Link from 'next/link';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { CompactStarRating } from '@/components/ui/StarRating';
 import { addToCart } from '@/app/actions/cart-actions';
-import { addToWishlist, removeFromWishlist } from '@/app/actions/wishlist-actions';
+import { addToWishlist, removeFromWishlist, isInWishlist } from '@/app/actions/wishlist-actions';
 import { formatPrice as formatPriceUtil } from '@/lib/utils/price-utils';
 import type { Product } from '@/types';
 
@@ -21,6 +21,24 @@ export default function ProductGridCard({ product, isInWishlist: initialIsInWish
   const [addToCartSuccess, setAddToCartSuccess] = useState(false);
   const [isInWishlistState, setIsInWishlistState] = useState(initialIsInWishlist);
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false);
+  const [hasCheckedWishlist, setHasCheckedWishlist] = useState(initialIsInWishlist);
+
+  // Check wishlist status on mount if not provided
+  useEffect(() => {
+    if (!hasCheckedWishlist) {
+      const checkWishlistStatus = async () => {
+        try {
+          const status = await isInWishlist(product.id);
+          setIsInWishlistState(status);
+        } catch (error) {
+          console.error('Error checking wishlist status:', error);
+        } finally {
+          setHasCheckedWishlist(true);
+        }
+      };
+      checkWishlistStatus();
+    }
+  }, [product.id, hasCheckedWishlist]);
 
   // Update wishlist state when prop changes
   useEffect(() => {

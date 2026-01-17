@@ -1,11 +1,11 @@
 import { cookiesClient } from '@/utils/amplify-utils';
+import { unstable_noStore as noStore } from 'next/cache';
 import { getImageUrl } from '@/lib/utils/image-utils';
 import type { Product, ProductSearchResult, ProductFilters } from '@/types';
 import { getProductReviews, batchGetProductReviewStats } from './review-service';
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes (URLs are valid for 2 hours, so we can cache longer)
-const BATCH_SIZE = 10; // Batch size for fetching review stats
 
 // Simple cache implementation
 interface CacheEntry<T> {
@@ -27,33 +27,33 @@ function isCacheValid<T>(entry: CacheEntry<T> | undefined): entry is CacheEntry<
 }
 
 // Helper: Transform raw product data to Product type with resolved image URLs
-async function transformProduct(product: any, stats: any): Promise<Product> {
+async function transformProduct(product: Record<string, unknown>, stats: { averageRating: number; totalReviews: number }): Promise<Product> {
   // Resolve image URLs from S3 paths in parallel for better performance
-  const imagePaths = product.images?.filter((img: string | null): img is string => img !== null) || [];
+  const imagePaths = (product.images as (string | null)[] | undefined)?.filter((img: string | null): img is string => img !== null) || [];
   
   // Use Promise.all to resolve all URLs in parallel instead of sequentially
   const imageUrlPromises = imagePaths.map((imagePath: string) => getImageUrl(imagePath, 7200)); // 2 hour expiry
   const imageUrls = (await Promise.all(imageUrlPromises)).filter((url): url is string => url !== null);
 
   return {
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    actualPrice: product.actualPrice,
+    id: product.id as string,
+    name: product.name as string,
+    description: product.description as string,
+    price: product.price as number,
+    actualPrice: product.actualPrice as number,
     images: imageUrls, // Now contains resolved URLs instead of S3 paths
-    isActive: product.isActive,
-    viewCount: product.viewCount,
-    createdAt: product.createdAt,
-    updatedAt: product.updatedAt,
+    isActive: product.isActive as boolean,
+    viewCount: product.viewCount as number,
+    createdAt: product.createdAt as string,
+    updatedAt: product.updatedAt as string,
     averageRating: stats.averageRating > 0 ? stats.averageRating : null,
     totalReviews: stats.totalReviews > 0 ? stats.totalReviews : null,
-    purchaseCount: Math.floor((product.viewCount || 0) * 0.1),
+    purchaseCount: Math.floor(((product.viewCount as number) || 0) * 0.1),
   };
 }
 
 // Helper: Batch fetch review stats for multiple products
-async function batchGetReviewStats(productIds: string[]): Promise<Map<string, any>> {
+async function batchGetReviewStats(productIds: string[]): Promise<Map<string, { averageRating: number; totalReviews: number; ratingDistribution: Record<number, number> }>> {
   // Use the optimized batch function from review-service
   return await batchGetProductReviewStats(productIds);
 }
@@ -89,20 +89,21 @@ function sortProducts(products: Product[], sortBy?: string): Product[] {
 }
 
 // Helper: Build GraphQL filter from product filters
-function buildGraphQLFilter(filters: ProductFilters): any {
-  const graphqlFilter: any = {
+function buildGraphQLFilter(filters: ProductFilters): Record<string, unknown> {
+  const graphqlFilter: Record<string, unknown> = {
     isActive: { eq: true }
   };
 
   // Price range filters
   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-    graphqlFilter.price = {};
+    const priceFilter: Record<string, number> = {};
     if (filters.minPrice !== undefined) {
-      graphqlFilter.price.ge = filters.minPrice;
+      priceFilter.ge = filters.minPrice;
     }
     if (filters.maxPrice !== undefined) {
-      graphqlFilter.price.le = filters.maxPrice;
+      priceFilter.le = filters.maxPrice;
     }
+    graphqlFilter.price = priceFilter;
   }
 
   // Search query filter
@@ -124,6 +125,8 @@ export async function getProducts(
   limit: number = 20,
   nextToken?: string
 ): Promise<ProductSearchResult> {
+  noStore(); // Explicitly mark as dynamic since we use cookiesClient
+  
   const cacheKey = createCacheKey(filters, limit, nextToken);
   const cached = searchCache.get(cacheKey);
 
@@ -209,6 +212,8 @@ export async function getProducts(
  * Get a single product by ID
  */
 export async function getProductById(id: string): Promise<Product | null> {
+  noStore(); // Explicitly mark as dynamic since we use cookiesClient
+  
   const cached = productCache.get(id);
 
   if (isCacheValid(cached)) {

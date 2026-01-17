@@ -13,7 +13,7 @@ export interface AuthResponse {
   success: boolean;
   message?: string;
   error?: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface SignUpParams {
@@ -58,8 +58,9 @@ export interface AuthUserProfile {
 export { formatPhoneForCognito, formatPhoneForDisplay, validatePhoneNumber, formatPhoneInput };
 
 // Error handling
-export const getAuthErrorMessage = (error: any): string => {
-  switch (error.name) {
+export const getAuthErrorMessage = (error: unknown): string => {
+  const err = error as { name?: string; message?: string };
+  switch (err.name) {
     case 'NotAuthorizedException':
       return 'Invalid phone number or password.';
     case 'UserNotFoundException':
@@ -77,7 +78,7 @@ export const getAuthErrorMessage = (error: any): string => {
     case 'InvalidParameterException':
       return 'Invalid request. Please check your input and try again.';
     default:
-      return error.message || 'An error occurred. Please try again.';
+      return err.message || 'An error occurred. Please try again.';
   }
 };
 
@@ -86,7 +87,7 @@ export const handleSignUp = async (params: SignUpParams): Promise<AuthResponse> 
   try {
     const formattedPhone = formatPhoneForCognito(params.phoneNumber);
     
-    const result = await signUp({
+    await signUp({
       username: formattedPhone,
       password: params.password,
       options: {
@@ -103,7 +104,7 @@ export const handleSignUp = async (params: SignUpParams): Promise<AuthResponse> 
       message: 'OTP sent to your phone',
       data: { username: formattedPhone },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -124,7 +125,7 @@ export const handleConfirmSignUp = async (params: ConfirmSignUpParams): Promise<
       success: true,
       message: 'Account verified successfully',
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -146,7 +147,7 @@ export const handleSignIn = async (params: SignInParams): Promise<AuthResponse> 
       message: 'Login successful',
       data: result,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -167,7 +168,7 @@ export const handleResetPassword = async (params: ResetPasswordParams): Promise<
       message: 'Reset code sent to your phone',
       data: { username: formattedPhone },
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -189,7 +190,7 @@ export const handleConfirmResetPassword = async (params: ConfirmResetPasswordPar
       success: true,
       message: 'Password reset successful',
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -209,7 +210,7 @@ export const handleResendCode = async (phoneNumber: string): Promise<AuthRespons
       success: true,
       message: 'OTP resent successfully',
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
       error: getAuthErrorMessage(error),
@@ -276,9 +277,10 @@ export async function getCurrentUserServer(): Promise<AuthUserProfile | null> {
       groups,
       role,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { name?: string };
     // Only log unexpected errors, not authentication failures for guest users
-    if (error?.name !== 'UserUnAuthenticatedException') {
+    if (err?.name !== 'UserUnAuthenticatedException') {
       console.error('Error getting current user:', error);
     }
     return null;
@@ -293,6 +295,7 @@ export async function isAuthenticated(): Promise<boolean> {
     const user = await getCurrentUserServer();
     return !!user;
   } catch (error) {
+    console.error('Error checking authentication:', error);
     return false;
   }
 }
@@ -305,6 +308,7 @@ export async function isAdmin(): Promise<boolean> {
     const user = await getCurrentUserServer();
     return user?.role === 'admin' || user?.role === 'super_admin';
   } catch (error) {
+    console.error('Error checking admin role:', error);
     return false;
   }
 }
@@ -317,6 +321,7 @@ export async function isSuperAdmin(): Promise<boolean> {
     const user = await getCurrentUserServer();
     return user?.role === 'super_admin';
   } catch (error) {
+    console.error('Error checking super admin role:', error);
     return false;
   }
 }

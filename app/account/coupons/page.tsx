@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import UserCoupons from '@/components/account/UserCoupons';
@@ -9,11 +9,7 @@ import { useUser } from '@/hooks/use-user';
 export default function AccountCouponsPage() {
   const router = useRouter();
   const { user, isLoading } = useUser();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = typeof window !== 'undefined';
 
   useEffect(() => {
     if (!isLoading && !user?.userId && mounted) {

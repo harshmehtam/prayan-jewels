@@ -5,9 +5,6 @@ import * as wishlistActions from '@/app/actions/wishlist-actions';
 
 interface WishlistButtonProps {
   productId: string;
-  productName: string;
-  productPrice: number;
-  productImage: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'icon' | 'button';
   className?: string;
@@ -16,9 +13,6 @@ interface WishlistButtonProps {
 
 export default function WishlistButton({ 
   productId,
-  productName,
-  productPrice,
-  productImage,
   size = 'md', 
   variant = 'icon',
   className = '',

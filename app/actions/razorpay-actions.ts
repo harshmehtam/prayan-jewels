@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createRazorpayOrder, verifyRazorpayPayment, getPaymentStatus } from '@/lib/services/razorpay';
-import { createOrder, updatePaymentStatus, updateOrderPayment, generateGuestCustomerId } from '@/lib/services/order-service';
+import { createOrder, updatePaymentStatus, generateGuestCustomerId } from '@/lib/services/order-service';
 import type { CreateOrderData } from '@/lib/services/order-service';
 import type { CartItem } from '@/types';
 
@@ -116,7 +116,7 @@ export async function createRazorpayOrderAction(orderData: CreateOrderInput) {
         couponCode: orderData.couponCode,
         couponDiscount,
         totalAmount,
-        paymentOrderId: razorpayResult.order.id,
+        paymentOrderId: razorpayResult.order.id as string,
       };
 
       const orderResult = await createOrder(orderServiceData);
@@ -129,6 +129,7 @@ export async function createRazorpayOrderAction(orderData: CreateOrderInput) {
         revalidatePath('/checkout');
       }
     } catch (dbError) {
+      console.error('Failed to create order in database:', dbError);
       databaseOrderCreated = false;
     }
 
@@ -218,6 +219,7 @@ export async function verifyRazorpayPaymentAction(
       paymentId: razorpayPaymentId,
     };
   } catch (error) {
+    console.error('Error verifying payment:', error);
     return {
       success: false,
       error: 'Payment verification failed',
@@ -251,6 +253,7 @@ export async function getPaymentStatusAction(paymentId: string) {
       payment: result.payment,
     };
   } catch (error) {
+    console.error('Error fetching payment status:', error);
     return {
       success: false,
       error: 'Failed to fetch payment status',

@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { updateOrderStatus } from '@/lib/services/order-service';
-import type { Order } from '@/types';
 import type { OrderStatus } from '@/lib/services/order-status';
 
 interface OrderCancellationProps {
-  order: Order;
+  order: {
+    id: string;
+    status?: string | null;
+  };
   onCancellationSuccess: () => void;
 }
 

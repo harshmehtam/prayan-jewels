@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { getCart } from '@/app/actions/cart-actions';
 import { getCurrentUser } from '@/app/actions/auth-actions';
 import { CheckoutSteps } from '@/components/checkout/CheckoutSteps';
@@ -12,6 +11,7 @@ import CheckoutHeader from '@/components/layout/CheckoutHeader';
 import PageLoading from '@/components/ui/PageLoading';
 import CachedAmplifyImage from '@/components/ui/CachedAmplifyImage';
 import { calculatePriceInfo, formatPrice } from '@/lib/utils/price-utils';
+import Link from 'next/link';
 import type { Address, CartItem, ShoppingCart } from '@/types';
 
 export type CheckoutStep = 'shipping' | 'billing' | 'review';
@@ -29,7 +29,6 @@ type OrderResultState = {
 } | null;
 
 export default function CheckoutPage() {
-  const router = useRouter();
   const hasLoadedCart = useRef(false);
   const isLoadingCart = useRef(false); // Prevent concurrent loads
   
@@ -105,8 +104,9 @@ export default function CheckoutPage() {
 
   // Memoize calculated values to prevent unnecessary re-renders
   const finalTotal = useMemo(() => {
-    return cart ? cart.estimatedTotal - (appliedCoupon?.discountAmount || 0) : 0;
-  }, [cart?.estimatedTotal, appliedCoupon?.discountAmount]);
+    if (!cart) return 0;
+    return cart.estimatedTotal - (appliedCoupon?.discountAmount || 0);
+  }, [cart, appliedCoupon?.discountAmount]);
 
   const items = useMemo(() => cart?.items || [], [cart?.items]);
   
@@ -208,12 +208,12 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-3">
-                <a 
+                <Link 
                   href="/products" 
                   className="w-full bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors inline-block"
                 >
                   Continue Shopping
-                </a>
+                </Link>
               </div>
 
               <div className="mt-8 pt-6 border-t border-gray-200">
@@ -293,12 +293,12 @@ export default function CheckoutPage() {
                 >
                   Try Again
                 </button>
-                <a 
+                <Link 
                   href="/products" 
                   className="w-full bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors inline-block"
                 >
                   Continue Shopping
-                </a>
+                </Link>
               </div>
 
               <div className="mt-8 pt-6 border-t border-gray-200">
@@ -331,9 +331,9 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h1>
             <p className="text-gray-600 mb-6">Add some items to your cart to continue with checkout.</p>
-            <a href="/products" className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">
+            <Link href="/products" className="bg-black text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-800 transition-colors">
               Continue Shopping
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -454,9 +454,9 @@ export default function CheckoutPage() {
                   appliedCoupon={appliedCoupon}
                   onCouponApplied={(coupon, discountAmount) => {
                     setAppliedCoupon({
-                      id: coupon.id,
-                      code: coupon.code,
-                      name: coupon.name,
+                      id: (coupon as Record<string, unknown>).id as string,
+                      code: (coupon as Record<string, unknown>).code as string,
+                      name: (coupon as Record<string, unknown>).name as string,
                       discountAmount,
                     });
                   }}

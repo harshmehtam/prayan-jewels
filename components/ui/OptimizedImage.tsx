@@ -22,18 +22,15 @@ export default function OptimizedImage({
   onError,
 }: OptimizedImageProps) {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [imgSrc, setImgSrc] = useState(src || fallbackSrc);
 
   const handleImageLoad = () => {
     setLoading(false);
-    setError(false);
     onLoad?.();
   };
 
   const handleImageError = () => {
     setLoading(false);
-    setError(true);
     setImgSrc(fallbackSrc);
     onError?.();
   };

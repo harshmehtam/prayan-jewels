@@ -178,7 +178,7 @@ export class OrderStatusService {
       }
 
       // Update order in database
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         id: update.orderId,
         status: update.newStatus
       };

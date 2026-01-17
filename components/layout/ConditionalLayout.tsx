@@ -5,10 +5,9 @@ import { Header, Footer } from "@/components/layout";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
-  promotionalCoupon?: any | null;
 }
 
-export default function ConditionalLayout({ children, promotionalCoupon = null }: ConditionalLayoutProps) {
+export default function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
 
   // Determine layout type based on pathname
@@ -23,7 +22,7 @@ export default function ConditionalLayout({ children, promotionalCoupon = null }
   // Default layout with header and footer
   return (
     <div className="min-h-screen flex flex-col">
-      <Header promotionalCoupon={promotionalCoupon} />
+      <Header />
       <main className="flex-1 pt-0">{children}</main>
       <Footer />
     </div>

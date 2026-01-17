@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tag, Copy, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getAvailableCoupons, getUserCouponUsage } from '@/app/actions/coupon-actions';
@@ -146,22 +144,34 @@ export default function UserCoupons() {
         const expired: CouponWithUsage[] = [];
 
         for (const coupon of allCoupons) {
-          const userUsageCount = await getUserCouponUsage(user.userId, coupon.id);
-          const isExpired = new Date(coupon.validUntil) < now;
-          const isUsedUp = coupon.userUsageLimit && userUsageCount >= coupon.userUsageLimit;
+          const couponData = coupon as Record<string, unknown>;
+          const userUsageCount = await getUserCouponUsage(user.userId, couponData.id as string);
+          const isExpired = new Date(couponData.validUntil as string) < now;
+          const isUsedUp = couponData.userUsageLimit && userUsageCount >= (couponData.userUsageLimit as number);
 
           const couponWithUsage: CouponWithUsage = {
-            ...coupon,
-            description: coupon.description || undefined,
-            type: coupon.type as 'percentage' | 'fixed_amount',
+            id: couponData.id as string,
+            code: couponData.code as string,
+            name: couponData.name as string,
+            description: (couponData.description as string) || undefined,
+            type: couponData.type as 'percentage' | 'fixed_amount',
+            value: couponData.value as number,
+            minimumOrderAmount: couponData.minimumOrderAmount as number | undefined,
+            maximumDiscountAmount: couponData.maximumDiscountAmount as number | undefined,
+            usageLimit: couponData.usageLimit as number | undefined,
+            usageCount: couponData.usageCount as number,
+            userUsageLimit: couponData.userUsageLimit as number | undefined,
             userUsageCount,
+            isActive: couponData.isActive as boolean,
+            validFrom: couponData.validFrom as string,
+            validUntil: couponData.validUntil as string,
           };
 
           if (isExpired) {
             expired.push(couponWithUsage);
           } else if (isUsedUp) {
             used.push(couponWithUsage);
-          } else if (coupon.isActive) {
+          } else if (couponData.isActive) {
             available.push(couponWithUsage);
           }
         }

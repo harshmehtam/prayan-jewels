@@ -4,7 +4,6 @@ import type { ProductReview, ReviewStats } from '@/types';
 
 interface ProductReviewsProps {
   productId: string;
-  productName: string;
 }
 
 // Format date helper
@@ -114,7 +113,7 @@ const ReviewItem = ({ review }: { review: ProductReview }) => {
 };
 
 // Main Server Component
-export default async function ProductReviews({ productId, productName }: ProductReviewsProps) {
+export default async function ProductReviews({ productId }: ProductReviewsProps) {
   // Fetch reviews on the server
   const { reviews, stats, errors } = await getProductReviews(productId);
 

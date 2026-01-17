@@ -25,23 +25,23 @@ export interface SavedAddress extends AddressInput {
 }
 
 // Helper function to transform address data
-const transformAddress = (addr: any): SavedAddress => ({
-  id: addr.id,
-  userId: addr.userId,
+const transformAddress = (addr: Record<string, unknown>): SavedAddress => ({
+  id: addr.id as string,
+  userId: addr.userId as string,
   type: addr.type as 'shipping' | 'billing',
-  firstName: addr.firstName || '',
-  lastName: addr.lastName || '',
-  email: addr.email || '',
-  phone: addr.phone || '',
-  addressLine1: addr.addressLine1 || '',
-  addressLine2: addr.addressLine2 || undefined,
-  city: addr.city || '',
-  state: addr.state || '',
-  postalCode: addr.postalCode || '',
-  country: addr.country || 'India',
-  isDefault: addr.isDefault || false,
-  createdAt: addr.createdAt,
-  updatedAt: addr.updatedAt,
+  firstName: (addr.firstName as string) || '',
+  lastName: (addr.lastName as string) || '',
+  email: (addr.email as string) || '',
+  phone: (addr.phone as string) || '',
+  addressLine1: (addr.addressLine1 as string) || '',
+  addressLine2: (addr.addressLine2 as string) || undefined,
+  city: (addr.city as string) || '',
+  state: (addr.state as string) || '',
+  postalCode: (addr.postalCode as string) || '',
+  country: (addr.country as string) || 'India',
+  isDefault: (addr.isDefault as boolean) || false,
+  createdAt: addr.createdAt as string,
+  updatedAt: addr.updatedAt as string,
 });
 
 /**

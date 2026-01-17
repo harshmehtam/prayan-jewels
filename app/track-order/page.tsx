@@ -6,17 +6,20 @@ import { cancelOrderForGuest } from '@/app/actions/order-cancellation-actions';
 import { OrderCancellationService } from '@/lib/services/order-cancellation';
 import { CancelOrderDialog } from '@/components/order/CancelOrderDialog';
 import { Toast } from '@/components/ui/Toast';
+import type { Schema } from '@/amplify/data/resource';
+
+type Order = Schema['Order']['type'];
 
 export default function TrackOrderPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [confirmationNumber, setConfirmationNumber] = useState('');
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [orderToCancel, setOrderToCancel] = useState<any>(null);
+  const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info'; isVisible: boolean }>({
     message: '',
     type: 'info',
@@ -37,17 +40,20 @@ export default function TrackOrderPage() {
 
     try {
       // Get order directly using the action
-      const order = await getOrderByConfirmationNumber(confirmationNumber);
+      const orderData = await getOrderByConfirmationNumber(confirmationNumber);
       
-      if (!order) {
+      if (!orderData) {
         setError('Order not found');
         setLoading(false);
         return;
       }
 
+      // Cast to Order type
+      const order = orderData as unknown as Order;
+
       // Validate guest credentials
-      const emailMatch = order.customerEmail.toLowerCase() === email.toLowerCase();
-      const phoneMatch = order.customerPhone.replace(/\D/g, '') === phone.replace(/\D/g, '');
+      const emailMatch = order.customerEmail?.toLowerCase() === email.toLowerCase();
+      const phoneMatch = order.customerPhone?.replace(/\D/g, '') === phone.replace(/\D/g, '');
       
       if (!emailMatch || !phoneMatch) {
         setError('Order credentials do not match');
@@ -68,7 +74,7 @@ export default function TrackOrderPage() {
     setToast({ message, type, isVisible: true });
   };
 
-  const canCancelOrder = (order: any) => {
+  const canCancelOrder = (order: Order) => {
     // Check if order can be cancelled based on status
     if (!OrderCancellationService.canCancelOrder(order)) {
       return false;
@@ -82,7 +88,7 @@ export default function TrackOrderPage() {
     return true;
   };
 
-  const handleCancelOrderClick = (order: any) => {
+  const handleCancelOrderClick = (order: Order) => {
     setOrderToCancel(order);
     setShowCancelDialog(true);
   };
@@ -121,7 +127,7 @@ export default function TrackOrderPage() {
     }
   };
 
-  const getStatusColor = (status: string | null) => {
+  const getStatusColor = (status: string | null | undefined) => {
     switch (status) {
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'processing': return 'text-blue-600 bg-blue-100';
@@ -132,7 +138,7 @@ export default function TrackOrderPage() {
     }
   };
 
-  const getPaymentStatusColor = (status: string | null) => {
+  const getPaymentStatusColor = (status: string | null | undefined) => {
     switch (status) {
       case 'paid': return 'text-green-600 bg-green-100';
       case 'pending': return 'text-yellow-600 bg-yellow-100';
@@ -337,7 +343,7 @@ export default function TrackOrderPage() {
                   <div className="border-t border-gray-200 pt-4 mt-4">
                     <h4 className="font-medium text-gray-900 mb-2">Order Items</h4>
                     <div className="space-y-2">
-                      {order.items.map((item: any) => (
+                      {order.items.map((item: { id: string; productName: string; quantity: number; unitPrice: number; totalPrice: number }) => (
                         <div key={item.id} className="flex justify-between items-center text-sm">
                           <div>
                             <p className="font-medium text-gray-900">{item.productName}</p>

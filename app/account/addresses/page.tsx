@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/hooks/use-user';
-import Link from 'next/link';
 import * as addressActions from '@/app/actions/address-actions';
 import type { SavedAddress, AddressInput } from '@/lib/services/address-service';
 import { useRouter } from 'next/navigation';
@@ -18,18 +17,7 @@ export default function AddressesPage() {
   const [addingAddressType, setAddingAddressType] = useState<'shipping' | 'billing' | null>(null);
   const [isFormLoading, setIsFormLoading] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth/login');
-      return;
-    }
-
-    if (user?.userId) {
-      loadAddresses();
-    }
-  }, [user, authLoading, router]);
-
-  const loadAddresses = async () => {
+  const loadAddresses = useCallback(async () => {
     if (!user?.userId) return;
 
     setIsLoading(true);
@@ -41,7 +29,18 @@ export default function AddressesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.userId]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (user?.userId) {
+      loadAddresses();
+    }
+  }, [user, authLoading, router, loadAddresses]);
 
   const handleDeleteAddress = async (addressId: string) => {
     if (!confirm('Are you sure you want to delete this address?')) {

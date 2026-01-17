@@ -37,7 +37,7 @@ export const canUserReviewProduct = async (customerId: string, productId: string
     }
 
     // Get order items for this product from customer's orders
-    let orderItems: any[] = [];
+    let orderItems: Array<Record<string, unknown>> = [];
     
     // Query order items for each order ID separately to avoid 'in' filter issue
     for (const orderId of orderIds) {
@@ -77,10 +77,10 @@ export const canUserReviewProduct = async (customerId: string, productId: string
     const orderItemsWithDates = orderItems.map(item => {
       const order = orders.find(o => o.id === item.orderId);
       return {
-        orderId: item.orderId,
-        orderItemId: item.id,
-        productName: item.productName,
-        orderDate: order?.createdAt || item.createdAt
+        orderId: item.orderId as string,
+        orderItemId: item.id as string,
+        productName: item.productName as string,
+        orderDate: (order?.createdAt || item.createdAt) as string
       };
     });
 

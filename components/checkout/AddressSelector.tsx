@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as addressActions from '@/app/actions/address-actions';
 import type { SavedAddress } from '@/lib/services/address-service';
 import { useUser } from '@/hooks/use-user';
@@ -25,7 +25,7 @@ export function AddressSelector({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(selectedAddressId || null);
 
-  const loadAddresses = async () => {
+  const loadAddresses = useCallback(async () => {
     if (!user?.userId) {
       setIsLoading(false);
       return;
@@ -49,14 +49,14 @@ export function AddressSelector({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.userId, type, selectedId, onAddressSelect]);
 
   // Load addresses when component mounts or type changes
   useEffect(() => {
     setAddresses([]);
     setSelectedId(null);
     loadAddresses();
-  }, [type, user?.userId]);
+  }, [type, user?.userId, loadAddresses]);
 
   const handleAddressSelect = (address: SavedAddress) => {
     setSelectedId(address.id);

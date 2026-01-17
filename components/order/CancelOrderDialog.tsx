@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 interface CancelOrderDialogProps {
   isOpen: boolean;
   onClose: () => void;

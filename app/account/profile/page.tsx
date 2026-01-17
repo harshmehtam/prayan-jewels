@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@/hooks/use-user';
 import { updateUserAttributes, fetchUserAttributes } from 'aws-amplify/auth';
 import Link from 'next/link';
@@ -31,22 +31,15 @@ export default function ProfilePage() {
     preferredCategories: [] as string[],
   });
 
-  // Initialize form data when userProfile loads
-  useEffect(() => {
-    if (user) {
-      loadUserProfile();
-    }
-  }, [user]);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!user?.userId) return;
 
     try {
       const attributes = await fetchUserAttributes();
       setFormData({
-        firstName: attributes.firstName || '',
-        lastName: attributes.lastName || '',
-        phone: attributes.phone || '',
+        firstName: attributes.given_name || '',
+        lastName: attributes.family_name || '',
+        phone: attributes.phone_number?.replace('+91', '') || '',
         dateOfBirth: '',
         newsletter: false,
         smsUpdates: false,
@@ -55,7 +48,14 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error loading user profile:', error);
     }
-  };
+  }, [user?.userId]);
+
+  // Initialize form data when userProfile loads
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user, loadUserProfile]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;

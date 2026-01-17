@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { getProducts } from '@/lib/services/product-service';
-import { batchCheckWishlist } from '@/app/actions/wishlist-actions';
 import ProductGridCard from './ProductGridCard';
 
 interface ProductGridProps {
@@ -18,10 +17,6 @@ export default async function ProductGrid({
 }: ProductGridProps) {
   const result = await getProducts({}, limit);
   const products = result.products;
-
-  // Batch check wishlist status for all products
-  const productIds = products.map(p => p.id);
-  const wishlistStatus = await batchCheckWishlist(productIds);
 
   if (products.length === 0) {
     return (
@@ -59,7 +54,6 @@ export default async function ProductGrid({
             <ProductGridCard 
               key={product.id} 
               product={product}
-              isInWishlist={wishlistStatus[product.id] || false}
             />
           ))}
         </div>

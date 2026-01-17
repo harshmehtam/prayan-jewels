@@ -1,3 +1,5 @@
+import type { AuthUserProfile } from '@/lib/services/auth-service';
+
 // Role-based access control utilities for admin authentication
 
 export type UserRole = 'customer' | 'admin' | 'super_admin';
@@ -150,14 +152,14 @@ export function getRolePermissions(role: UserRole): Permission[] {
 /**
  * Check if a user can access admin features
  */
-export function canAccessAdmin(userProfile: any): boolean {
+export function canAccessAdmin(userProfile: AuthUserProfile | null | undefined): boolean {
   return isAdmin(userProfile?.role);
 }
 
 /**
  * Check if a user can manage other admin users
  */
-export function canManageAdmins(userProfile: any): boolean {
+export function canManageAdmins(userProfile: AuthUserProfile | null | undefined): boolean {
   return isSuperAdmin(userProfile?.role);
 }
 

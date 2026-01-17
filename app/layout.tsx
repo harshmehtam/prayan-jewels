@@ -3,7 +3,6 @@ import { ConditionalLayout } from "@/components/layout";
 import type { Metadata } from "next";
 import "./globals.css";
 import "@aws-amplify/ui-react/styles.css";
-import { getHeaderPromotionalCoupon } from '@/app/actions/coupon-actions';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,16 +24,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const promotionalCoupon = await getHeaderPromotionalCoupon();
-
-  const serializedCoupon = promotionalCoupon ? {
-    id: promotionalCoupon.id,
-    code: promotionalCoupon.code,
-    type: promotionalCoupon.type,
-    value: promotionalCoupon.value,
-    minimumOrderAmount: promotionalCoupon.minimumOrderAmount,
-  } : null;
-
   return (
     <html lang="en">
       <body
@@ -43,7 +32,7 @@ export default async function RootLayout({
         <div
           className={`relative pt-10 xs:pt-6`}
         >
-          <ConditionalLayout promotionalCoupon={serializedCoupon}>{children}</ConditionalLayout>
+          <ConditionalLayout>{children}</ConditionalLayout>
         </div>
       </body>
     </html>

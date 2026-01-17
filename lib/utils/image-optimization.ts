@@ -94,7 +94,7 @@ export function generateSrcSet(
 ): string {
   const finalSizes = { ...DEFAULT_RESPONSIVE_SIZES, ...sizes };
   
-  const srcSetEntries = Object.entries(finalSizes).map(([breakpoint, width]) => {
+  const srcSetEntries = Object.entries(finalSizes).map(([, width]) => {
     const optimizedUrl = getOptimizedImageUrl(originalUrl, { width });
     return `${optimizedUrl} ${width}w`;
   });

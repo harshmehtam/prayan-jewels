@@ -37,7 +37,7 @@ export class PDFInvoiceService {
     let yPosition = 20;
 
     // Helper function to add text with automatic line wrapping
-    const addText = (text: string, x: number, y: number, options?: any) => {
+    const addText = (text: string, x: number, y: number, options?: { align?: 'left' | 'center' | 'right'; lineHeight?: number }) => {
       doc.text(text, x, y, options);
       return y + (options?.lineHeight || 6);
     };
@@ -148,7 +148,6 @@ export class PDFInvoiceService {
 
     // Items
     doc.setFont('helvetica', 'normal');
-    let itemSubtotal = 0;
     
     items.forEach((item, index) => {
       doc.text((index + 1).toString(), 25, yPosition);
@@ -170,7 +169,6 @@ export class PDFInvoiceService {
       doc.text(item.unitPrice.toLocaleString('en-IN'), 140, yPosition);
       doc.text(item.totalPrice.toLocaleString('en-IN'), 170, yPosition);
       
-      itemSubtotal += item.totalPrice;
       yPosition += 8;
     });
 

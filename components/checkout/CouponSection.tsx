@@ -22,7 +22,7 @@ interface CouponSectionProps {
     name: string;
     discountAmount: number;
   } | null;
-  onCouponApplied: (coupon: any, discountAmount: number) => void;
+  onCouponApplied: (coupon: Record<string, unknown>, discountAmount: number) => void;
   onCouponRemoved: () => void;
 }
 
@@ -37,7 +37,7 @@ export default function CouponSection({
   const [couponCode, setCouponCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const [availableCoupons, setAvailableCoupons] = useState<any[]>([]);
+  const [availableCoupons, setAvailableCoupons] = useState<Array<Record<string, unknown>>>([]);
   const [showAvailableCoupons, setShowAvailableCoupons] = useState(false);
   const { toast } = useToast();
 
@@ -225,36 +225,40 @@ export default function CouponSection({
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Available Coupons:</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {availableCoupons.map((coupon) => (
-                <div
-                  key={coupon.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                  onClick={() => handleQuickApply(coupon.code)}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="font-mono text-xs">
-                        {coupon.formatted.code}
-                      </Badge>
-                      <span className="font-medium text-sm">{coupon.formatted.discount}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {coupon.formatted.name}
-                    </p>
-                    {coupon.formatted.conditions && (
-                      <p className="text-xs text-muted-foreground">
-                        {coupon.formatted.conditions}
+              {availableCoupons.map((coupon) => {
+                const couponData = coupon as Record<string, unknown>;
+                const formatted = couponData.formatted as Record<string, unknown>;
+                return (
+                  <div
+                    key={couponData.id as string}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
+                    onClick={() => handleQuickApply(couponData.code as string)}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="font-mono text-xs">
+                          {formatted.code as string}
+                        </Badge>
+                        <span className="font-medium text-sm">{formatted.discount as string}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatted.name as string}
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Valid until {coupon.formatted.validUntil}
-                    </p>
+                      {(formatted.conditions as string) && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatted.conditions as string}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Valid until {formatted.validUntil as string}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm">
+                      Apply
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Apply
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <Button
               variant="ghost"

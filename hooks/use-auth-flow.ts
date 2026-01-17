@@ -63,7 +63,8 @@ export const useAuthFlow = ({
     setIsLoading(false);
     
     if (result.success) {
-      return { success: true, username: result.data?.username };
+      const username = (result.data as { username?: string })?.username;
+      return { success: true, username };
     } else {
       setError(result.error || 'Sign up failed');
       return { success: false };
@@ -129,7 +130,8 @@ export const useAuthFlow = ({
     setIsLoading(false);
 
     if (result.success) {
-      return { success: true, username: result.data?.username };
+      const username = (result.data as { username?: string })?.username;
+      return { success: true, username };
     } else {
       setError(result.error || 'Password reset failed');
       return { success: false };

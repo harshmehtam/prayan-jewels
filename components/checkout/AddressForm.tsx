@@ -120,7 +120,7 @@ export function AddressForm({
       setShowAddressSelector(true);
       setShowForm(false);
     }
-  }, [user?.userId, editingAddress?.id, authLoading]);
+  }, [user?.userId, editingAddress?.id, authLoading, user, editingAddress]);
 
   // Load initial data when provided
   useEffect(() => {
@@ -128,8 +128,8 @@ export function AddressForm({
       const newFormData = {
         firstName: initialData.firstName || '',
         lastName: initialData.lastName || '',
-        email: (initialData as any).email || '',
-        phone: (initialData as any).phone || '',
+        email: (initialData as Record<string, unknown>).email as string || '',
+        phone: (initialData as Record<string, unknown>).phone as string || '',
         addressLine1: initialData.addressLine1 || '',
         addressLine2: initialData.addressLine2 || '',
         city: initialData.city || '',

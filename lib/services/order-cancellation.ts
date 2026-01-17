@@ -1,60 +1,15 @@
 // Server-side order cancellation service using Amplify Gen2
 import { cookiesClient } from '@/utils/amplify-utils';
 import { EmailService } from './email';
-import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import type { Schema } from '@/amplify/data/resource';
 
-/**
- * Get SNS client with proper credentials
- */
-function getSNSClient(): SNSClient | null {
-  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-    console.warn('AWS credentials not configured for SMS service');
-    return null;
-  }
-
-  return new SNSClient({
-    region: process.env.AWS_REGION || 'ap-south-1',
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    },
-  });
-}
-
-/**
- * Send SMS using AWS SNS
- */
-// async function sendSMS(phoneNumber: string, message: string): Promise<boolean> {
-//   try {
-//     const snsClient = getSNSClient();
-//     if (!snsClient) {
-//       console.log('SMS service not configured - skipping SMS notification');
-//       return false;
-//     }
-
-//     // Format phone number for international format
-//     const cleanPhone = phoneNumber.replace(/\D/g, '');
-//     const formattedPhone = cleanPhone.startsWith('91') ? `+${cleanPhone}` : `+91${cleanPhone}`;
-
-//     const command = new PublishCommand({
-//       PhoneNumber: formattedPhone,
-//       Message: message,
-//     });
-
-//     const result = await snsClient.send(command);
-//     console.log('SMS sent successfully:', result.MessageId);
-//     return true;
-//   } catch (error) {
-//     console.error('Error sending SMS:', error);
-//     return false;
-//   }
-// }
+type Order = Schema['Order']['type'];
 
 /**
  * Send cancellation notifications (email and SMS)
  */
 async function sendCancellationNotifications(
-  order: any,
+  order: Order,
   confirmationNumber: string
 ): Promise<void> {
   try {
@@ -102,7 +57,7 @@ export class OrderCancellationService {
       const orderResult = await client.models.Order.get({ id: orderId });
       
       if (orderResult.errors && orderResult.errors.length > 0) {
-        throw new Error(`Failed to fetch order: ${orderResult.errors.map((e: any) => e.message).join(', ')}`);
+        throw new Error(`Failed to fetch order: ${orderResult.errors.map((e: { message: string }) => e.message).join(', ')}`);
       }
 
       if (!orderResult.data) {
@@ -151,7 +106,7 @@ export class OrderCancellationService {
       });
 
       if (updateResult.errors && updateResult.errors.length > 0) {
-        throw new Error(`Failed to cancel order: ${updateResult.errors.map((e: any) => e.message).join(', ')}`);
+        throw new Error(`Failed to cancel order: ${updateResult.errors.map((e: { message: string }) => e.message).join(', ')}`);
       }
 
       // Handle refund for paid orders
@@ -190,7 +145,7 @@ export class OrderCancellationService {
       const orderResult = await client.models.Order.get({ id: orderId }, { authMode: 'iam' });
       
       if (orderResult.errors && orderResult.errors.length > 0) {
-        throw new Error(`Failed to fetch order: ${orderResult.errors.map((e: any) => e.message).join(', ')}`);
+        throw new Error(`Failed to fetch order: ${orderResult.errors.map((e: { message: string }) => e.message).join(', ')}`);
       }
 
       if (!orderResult.data) {
@@ -242,7 +197,7 @@ export class OrderCancellationService {
       }, { authMode: 'iam' });
 
       if (updateResult.errors && updateResult.errors.length > 0) {
-        throw new Error(`Failed to cancel order: ${updateResult.errors.map((e: any) => e.message).join(', ')}`);
+        throw new Error(`Failed to cancel order: ${updateResult.errors.map((e: { message: string }) => e.message).join(', ')}`);
       }
 
       // Handle refund for paid orders
@@ -273,19 +228,19 @@ export class OrderCancellationService {
   }
 
   // Check if order can be cancelled
-  static canCancelOrder(order: any): boolean {
+  static canCancelOrder(order: Order): boolean {
     const eligibleStatuses = ['pending', 'processing'];
-    return order.status && eligibleStatuses.includes(order.status);
+    return order.status ? eligibleStatuses.includes(order.status) : false;
   }
 
   // Check if order belongs to authenticated user (not guest)
-  static isAuthenticatedUserOrder(order: any): boolean {
-    return order.customerId && !order.customerId.startsWith('guest_');
+  static isAuthenticatedUserOrder(order: Order): boolean {
+    return order.customerId ? !order.customerId.startsWith('guest_') : false;
   }
 
   // Check if order belongs to guest user
-  static isGuestOrder(order: any): boolean {
-    return order.customerId && order.customerId.startsWith('guest_');
+  static isGuestOrder(order: Order): boolean {
+    return order.customerId ? order.customerId.startsWith('guest_') : false;
   }
 
   // Get cancellation reason message
